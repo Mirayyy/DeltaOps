@@ -11,6 +11,8 @@ import EquipmentTag from '../components/common/EquipmentTag.vue'
 import SlotConfigurator from '../components/admin/SlotConfigurator.vue'
 import ImageLightbox from '../components/common/ImageLightbox.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
+import { useTelegram } from '../composables/useTelegram'
+import { useToast } from '../composables/useToast'
 
 const auth = useAuthStore()
 const roster = useRosterStore()
@@ -38,6 +40,18 @@ const currentMission = computed(() => missionsStore.getMission(activeTab.value))
 
 const slots = computed(() => gamesStore.getSlots(activeTab.value))
 const isAdmin = computed(() => auth.isUserAdmin)
+const telegram = useTelegram()
+const toast = useToast()
+
+async function sendLineupToTelegram() {
+  const msg = telegram.buildLineupSummaryMessage(gamesStore.games, roster.players)
+  const result = await telegram.sendMessage(msg)
+  if (result.ok) {
+    toast.success(result.demo ? 'Расстановка (демо)' : 'Расстановка отправлена в Telegram')
+  } else {
+    toast.error('Ошибка: ' + result.error)
+  }
+}
 
 // Gallery: collect all images from all sides
 const galleryImages = computed(() => {
@@ -228,11 +242,18 @@ function readinessDot(status) {
         <h1 class="text-2xl font-bold">Расстановка</h1>
         <p class="text-sm text-neutral-500">Неделя {{ currentWeekId }}</p>
       </div>
-      <button v-if="isAdmin && currentMission"
-        @click="showSlotConfigurator = true"
-        class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-500 text-sm text-neutral-300 hover:text-white font-medium rounded-lg transition-colors">
-        Настроить слоты
-      </button>
+      <div v-if="isAdmin" class="flex items-center gap-2">
+        <button v-if="slots.length"
+          @click="sendLineupToTelegram" :disabled="telegram.sending.value"
+          class="px-3 py-2 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/30 text-sm text-blue-400 font-medium rounded-lg transition-colors disabled:opacity-50">
+          {{ telegram.sending.value ? '...' : 'В Telegram' }}
+        </button>
+        <button v-if="currentMission"
+          @click="showSlotConfigurator = true"
+          class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-500 text-sm text-neutral-300 hover:text-white font-medium rounded-lg transition-colors">
+          Настроить слоты
+        </button>
+      </div>
     </div>
 
     <!-- Tabs -->

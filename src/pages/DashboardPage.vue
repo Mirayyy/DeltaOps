@@ -99,7 +99,26 @@ async function sendReminder() {
   const msg = telegram.buildReminderMessage(allUnresponded.value, currentWeekId.value)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
-    toast.success(result.demo ? 'Напоминание (демо) — см. консоль' : 'Напоминание отправлено в Telegram')
+    toast.success(result.demo ? 'Напоминание (демо) — см. консоль' : 'Напоминание отправлено')
+  } else {
+    toast.error('Ошибка: ' + result.error)
+  }
+}
+
+async function sendMissionsToTelegram() {
+  const missionsData = {}
+  for (const g of games.value) {
+    const m = missionsStore.getMission(g.id)
+    if (m) missionsData[g.id] = m
+  }
+  if (!Object.keys(missionsData).length) {
+    toast.error('Нет загруженных миссий')
+    return
+  }
+  const msg = telegram.buildMissionsMessage(missionsData, gameDates.value)
+  const result = await telegram.sendMessage(msg)
+  if (result.ok) {
+    toast.success(result.demo ? 'Миссии (демо) — см. консоль' : 'Миссии отправлены в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
   }
@@ -177,7 +196,14 @@ async function onWeekFinalized() {
 
     <!-- Missions -->
     <div class="mb-6">
-      <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Миссии недели</h3>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Миссии недели</h3>
+        <button v-if="auth.isUserAdmin && missionsStore.availableMissions.length"
+          @click="sendMissionsToTelegram" :disabled="telegram.sending.value"
+          class="text-[10px] px-2 py-1 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 rounded-lg transition-colors disabled:opacity-50">
+          {{ telegram.sending.value ? '...' : 'Отправить в Telegram' }}
+        </button>
+      </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <MissionCard
           v-for="game in games" :key="game.id"

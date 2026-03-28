@@ -1,11 +1,10 @@
 import { ref } from 'vue'
 
 /**
- * Telegram Bot API integration for sending notifications.
- * Bot token and chat ID from env vars (.env.local).
- * Falls back to demo mode (console.log) when not configured.
+ * Telegram Bot API integration for DeltaOps notifications.
  *
- * Players must have `telegramUsername` field for @mentions to work.
+ * Env vars: VITE_TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_CHAT_ID
+ * Players need `telegramUsername` for @mentions.
  */
 
 const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || ''
@@ -17,10 +16,8 @@ export function useTelegram() {
 
   const isConfigured = !!(botToken && chatId)
 
-  /**
-   * Send a message to the configured Telegram chat.
-   * Supports HTML formatting: <b>, <i>, <a>, <code>
-   */
+  // ─── Core ────────────────────────────────────────────
+
   async function sendMessage(text, options = {}) {
     sending.value = true
     lastError.value = null
@@ -57,27 +54,122 @@ export function useTelegram() {
     }
   }
 
-  /**
-   * Format player name with @mention if telegramUsername is available.
-   * In groups: @username creates a clickable mention.
-   * Without username: just shows nickname.
-   */
-  function formatPlayerMention(player) {
+  function mention(player) {
     if (player.telegramUsername) {
-      const username = player.telegramUsername.replace(/^@/, '')
-      return `@${username}`
+      return `@${player.telegramUsername.replace(/^@/, '')}`
     }
     return player.nickname
   }
 
-  /**
-   * Build reminder for players who haven't responded.
-   */
+  // ─── Message builders ────────────────────────────────
+
+  /** Missions loaded — sent to group */
+  function buildMissionsMessage(missions, gameDates) {
+    const gameLabels = {
+      friday_1: 'Пятница 1', friday_2: 'Пятница 2',
+      saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
+    }
+
+    const lines = [
+      '<b>DeltaOps — Миссии на неделю</b>',
+      '',
+    ]
+
+    if (gameDates) {
+      lines.push(`Пт: ${gameDates.friday || '—'}  |  Сб: ${gameDates.saturday || '—'}`)
+      lines.push('')
+    }
+
+    for (const [slot, mission] of Object.entries(missions)) {
+      if (!mission) continue
+      const label = gameLabels[slot] || slot
+      const title = mission.missionTitle || mission.title || '—'
+      const map = mission.map || ''
+      const sides = (mission.sides || []).map(s => {
+        const name = s.name || ''
+        const count = s.playerCount || s.players || 0
+        const role = s.role || ''
+        return `${name} (${count}, ${role})`
+      }).join(' vs ')
+
+      lines.push(`<b>${label}:</b> ${title}`)
+      if (map) lines.push(`  Карта: ${map}`)
+      if (sides) lines.push(`  ${sides}`)
+      if (mission.sourceUrl) lines.push(`  <a href="${mission.sourceUrl}">TSG</a>`)
+      lines.push('')
+    }
+
+    lines.push('Отметьте посещаемость на сайте!')
+    return lines.join('\n')
+  }
+
+  /** Lineup notification — sent to individual player DM or group */
+  function buildLineupMessage(playerNickname, playerSlots, gameDates) {
+    const gameLabels = {
+      friday_1: 'Пятница 1', friday_2: 'Пятница 2',
+      saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
+    }
+
+    const lines = [
+      `<b>DeltaOps — Расстановка</b>`,
+      `Игрок: <b>${playerNickname}</b>`,
+      '',
+    ]
+
+    let hasSlot = false
+    for (const [gameId, slot] of Object.entries(playerSlots)) {
+      if (!slot) continue
+      hasSlot = true
+      const label = gameLabels[gameId] || gameId
+      const equipment = (slot.equipment || []).join(', ')
+      lines.push(`<b>${label}:</b> ${slot.name} (${slot.squad})`)
+      if (equipment) lines.push(`  Снаряжение: ${equipment}`)
+    }
+
+    if (!hasSlot) {
+      lines.push('Ты не в расстановке на эту неделю.')
+    }
+
+    return lines.join('\n')
+  }
+
+  /** Lineup published — group summary */
+  function buildLineupSummaryMessage(gamesData, rosterPlayers) {
+    const gameLabels = {
+      friday_1: 'Пятница 1', friday_2: 'Пятница 2',
+      saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
+    }
+
+    const resolveNick = (playerId) => {
+      const p = rosterPlayers.find(r => r.uid === playerId)
+      return p ? p.nickname : '—'
+    }
+
+    const lines = [
+      '<b>DeltaOps — Расстановка опубликована</b>',
+      '',
+    ]
+
+    for (const gameId of ['friday_1', 'friday_2', 'saturday_1', 'saturday_2']) {
+      const game = gamesData[gameId]
+      if (!game || !game.slots || !game.slots.length) continue
+
+      const assigned = game.slots.filter(s => s.playerId)
+      if (!assigned.length) continue
+
+      lines.push(`<b>${gameLabels[gameId]}:</b> ${assigned.length}/${game.slots.length} слотов`)
+      for (const slot of assigned) {
+        lines.push(`  ${slot.name} — ${resolveNick(slot.playerId)}`)
+      }
+      lines.push('')
+    }
+
+    return lines.join('\n')
+  }
+
+  /** Reminder for unresponded players */
   function buildReminderMessage(unrespondedPlayers, weekId) {
-    const mentions = unrespondedPlayers.map(p => {
-      const mention = formatPlayerMention(p)
-      return `  - ${mention} (${p.nickname})`
-    })
+    const mentions = unrespondedPlayers.map(p => `  - ${mention(p)} (${p.nickname})`)
 
     return [
       `<b>DeltaOps — Неделя ${weekId}</b>`,
@@ -89,9 +181,7 @@ export function useTelegram() {
     ].join('\n')
   }
 
-  /**
-   * Build new week announcement.
-   */
+  /** New week announcement */
   function buildNewWeekMessage(weekId, fridayDate, saturdayDate) {
     return [
       `<b>DeltaOps — Новая неделя ${weekId}</b>`,
@@ -103,27 +193,28 @@ export function useTelegram() {
     ].join('\n')
   }
 
-  /**
-   * Build week finalized summary.
-   */
+  /** Week finalized summary */
   function buildWeekSummaryMessage(weekId, stats) {
     const lines = [
       `<b>DeltaOps — Неделя ${weekId} завершена</b>`,
       '',
     ]
-
     if (stats && stats.length) {
       for (const g of stats) {
         lines.push(`${g.label}: ${g.confirmed} пришли, ${g.absent} нет, ${g.noResponse} без ответа`)
       }
     }
-
     return lines.join('\n')
   }
 
   return {
     isConfigured, sending, lastError,
-    sendMessage, formatPlayerMention,
-    buildReminderMessage, buildNewWeekMessage, buildWeekSummaryMessage,
+    sendMessage, mention,
+    buildMissionsMessage,
+    buildLineupMessage,
+    buildLineupSummaryMessage,
+    buildReminderMessage,
+    buildNewWeekMessage,
+    buildWeekSummaryMessage,
   }
 }
