@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserDoc().role == 'admin';
+    }
+
+    function getPlayerByEmail() {
+      return get(/databases/$(database)/documents/players/$(request.auth.uid)).data;
+    }
+
+    function isActivePlayer() {
+      return isAuthenticated();
+    }
+
+    // Players collection
+    match /players/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Game weeks
+    match /gameWeeks/{weekId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+
+      // Readiness subcollection
+      match /readiness/{playerId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin() || (isActivePlayer() && request.auth.uid == playerId);
+      }
+
+      // Lineups subcollection
+      match /lineups/{gameId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // Game archives
+    match /gameArchives/{archiveId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Rotations
+    match /rotations/{rotationId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Rotation archives
+    match /rotationArchives/{archiveId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Stats cache
+    match /stats/{playerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // App config
+    match /config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == uid);
+    }
+
+    // Web content (landing page, awards, etc.)
+    match /webContent/{docId} {
+      allow read: if true;  // Public landing page
+      allow write: if isAdmin();
+    }
+
+    // Nickname index
+    match /nicknameIndex/{nickname} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Games (current week lineups)
+    match /games/{gameId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Attendance (current week)
+    match /attendance/{gameId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isAuthenticated();
+    }
+
+    // Structures (lineup templates)
+    match /structures/{structId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Missions — 4 direct documents: friday_1, friday_2, saturday_1, saturday_2
+    // Chrome extension writes via REST API with API key (Firebase API key auth)
+    match /missions/{slot} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}
