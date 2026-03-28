@@ -22,6 +22,7 @@ const API_BASE = 'https://stats.tsgames.ru/api/v1'
  */
 
 export const useStatsStore = defineStore('stats', () => {
+  const squadConfig = useSquadConfig()
   const allStats = ref([])          // player-stats
   const infantryStats = ref([])     // infantry-stats
   const vehicleStats = ref([])      // vehicle-stats
@@ -65,8 +66,7 @@ export const useStatsStore = defineStore('stats', () => {
 
   /** Get DELTA squad stats */
   const deltaSquad = computed(() => {
-    const squad = useSquadConfig()
-    return squadStats.value.find(s => s.name === squad.name) || null
+    return squadStats.value.find(s => s.name === squadConfig.name) || null
   })
 
   /** Filter any stats array by a set of nicknames (case-insensitive) */

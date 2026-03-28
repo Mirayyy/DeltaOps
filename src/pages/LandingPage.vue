@@ -89,7 +89,8 @@ async function fetchStats() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await squad.fetch()
   fetchStats()
   webContent.fetchContent()
   if (!roster.players.length) roster.fetchPlayers()
