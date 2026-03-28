@@ -105,9 +105,15 @@ async function sendReminder() {
   }
 }
 
-function onWeekFinalized() {
+async function onWeekFinalized() {
   showFinalizer.value = false
   toast.success('Неделя завершена, архивы созданы')
+
+  // Send Telegram notification about week finalization
+  if (telegram.isConfigured) {
+    const msg = telegram.buildWeekSummaryMessage(currentWeekId.value)
+    await telegram.sendMessage(msg)
+  }
 }
 </script>
 
@@ -204,7 +210,11 @@ function onWeekFinalized() {
           @click="router.push({ name: 'player-profile', params: { id: p.uid } })"
           class="text-xs px-2 py-1 bg-neutral-800 rounded-lg text-neutral-300 cursor-pointer hover:bg-neutral-700 transition-colors">
           {{ p.nickname }}
+          <span v-if="p.telegramUsername" class="text-neutral-500 ml-0.5">@{{ p.telegramUsername.replace(/^@/, '') }}</span>
         </span>
+      </div>
+      <div v-if="!telegram.isConfigured" class="mt-2 text-[10px] text-neutral-600">
+        Telegram не настроен — добавьте VITE_TELEGRAM_BOT_TOKEN и VITE_TELEGRAM_CHAT_ID
       </div>
     </div>
 
