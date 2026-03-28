@@ -148,7 +148,7 @@ async function onWeekFinalized() {
       </div>
       <div class="flex items-center gap-3">
         <button v-if="auth.isUserAdmin" @click="showFinalizer = true"
-          class="px-3 py-1.5 text-xs border border-red-900/50 rounded-lg text-red-400 hover:text-red-300 hover:border-red-700 transition-colors">
+          class="text-xs px-3 py-1.5 border border-red-900/50 rounded-lg text-red-400 hover:text-red-300 hover:border-red-700 transition-colors">
           Завершить неделю
         </button>
       </div>
@@ -200,7 +200,7 @@ async function onWeekFinalized() {
         <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Миссии недели</h3>
         <button v-if="auth.isUserAdmin && missionsStore.availableMissions.length"
           @click="sendMissionsToTelegram" :disabled="telegram.sending.value"
-          class="text-[10px] px-2 py-1 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 rounded-lg transition-colors disabled:opacity-50">
+          class="text-xs px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 rounded-lg transition-colors disabled:opacity-50">
           {{ telegram.sending.value ? '...' : 'Отправить в Telegram' }}
         </button>
       </div>
@@ -227,8 +227,8 @@ async function onWeekFinalized() {
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-sm font-medium text-amber-400">Не отметились ({{ allUnresponded.length }})</h3>
         <button @click="sendReminder" :disabled="telegram.sending.value"
-          class="text-xs px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg transition-colors disabled:opacity-50">
-          {{ telegram.sending.value ? 'Отправка...' : 'Напомнить в Telegram' }}
+          class="text-xs px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 rounded-lg transition-colors disabled:opacity-50">
+          {{ telegram.sending.value ? '...' : 'Напомнить в Telegram' }}
         </button>
       </div>
       <div class="flex flex-wrap gap-1.5">
