@@ -26,6 +26,8 @@ const editingSlot = ref(null)
 const editingNotes = ref('')
 const showEquipmentMenu = ref(null)
 const showSlotConfigurator = ref(false)
+const editingPersonalTask = ref(null) // slotIndex being edited
+const personalTaskDraft = ref('')
 
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
@@ -223,6 +225,55 @@ function closeAllPopups() {
   dropdownUp.value = {}
 }
 
+// Personal tasks
+function startEditPersonalTask(slotIndex) {
+  const slot = slots.value[slotIndex]
+  if (!slot) return
+  personalTaskDraft.value = slot.personalTask || ''
+  editingPersonalTask.value = slotIndex
+}
+
+function savePersonalTask(slotIndex) {
+  gamesStore.updateSlot(activeTab.value, slotIndex, { personalTask: personalTaskDraft.value })
+  editingPersonalTask.value = null
+}
+
+function cancelEditPersonalTask() {
+  editingPersonalTask.value = null
+}
+
+// Personal tasks for display below squad task
+const personalTasks = computed(() => {
+  const result = []
+  slots.value.forEach((slot, idx) => {
+    if (!slot.personalTask) return
+    const nickname = slot.playerId ? roster.resolveNickname(slot.playerId) : null
+    result.push({
+      idx,
+      slotNumber: slot.number,
+      slotName: slot.name,
+      playerId: slot.playerId,
+      nickname,
+      task: slot.personalTask,
+    })
+  })
+  return result
+})
+
+// Visible personal tasks: admin sees all, player sees own
+const visiblePersonalTasks = computed(() => {
+  if (isAdmin.value) return personalTasks.value
+  const uid = auth.user?.uid
+  if (!uid) return []
+  return personalTasks.value.filter(t => t.playerId === uid)
+})
+
+// Can current user add personal task to a slot?
+function canEditPersonalTask(slot) {
+  if (isAdmin.value) return true
+  return slot.playerId && slot.playerId === auth.user?.uid
+}
+
 function readinessDot(status) {
   const map = {
     confirmed: 'bg-status-confirmed',
@@ -333,6 +384,11 @@ function readinessDot(status) {
               <th class="text-left px-3 py-2.5 font-medium" style="width:11rem">Позывной</th>
               <th class="text-left px-3 py-2.5 font-medium" style="min-width:14rem">Снаряжение</th>
               <th class="text-left px-3 py-2.5 font-medium">Заметки</th>
+              <th class="text-center px-2 py-2.5 font-medium w-10">
+                <svg class="w-3.5 h-3.5 mx-auto text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -343,7 +399,7 @@ function readinessDot(status) {
                   'border-b border-neutral-800',
                   SIDE_COLORS[row.color]?.bg || 'bg-neutral-800/60'
                 ]">
-                <td colspan="7" class="px-4 py-2">
+                <td colspan="8" class="px-4 py-2">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <span :class="[SIDE_COLORS[row.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
@@ -518,6 +574,28 @@ function readinessDot(status) {
                     class="w-full bg-transparent border-b border-transparent hover:border-neutral-700 focus:border-delta-green text-sm text-neutral-400 focus:text-neutral-200 outline-none py-0.5 transition-colors">
                   <span v-else class="text-neutral-500 text-xs">{{ row.slot.notes || '—' }}</span>
                 </td>
+
+                <!-- Personal task indicator -->
+                <td class="px-2 py-2.5 text-center">
+                  <button v-if="canEditPersonalTask(row.slot)"
+                    @click="startEditPersonalTask(row.idx)"
+                    :class="[
+                      'w-6 h-6 rounded flex items-center justify-center transition-colors',
+                      row.slot.personalTask
+                        ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                        : 'text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800'
+                    ]"
+                    :title="row.slot.personalTask || 'Добавить личную задачу'">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </button>
+                  <span v-else-if="row.slot.personalTask" class="text-amber-500/50">
+                    <svg class="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </span>
+                </td>
               </tr>
             </template>
           </tbody>
@@ -598,6 +676,23 @@ function readinessDot(status) {
             </div>
 
             <div v-if="row.slot.notes" class="mt-1 text-[10px] text-neutral-500">{{ row.slot.notes }}</div>
+
+            <!-- Personal task indicator (mobile) -->
+            <div v-if="canEditPersonalTask(row.slot) || row.slot.personalTask" class="mt-1.5 flex items-center gap-1.5">
+              <button v-if="canEditPersonalTask(row.slot)"
+                @click="startEditPersonalTask(row.idx)"
+                :class="[
+                  'flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                  row.slot.personalTask
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'text-neutral-600 hover:text-neutral-400'
+                ]">
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {{ row.slot.personalTask ? 'Личная задача' : 'Добавить задачу' }}
+              </button>
+            </div>
           </div>
         </template>
       </div>
@@ -605,7 +700,7 @@ function readinessDot(status) {
 
     <!-- Task -->
     <div v-if="isAdmin || gamesStore.getGame(activeTab)?.task" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-      <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Задача</h3>
+      <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Задача отряда</h3>
       <textarea v-if="isAdmin"
         :value="gamesStore.getGame(activeTab)?.task || ''"
         @blur="gamesStore.setTask(activeTab, $event.target.value)"
@@ -614,6 +709,72 @@ function readinessDot(status) {
         placeholder="Опишите задачу для расстановки..."
         class="w-full bg-transparent border border-neutral-800 hover:border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none transition-colors"></textarea>
       <p v-else class="text-sm text-neutral-300">{{ gamesStore.getGame(activeTab).task }}</p>
+    </div>
+
+    <!-- Personal tasks container -->
+    <div v-if="visiblePersonalTasks.length || editingPersonalTask !== null" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+      <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Личные задачи</h3>
+
+      <!-- Editing form -->
+      <div v-if="editingPersonalTask !== null" class="mb-3 bg-neutral-800 rounded-lg p-3 border border-neutral-700">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[10px] font-mono text-neutral-500">#{{ slots[editingPersonalTask]?.number }}</span>
+          <span class="text-xs text-neutral-400">{{ slots[editingPersonalTask]?.name }}</span>
+          <span v-if="resolveSlotPlayer(slots[editingPersonalTask])" class="text-xs text-neutral-300 ml-auto">
+            {{ resolveSlotPlayer(slots[editingPersonalTask]) }}
+          </span>
+        </div>
+        <textarea
+          v-model="personalTaskDraft"
+          rows="2"
+          placeholder="Опишите личную задачу..."
+          class="w-full bg-neutral-900 border border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none transition-colors"
+          @keydown.ctrl.enter="savePersonalTask(editingPersonalTask)"
+        ></textarea>
+        <div class="flex justify-end gap-2 mt-2">
+          <button @click="cancelEditPersonalTask"
+            class="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
+            Отмена
+          </button>
+          <button @click="savePersonalTask(editingPersonalTask)"
+            class="px-3 py-1.5 text-xs bg-delta-green hover:bg-delta-green/80 text-white rounded-lg transition-colors">
+            Сохранить
+          </button>
+        </div>
+      </div>
+
+      <!-- Task list -->
+      <div class="space-y-2">
+        <div v-for="pt in visiblePersonalTasks" :key="pt.idx"
+          class="flex items-start gap-3 px-3 py-2 rounded-lg bg-neutral-800/50 border border-neutral-800">
+          <div class="shrink-0 flex items-center gap-1.5 mt-0.5">
+            <span class="text-[10px] font-mono text-neutral-600">#{{ pt.slotNumber }}</span>
+            <span class="text-amber-500/70">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-xs font-medium text-neutral-300">{{ pt.nickname || pt.slotName }}</span>
+              <span v-if="pt.nickname" class="text-[10px] text-neutral-600">{{ pt.slotName }}</span>
+            </div>
+            <p class="text-sm text-neutral-400 whitespace-pre-line">{{ pt.task }}</p>
+          </div>
+          <button v-if="canEditPersonalTask(slots[pt.idx])"
+            @click="startEditPersonalTask(pt.idx)"
+            class="shrink-0 p-1 text-neutral-600 hover:text-neutral-400 transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <p v-if="!visiblePersonalTasks.length && editingPersonalTask === null" class="text-xs text-neutral-600">
+        Нет личных задач
+      </p>
     </div>
 
     <!-- Slot Configurator modal -->

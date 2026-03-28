@@ -97,6 +97,7 @@ export const useGamesStore = defineStore('games', () => {
         notes: '',
         fireteam: '',
         type: null,
+        personalTask: '',
       })
     }
 
