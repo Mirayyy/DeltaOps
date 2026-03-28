@@ -25,6 +25,7 @@ const DEFAULTS = {
   recruitment: 'open',
   createdAt: '',
   contacts: [],  // array of player UIDs
+  skillNames: [], // managed via Settings CRUD
 }
 
 export const useSquadConfig = defineStore('squadConfig', () => {
@@ -42,6 +43,7 @@ export const useSquadConfig = defineStore('squadConfig', () => {
   const guaranteedSlots = computed(() => config.value.guaranteedSlots)
   const createdAt = computed(() => config.value.createdAt)
   const contacts = computed(() => config.value.contacts)
+  const skillNames = computed(() => config.value.skillNames)
 
   // Derived
   const tsgUrl = computed(() => {
@@ -81,7 +83,7 @@ export const useSquadConfig = defineStore('squadConfig', () => {
   return {
     config, loaded,
     name, logo, tag, status, server, side,
-    recruitment, guaranteedSlots, createdAt, contacts,
+    recruitment, guaranteedSlots, createdAt, contacts, skillNames,
     tsgUrl,
     fetch, save,
   }

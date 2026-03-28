@@ -2,10 +2,12 @@
 import { ref, computed } from 'vue'
 import BaseModal from '../common/BaseModal.vue'
 import BaseSelect from '../common/BaseSelect.vue'
-import { PLAYER_STATUSES, SKILL_NAMES, SKILL_LEVELS, POSITIONS } from '../../utils/constants'
+import { PLAYER_STATUSES, SKILL_LEVELS, POSITIONS } from '../../utils/constants'
 import { useAuthStore } from '../../stores/auth'
+import { useSquadConfig } from '../../stores/squadConfig'
 
 const auth = useAuthStore()
+const squadConfig = useSquadConfig()
 
 const props = defineProps({
   player: { type: Object, default: null },
@@ -174,7 +176,7 @@ function handleSave() {
         <label class="block text-xs text-neutral-400 mb-2">Навыки (клик — добавить/сменить, ПКМ — убрать)</label>
         <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="name in SKILL_NAMES"
+            v-for="name in squadConfig.skillNames"
             :key="name"
             @click="toggleSkill(name)"
             @contextmenu.prevent="removeSkill(name)"

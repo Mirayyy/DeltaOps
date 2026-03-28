@@ -251,6 +251,48 @@ async function saveWebContent() {
 }
 
 // ═══════════════════════════════════════
+// SKILLS
+// ═══════════════════════════════════════
+
+const newSkillName = ref('')
+const savingSkills = ref(false)
+
+function addSkill() {
+  const name = newSkillName.value.trim()
+  if (!name) return
+  const current = squadConfig.config.skillNames || []
+  if (current.includes(name)) {
+    toast.error('Навык уже существует')
+    return
+  }
+  squadConfig.config.skillNames = [...current, name]
+  newSkillName.value = ''
+}
+
+function removeSkill(name) {
+  squadConfig.config.skillNames = (squadConfig.config.skillNames || []).filter(n => n !== name)
+}
+
+function moveSkill(idx, dir) {
+  const arr = [...(squadConfig.config.skillNames || [])]
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= arr.length) return
+  ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
+  squadConfig.config.skillNames = arr
+}
+
+async function saveSkills() {
+  savingSkills.value = true
+  try {
+    await squadConfig.save({ skillNames: squadConfig.config.skillNames })
+    toast.success('Навыки сохранены')
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message)
+  }
+  savingSkills.value = false
+}
+
+// ═══════════════════════════════════════
 // SITE CONFIG
 // ═══════════════════════════════════════
 
@@ -517,7 +559,46 @@ function formatDate(ts) {
       </div>
     </div>
 
-    <!-- ═══ 3. SQUAD ═══ -->
+    <!-- ═══ 3. SKILLS ═══ -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Навыки</h2>
+        <button @click="saveSkills" :disabled="savingSkills"
+          class="px-4 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-50">
+          {{ savingSkills ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </div>
+
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-4">
+        <!-- List -->
+        <div v-if="squadConfig.config.skillNames?.length" class="space-y-1.5">
+          <div v-for="(skill, idx) in squadConfig.config.skillNames" :key="skill"
+            class="flex items-center gap-2 px-3 py-2 bg-neutral-800/50 rounded-lg group">
+            <span class="text-sm flex-1">{{ skill }}</span>
+            <button @click="moveSkill(idx, -1)" :disabled="idx === 0"
+              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">▲</button>
+            <button @click="moveSkill(idx, 1)" :disabled="idx === squadConfig.config.skillNames.length - 1"
+              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">▼</button>
+            <button @click="removeSkill(skill)"
+              class="text-neutral-600 hover:text-red-400 text-xs transition-colors opacity-0 group-hover:opacity-100">✕</button>
+          </div>
+        </div>
+        <div v-else class="text-neutral-600 text-sm">Нет навыков</div>
+
+        <!-- Add -->
+        <div class="flex gap-2 pt-2 border-t border-neutral-800">
+          <input v-model="newSkillName" type="text" placeholder="Название навыка"
+            @keydown.enter="addSkill"
+            class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          <button @click="addSkill" :disabled="!newSkillName.trim()"
+            class="px-3 py-2 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
+            + Добавить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 4. SQUAD ═══ -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Отряд</h2>

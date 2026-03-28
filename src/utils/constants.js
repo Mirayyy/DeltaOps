@@ -27,11 +27,7 @@ export const POSITIONS = [
   'Боец запаса',
 ]
 
-export const SKILL_NAMES = [
-  'ПТРК', 'ПЗРК', 'СПГ / АГС / МК', 'ЗУ', 'ДШК / М2 / КОРД',
-  'Артиллерист', 'Снайпер', 'Сапер (Многоразовый)', 'БПЛА', 'Медик',
-  'БМП', 'Танк', 'ПВО', 'Вертолёт [Т]', 'Вертолёт [Б]', 'Самолет',
-]
+// SKILL_NAMES moved to config/squad.skillNames — managed via Settings CRUD
 
 export const SKILL_LEVELS = {
   beginner: { label: 'Новичок', color: 'bg-skill-beginner' },

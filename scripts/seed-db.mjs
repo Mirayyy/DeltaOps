@@ -74,6 +74,11 @@ const SQUAD_CONFIG = {
   recruitment: 'open',
   createdAt: '17.12.2024',
   contacts: [],
+  skillNames: [
+    'ПТРК', 'ПЗРК', 'СПГ / АГС / МК', 'ЗУ', 'ДШК / М2 / КОРД',
+    'Артиллерист', 'Снайпер', 'Сапер (Многоразовый)', 'БПЛА', 'Медик',
+    'БМП', 'Танк', 'ПВО', 'Вертолёт [Т]', 'Вертолёт [Б]', 'Самолет',
+  ],
   awards: [
     {
       icon: 'https://stats.tsgames.ru/icons/d_mad.svg',
