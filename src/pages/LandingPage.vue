@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useWebContentStore } from '../stores/webContent'
 import { useRouter } from 'vue-router'
+import { kpdColor } from '../utils/formatters'
 
 const auth = useAuthStore()
 const roster = useRosterStore()
@@ -40,13 +41,6 @@ function rankDeltaClass(delta) {
   return 'text-neutral-500'
 }
 
-function kpdColor(kpd) {
-  if (kpd >= 2)   return 'text-green-400'
-  if (kpd >= 1.5) return 'text-lime-400'
-  if (kpd >= 1)   return 'text-yellow-400'
-  if (kpd >= 0.5) return 'text-orange-400'
-  return 'text-red-400'
-}
 
 async function fetchStats() {
   try {

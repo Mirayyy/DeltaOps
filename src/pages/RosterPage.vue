@@ -5,6 +5,7 @@ import { useRosterStore } from '../stores/roster'
 import { useArchiveStore } from '../stores/archive'
 import { useStatsStore } from '../stores/stats'
 import { getTsgUrl } from '../utils/constants'
+import { kpdColor } from '../utils/formatters'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import SkillBadge from '../components/common/SkillBadge.vue'
 import PlayerEditor from '../components/roster/PlayerEditor.vue'
@@ -212,14 +213,6 @@ function rateColor(rate) {
   return 'text-red-400'
 }
 
-function kpdColor(kpd) {
-  if (kpd == null) return 'text-neutral-600'
-  if (kpd >= 2)   return 'text-green-400'
-  if (kpd >= 1.5) return 'text-lime-400'
-  if (kpd >= 1)   return 'text-yellow-400'
-  if (kpd >= 0.5) return 'text-orange-400'
-  return 'text-red-400'
-}
 
 function openAdd() {
   editingPlayer.value = null

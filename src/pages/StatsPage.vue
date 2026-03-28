@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRosterStore } from '../stores/roster'
 import { useStatsStore } from '../stores/stats'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
+import { kpdColor } from '../utils/formatters'
 
 const SQUAD_LOGO = 'https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png'
 
@@ -84,13 +85,6 @@ function sortIcon(key) {
 }
 
 // --- Helpers ---
-function kpdColor(kpd) {
-  if (kpd >= 2)   return 'text-green-400'   // 2+    — отлично
-  if (kpd >= 1.5) return 'text-lime-400'    // 1.5–2 — хорошо
-  if (kpd >= 1)   return 'text-yellow-400'  // 1–1.5 — средне
-  if (kpd >= 0.5) return 'text-orange-400'  // 0.5–1 — слабо
-  return 'text-red-400'                     // 0–0.5 — плохо
-}
 
 function fmt(val, decimals = 0) {
   if (val == null) return '—'

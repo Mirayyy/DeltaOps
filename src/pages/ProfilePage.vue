@@ -10,6 +10,7 @@ import { useArchiveStore } from '../stores/archive'
 import { useWebContentStore } from '../stores/webContent'
 import { useGameWeek } from '../composables/useGameWeek'
 import { getTsgUrl, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
+import { kpdColor } from '../utils/formatters'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import SkillBadge from '../components/common/SkillBadge.vue'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
@@ -183,13 +184,6 @@ function formatKpd(val) {
   return val.toFixed(2)
 }
 
-function kpdColor(kpd) {
-  if (kpd >= 2)   return 'text-green-400'
-  if (kpd >= 1.5) return 'text-lime-400'
-  if (kpd >= 1)   return 'text-yellow-400'
-  if (kpd >= 0.5) return 'text-orange-400'
-  return 'text-red-400'
-}
 
 function handleReadinessChange(gameId, status) {
   if (!player.value) return
