@@ -99,7 +99,7 @@ export function useTelegram() {
       lines.push('')
     }
 
-    lines.push('Отметьте посещаемость на сайте!')
+    lines.push('<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>')
     return lines.join('\n')
   }
 
@@ -177,7 +177,7 @@ export function useTelegram() {
       `Не отметили посещаемость (${unrespondedPlayers.length}):`,
       ...mentions,
       '',
-      'Отметьтесь на сайте!',
+      '<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>',
     ].join('\n')
   }
 
@@ -189,7 +189,7 @@ export function useTelegram() {
       `Пятница: ${fridayDate || '—'}`,
       `Суббота: ${saturdayDate || '—'}`,
       '',
-      'Отметьте посещаемость на сайте!',
+      '<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>',
     ].join('\n')
   }
 
@@ -204,6 +204,8 @@ export function useTelegram() {
         lines.push(`${g.label}: ${g.confirmed} пришли, ${g.absent} нет, ${g.noResponse} без ответа`)
       }
     }
+    lines.push('')
+    lines.push('<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>')
     return lines.join('\n')
   }
 
