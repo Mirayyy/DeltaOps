@@ -340,12 +340,11 @@ const aboutHtml = computed(() => {
             <div class="relative z-10">
               <div class="text-orange-500/60 text-2xl mb-3">◇</div>
               <div v-if="sideStats" class="text-3xl md:text-4xl font-black text-white mb-1">
-                #{{ sideStats.rank }}
+                #{{ sideStats.rank }} <span class="text-lg font-bold text-neutral-500">({{ sideStats.server }})</span>
               </div>
               <div v-else class="text-3xl md:text-4xl font-black text-neutral-600 mb-1">—</div>
               <div class="text-xs tracking-widest uppercase text-neutral-500">
                 Рейтинг на стороне
-                <span v-if="sideStats" :class="sideStats.sideColor">({{ sideStats.server }})</span>
               </div>
             </div>
           </div>
