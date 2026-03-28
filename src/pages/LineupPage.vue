@@ -263,7 +263,7 @@ const personalTasks = computed(() => {
 // Visible personal tasks: admin sees all, player sees own
 const visiblePersonalTasks = computed(() => {
   if (isAdmin.value) return personalTasks.value
-  const uid = auth.user?.uid
+  const uid = auth.player?.uid
   if (!uid) return []
   return personalTasks.value.filter(t => t.playerId === uid)
 })
@@ -271,7 +271,7 @@ const visiblePersonalTasks = computed(() => {
 // Can current user add personal task to a slot?
 function canEditPersonalTask(slot) {
   if (isAdmin.value) return true
-  return slot.playerId && slot.playerId === auth.user?.uid
+  return slot.playerId && slot.playerId === auth.player?.uid
 }
 
 function readinessDot(status) {
