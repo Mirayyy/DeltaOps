@@ -23,6 +23,7 @@ const form = ref({
   email: '',
   position: 'Боец отряда',
   status: 'active',
+  avatar: '',
   steamUrl: '',
   telegramUsername: '',
   telegramId: '',
@@ -40,6 +41,7 @@ if (isEdit) {
     email: props.player.email || '',
     position: props.player.position || 'Боец отряда',
     status: props.player.status || 'active',
+    avatar: props.player.avatar || '',
     steamUrl: props.player.steamUrl || '',
     telegramUsername: props.player.telegramUsername || '',
     telegramId: props.player.telegramId || '',
@@ -91,6 +93,7 @@ function handleSave() {
     // Member — only allowed fields
     emit('save', {
       status: form.value.status,
+      avatar: form.value.avatar,
       telegramUsername: form.value.telegramUsername,
       telegramId: form.value.telegramId ? Number(form.value.telegramId) : null,
       discordId: form.value.discordId,
@@ -169,6 +172,19 @@ function handleSave() {
         <label class="block text-xs text-neutral-400 mb-1">Steam профиль</label>
         <input v-model="form.steamUrl" type="url" placeholder="https://steamcommunity.com/id/..."
           class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+      </div>
+
+      <!-- Avatar -->
+      <div>
+        <label class="block text-xs text-neutral-400 mb-1">Аватар (ссылка)</label>
+        <div class="flex gap-2 items-center">
+          <div class="w-8 h-8 rounded-lg bg-neutral-800 overflow-hidden shrink-0 flex items-center justify-center">
+            <img v-if="form.avatar" :src="form.avatar" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+            <span v-else class="text-xs text-neutral-600">—</span>
+          </div>
+          <input v-model="form.avatar" type="url" placeholder="https://..."
+            class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+        </div>
       </div>
 
       <!-- Skills -->

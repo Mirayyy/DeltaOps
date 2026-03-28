@@ -33,6 +33,8 @@ const toast = useToast()
 
 const showEditor = ref(false)
 const showSlotHistory = ref(false)
+const editingAvatar = ref(false)
+const avatarUrl = ref('')
 
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
@@ -203,6 +205,27 @@ function attendanceColor(rate) {
   return 'text-red-400'
 }
 
+const canChangeAvatar = computed(() => {
+  if (!player.value) return false
+  return isOwnProfile.value || auth.isUserAdmin
+})
+
+function startEditAvatar() {
+  avatarUrl.value = player.value?.avatar || ''
+  editingAvatar.value = true
+}
+
+async function saveAvatar() {
+  if (!player.value) return
+  const url = avatarUrl.value.trim()
+  await roster.updatePlayer(player.value.uid, { avatar: url })
+  if (isOwnProfile.value && auth.player) {
+    auth.player.avatar = url
+  }
+  editingAvatar.value = false
+  toast.success('Аватар обновлён')
+}
+
 async function handleSave(data) {
   if (!player.value) return
   await roster.updatePlayer(player.value.uid, data)
@@ -223,9 +246,18 @@ async function handleSave(data) {
     <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-6 mb-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div class="flex items-center gap-5">
-          <div class="w-20 h-20 rounded-2xl bg-neutral-800 flex items-center justify-center shrink-0 overflow-hidden">
-            <img v-if="player.avatar" :src="player.avatar" :alt="player.nickname" class="w-full h-full object-cover" />
-            <span v-else class="text-3xl font-bold text-neutral-500">{{ player.nickname?.[0] || '?' }}</span>
+          <div class="relative group shrink-0">
+            <div class="w-20 h-20 rounded-2xl bg-neutral-800 flex items-center justify-center overflow-hidden">
+              <img v-if="player.avatar" :src="player.avatar" :alt="player.nickname" class="w-full h-full object-cover" />
+              <span v-else class="text-3xl font-bold text-neutral-500">{{ player.nickname?.[0] || '?' }}</span>
+            </div>
+            <button v-if="canChangeAvatar"
+              @click="startEditAvatar"
+              class="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer">
+              <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
           </div>
           <div>
             <div class="flex items-center gap-3 mb-1">
@@ -247,6 +279,30 @@ async function handleSave(data) {
           class="self-start px-4 py-2 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors">
           Редактировать
         </button>
+      </div>
+    </div>
+
+    <!-- Avatar URL editor -->
+    <div v-if="editingAvatar" class="bg-neutral-900 rounded-xl border border-neutral-800 p-4 mb-4">
+      <label class="block text-xs text-neutral-500 mb-2">Ссылка на аватар</label>
+      <div class="flex gap-2">
+        <input v-model="avatarUrl" type="url" placeholder="https://..."
+          class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green"
+          @keydown.enter="saveAvatar" />
+        <button @click="saveAvatar"
+          class="px-4 py-2 text-sm bg-delta-green hover:bg-delta-green/80 text-white rounded-lg transition-colors">
+          Сохранить
+        </button>
+        <button @click="editingAvatar = false"
+          class="px-4 py-2 text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
+          Отмена
+        </button>
+      </div>
+      <div v-if="avatarUrl" class="mt-2 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-neutral-800 overflow-hidden">
+          <img :src="avatarUrl" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+        </div>
+        <span class="text-[10px] text-neutral-600 truncate">{{ avatarUrl }}</span>
       </div>
     </div>
 
