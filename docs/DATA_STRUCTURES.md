@@ -40,17 +40,30 @@ Firestore:   https://firestore.googleapis.com/v1/projects/<your-project-id>/data
 
 ## 1. config/squad — Данные отряда
 
-**Путь:** `config/squad` (один документ, перезаписывается Extension целиком)
+**Путь:** `config/squad` (один документ)
+**Пишут:** App (Settings → Отряд) и Extension (парсинг страницы отряда). Оба делают PATCH — merge, не затирают поля друг друга.
+
+**App-поля** (редактируются в Settings):
 
 | Поле | Тип | Описание |
 |---|---|---|
-| `name` | `string` | Название отряда |
+| `name` | `string` | Название отряда (используется для поиска в TSG API) |
+| `logo` | `string` | URL логотипа (отображается в header, landing, stats) |
+| `siteUrl` | `string` | URL сайта (используется в Telegram-сообщениях) |
+| `siteName` | `string` | Название сайта (заголовки Telegram, footer) |
+
+**Extension-поля** (при парсинге страницы отряда):
+
+| Поле | Тип | Описание |
+|---|---|---|
 | `tag` | `string` | `"[DELTA]"` |
 | `server` | `'T2'\|'T3'` | Сервер |
 | `side` | `'red'\|'blue'` | Сторона |
 | `guaranteedSlots` | `number` | Гарантированных слотов |
 | `recruitment` | `'open'\|'closed'` | Статус набора |
 | `scrapedAt` | `string` | ISO 8601 |
+
+**ВАЖНО:** Extension перезаписывает ТОЛЬКО свои поля. App-поля (name, logo, siteUrl, siteName) НЕ трогает. Используй `updateFields()` с updateMask, НЕ `writeDocument()`.
 
 ---
 
@@ -85,8 +98,9 @@ Firestore:   https://firestore.googleapis.com/v1/projects/<your-project-id>/data
 | Поле | Описание |
 |---|---|
 | `avatar` | URL аватара |
+| `position` | Должность из TSG (Командир, Боец и т.д.) |
 
-**Одно поле. Всё остальное Extension НЕ трогает.**
+**Два поля. Всё остальное Extension НЕ трогает.** Используется `updateFields()` с updateMask.
 
 ### TSG URL (вычисляемый)
 
@@ -386,12 +400,12 @@ PATCH config/squad — перезапись целиком (name, tag, server, s
 PATCH missions/{gameId} — перезапись целиком
 ```
 
-### 3. Аватары игроков
+### 3. Аватары и должности игроков
 ```
 Для каждого игрока из списка TSG:
   1. GET nicknameIndex/{nickname}
-  2. Если найден → PATCH players/{playerId} (только avatar)
-  3. Если НЕ найден → пропустить
+  2. Если найден → PATCH players/{playerId} (только avatar, position) через updateFields
+  3. Если НЕ найден → пропустить (НЕ создавать!)
 ```
 
 **Extension НЕ создаёт игроков. НЕ меняет status. НЕ удаляет записи.**
@@ -407,9 +421,9 @@ PATCH missions/{gameId} — перезапись целиком
 
 | Коллекция | Метод | updateMask | Поведение |
 |---|---|---|---|
-| `config/squad` | PATCH | нет | Перезаписывает целиком |
+| `config/squad` | PATCH | **да** | Только Extension-поля (tag, server, side, guaranteedSlots, recruitment, scrapedAt). НЕ трогает App-поля (name, logo, siteUrl, siteName) |
 | `nicknameIndex/{nickname}` | GET | — | Только чтение |
-| `players/{stableId}` | PATCH | да | Только `avatar` |
+| `players/{stableId}` | PATCH | **да** | Только `avatar`, `position` |
 | `missions/{gameId}` | PATCH | нет | Перезаписывает целиком |
 
 ---
