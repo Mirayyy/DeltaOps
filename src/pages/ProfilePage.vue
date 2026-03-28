@@ -184,8 +184,10 @@ function formatKpd(val) {
 }
 
 function kpdColor(kpd) {
-  if (kpd >= 4) return 'text-green-400'
-  if (kpd >= 2) return 'text-yellow-400'
+  if (kpd >= 2)   return 'text-green-400'
+  if (kpd >= 1.5) return 'text-lime-400'
+  if (kpd >= 1)   return 'text-yellow-400'
+  if (kpd >= 0.5) return 'text-orange-400'
   return 'text-red-400'
 }
 

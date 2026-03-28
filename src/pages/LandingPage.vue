@@ -40,6 +40,14 @@ function rankDeltaClass(delta) {
   return 'text-neutral-500'
 }
 
+function kpdColor(kpd) {
+  if (kpd >= 2)   return 'text-green-400'
+  if (kpd >= 1.5) return 'text-lime-400'
+  if (kpd >= 1)   return 'text-yellow-400'
+  if (kpd >= 0.5) return 'text-orange-400'
+  return 'text-red-400'
+}
+
 async function fetchStats() {
   try {
     const [squadRes, t2Res, t3Res] = await Promise.all([
@@ -290,7 +298,7 @@ const aboutHtml = computed(() => {
             <div class="absolute inset-0 bg-orange-600/0 group-hover:bg-orange-600/5 rounded-lg transition-all duration-300"></div>
             <div class="relative z-10">
               <div class="text-orange-500/60 text-2xl mb-3">◈</div>
-              <div class="text-3xl md:text-4xl font-black text-white mb-1">{{ squadStats.efficiency.toFixed(2) }}</div>
+              <div :class="['text-3xl md:text-4xl font-black mb-1', kpdColor(squadStats.efficiency)]">{{ squadStats.efficiency.toFixed(2) }}</div>
               <div class="text-xs tracking-widest uppercase text-neutral-500">КПД</div>
             </div>
           </div>
