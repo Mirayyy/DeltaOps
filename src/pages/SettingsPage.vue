@@ -21,6 +21,7 @@ const roster = useRosterStore()
 const toast = useToast()
 const squadConfig = useSquadConfig()
 const appConfig = useAppConfig()
+const pageReady = ref(false)
 
 // ═══════════════════════════════════════
 // SQUAD FORM
@@ -334,6 +335,7 @@ onMounted(async () => {
   ])
   initSquadForm()
   initSiteForm()
+  pageReady.value = true
 })
 
 // ═══════════════════════════════════════
@@ -361,6 +363,13 @@ function formatDate(ts) {
 <template>
   <div class="pb-20 md:pb-0 max-w-4xl mx-auto">
     <h1 class="text-2xl font-bold mb-6">Настройки</h1>
+
+    <!-- Loading -->
+    <div v-if="!pageReady" class="flex items-center justify-center py-20">
+      <div class="w-5 h-5 border-2 border-delta-green border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <template v-else>
 
     <!-- ═══ 1. ROTATIONS ═══ -->
     <div class="mb-8">
@@ -797,5 +806,6 @@ function formatDate(ts) {
       </div>
     </div>
 
+    </template>
   </div>
 </template>
