@@ -8,7 +8,7 @@ import { useWebContentStore } from '../stores/webContent'
 import { useRosterStore } from '../stores/roster'
 import { useGameWeek } from '../composables/useGameWeek'
 import { GAMES, GAME_IDS } from '../utils/constants'
-import { isFirebaseConfigured } from '../firebase/config'
+import { isFirebaseConfigured, firebaseProjectId } from '../firebase/config'
 import { useSquadConfig } from '../stores/squadConfig'
 import { useToast } from '../composables/useToast'
 import BaseSelect from '../components/common/BaseSelect.vue'
@@ -550,6 +550,27 @@ function formatDate(ts) {
           <span class="text-sm text-neutral-400">
             {{ isFirebaseConfigured ? 'Firebase подключён' : 'Демо-режим (localStorage)' }}
           </span>
+        </div>
+
+        <div v-if="isFirebaseConfigured" class="mt-4 pt-4 border-t border-neutral-800">
+          <h3 class="text-sm font-medium text-neutral-300 mb-2">Firebase Console</h3>
+          <div class="flex flex-col gap-1.5">
+            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/firestore`" target="_blank"
+              class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-amber-400 transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3.89 15.673L6.255.461A.542.542 0 017.27.289l2.543 4.771zm16.794 3.692l-2.25-14a.54.54 0 00-.919-.295L3.316 19.365l7.856 4.427a1.621 1.621 0 001.588 0zM14.3 7.148l-1.82-3.482a.542.542 0 00-.96 0L3.53 17.984z"/></svg>
+              Firestore
+            </a>
+            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/authentication/users`" target="_blank"
+              class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-amber-400 transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3.89 15.673L6.255.461A.542.542 0 017.27.289l2.543 4.771zm16.794 3.692l-2.25-14a.54.54 0 00-.919-.295L3.316 19.365l7.856 4.427a1.621 1.621 0 001.588 0zM14.3 7.148l-1.82-3.482a.542.542 0 00-.96 0L3.53 17.984z"/></svg>
+              Authentication
+            </a>
+            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/settings/general`" target="_blank"
+              class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-amber-400 transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3.89 15.673L6.255.461A.542.542 0 017.27.289l2.543 4.771zm16.794 3.692l-2.25-14a.54.54 0 00-.919-.295L3.316 19.365l7.856 4.427a1.621 1.621 0 001.588 0zM14.3 7.148l-1.82-3.482a.542.542 0 00-.96 0L3.53 17.984z"/></svg>
+              Настройки проекта
+            </a>
+          </div>
         </div>
 
         <div class="mt-4 pt-4 border-t border-neutral-800">

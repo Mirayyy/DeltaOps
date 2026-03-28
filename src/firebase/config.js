@@ -12,6 +12,7 @@ const firebaseConfig = {
 }
 
 export const isFirebaseConfigured = !!import.meta.env.VITE_FIREBASE_API_KEY
+export const firebaseProjectId = firebaseConfig.projectId
 
 let app, auth, db
 
