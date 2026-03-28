@@ -1,14 +1,17 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuthStore } from './stores/auth'
+import { useSquadConfig } from './stores/squadConfig'
 import AppHeader from './components/layout/AppHeader.vue'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import MobileNav from './components/layout/MobileNav.vue'
 import ToastContainer from './components/common/ToastContainer.vue'
 
 const auth = useAuthStore()
+const squad = useSquadConfig()
 
 onMounted(() => {
+  squad.fetch()
   auth.init()
 })
 </script>
@@ -18,8 +21,8 @@ onMounted(() => {
   <div v-if="auth.loading" class="min-h-screen flex items-center justify-center bg-neutral-950">
     <div class="flex flex-col items-center gap-4">
       <img
-        src="https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png"
-        alt="DELTA"
+        :src="squad.logo"
+        :alt="squad.name"
         class="w-12 h-12 object-contain opacity-40 animate-pulse"
       />
       <span class="text-neutral-600 text-sm tracking-wider">Загрузка...</span>

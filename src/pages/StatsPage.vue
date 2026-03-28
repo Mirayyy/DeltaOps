@@ -4,11 +4,11 @@ import { useRosterStore } from '../stores/roster'
 import { useStatsStore } from '../stores/stats'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import { kpdColor } from '../utils/formatters'
-
-const SQUAD_LOGO = 'https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png'
+import { useSquadConfig } from '../stores/squadConfig'
 
 const roster = useRosterStore()
 const statsStore = useStatsStore()
+const squad = useSquadConfig()
 
 const activeTab = ref('general')
 const sortKey = ref('rank')
@@ -150,10 +150,10 @@ const COLUMNS = [
     <!-- DELTA Squad Overview -->
     <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 mb-5">
       <div class="flex items-center gap-4 mb-4">
-        <img :src="SQUAD_LOGO" alt="DELTA" class="w-12 h-12 rounded-xl object-cover" />
+        <img :src="squad.logo" :alt="squad.name" class="w-12 h-12 rounded-xl object-cover" />
         <div class="flex-1">
           <div class="flex items-center gap-3">
-            <h2 class="text-lg font-bold">DELTA</h2>
+            <h2 class="text-lg font-bold">{{ squad.name }}</h2>
             <template v-if="deltaSquad">
               <span v-if="deltaSquad.delta > 0" class="text-xs text-green-500 font-mono">▲{{ deltaSquad.delta }}</span>
               <span v-else-if="deltaSquad.delta < 0" class="text-xs text-red-500 font-mono">▼{{ Math.abs(deltaSquad.delta) }}</span>

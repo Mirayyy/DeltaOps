@@ -9,6 +9,7 @@ import { useRosterStore } from '../stores/roster'
 import { useGameWeek } from '../composables/useGameWeek'
 import { GAMES, GAME_IDS } from '../utils/constants'
 import { isFirebaseConfigured } from '../firebase/config'
+import { useSquadConfig } from '../stores/squadConfig'
 import { useToast } from '../composables/useToast'
 import BaseSelect from '../components/common/BaseSelect.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
@@ -21,6 +22,31 @@ const webContent = useWebContentStore()
 const roster = useRosterStore()
 const { currentWeekId, gameDates } = useGameWeek()
 const toast = useToast()
+const squadConfig = useSquadConfig()
+
+// Squad identity editing
+const squadForm = ref({})
+const savingSquad = ref(false)
+
+function initSquadForm() {
+  squadForm.value = {
+    name: squadConfig.name,
+    logo: squadConfig.logo,
+    siteUrl: squadConfig.siteUrl,
+    siteName: squadConfig.siteName,
+  }
+}
+
+async function saveSquadConfig() {
+  savingSquad.value = true
+  try {
+    await squadConfig.save(squadForm.value)
+    toast.success('Настройки отряда сохранены')
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message)
+  }
+  savingSquad.value = false
+}
 
 // Rotation form
 const newRotation = ref({ name: '', startDate: '', endDate: '' })
@@ -46,7 +72,9 @@ onMounted(async () => {
     missionsStore.fetchMissions(),
     webContent.fetchContent(),
     roster.players.length ? null : roster.fetchPlayers(),
+    squadConfig.fetch(),
   ])
+  initSquadForm()
 })
 
 const activeRotation = computed(() => archive.getActiveRotation())
@@ -472,6 +500,46 @@ function formatDate(ts) {
     </div>
 
     <!-- ═══ TECHNICAL ═══ -->
+    <!-- Squad identity -->
+    <div class="mb-8">
+      <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Отряд</h2>
+
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Название отряда</label>
+            <input v-model="squadForm.name" type="text" placeholder="DELTA"
+              class="w-full" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Название сайта</label>
+            <input v-model="squadForm.siteName" type="text" placeholder="DeltaOps"
+              class="w-full" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">URL логотипа</label>
+            <input v-model="squadForm.logo" type="url" placeholder="https://..."
+              class="w-full" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">URL сайта</label>
+            <input v-model="squadForm.siteUrl" type="url" placeholder="https://..."
+              class="w-full" />
+          </div>
+        </div>
+
+        <div v-if="squadForm.logo" class="flex items-center gap-3">
+          <img :src="squadForm.logo" class="w-10 h-10 rounded-lg object-contain bg-neutral-800" />
+          <span class="text-xs text-neutral-500">Превью логотипа</span>
+        </div>
+
+        <button @click="saveSquadConfig" :disabled="savingSquad"
+          class="px-4 py-2 text-sm bg-delta-green text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50">
+          {{ savingSquad ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </div>
+    </div>
+
     <div class="mb-8">
       <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Техническое</h2>
 

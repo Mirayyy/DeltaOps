@@ -75,6 +75,14 @@ const appConfig = {
   currentRotationId: 'rotation-2026-spring',
 }
 
+// ─── 6. Squad identity ──────────────────────────────────────
+const squadConfig = {
+  name: 'DELTA',
+  logo: 'https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png',
+  siteUrl: 'https://mirayyy.github.io/DeltaOps/',
+  siteName: 'DeltaOps',
+}
+
 // ─── Write to Firestore ─────────────────────────────────────
 async function seed() {
   console.log('Seeding Firestore...\n')
@@ -104,6 +112,9 @@ async function seed() {
 
     await setDoc(doc(db, 'config', 'app'), appConfig)
     console.log('config/app — created')
+
+    await setDoc(doc(db, 'config', 'squad'), squadConfig)
+    console.log('config/squad — created')
 
     console.log('\nSeed complete.')
   } catch (e) {

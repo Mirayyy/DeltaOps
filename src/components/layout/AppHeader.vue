@@ -1,8 +1,10 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useSquadConfig } from '../../stores/squadConfig'
 
 const auth = useAuthStore()
+const squad = useSquadConfig()
 const router = useRouter()
 
 async function handleLogout() {
@@ -17,13 +19,13 @@ async function handleLogout() {
       <div class="relative">
         <div class="absolute inset-0 bg-orange-500/20 rounded-full blur-md scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         <img
-          src="https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png"
-          alt="DELTA"
+          :src="squad.logo"
+          :alt="squad.name"
           class="relative w-8 h-8 object-contain drop-shadow-lg"
         />
       </div>
       <div class="hidden sm:flex items-baseline gap-2">
-        <span class="text-base font-bold tracking-wide text-white">DELTA</span>
+        <span class="text-base font-bold tracking-wide text-white">{{ squad.name }}</span>
         <span class="text-[10px] font-medium tracking-[0.2em] uppercase text-neutral-500">Ops</span>
       </div>
     </router-link>

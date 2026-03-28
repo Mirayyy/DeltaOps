@@ -6,6 +6,9 @@ import { useRosterStore } from '../stores/roster'
 import { useWebContentStore } from '../stores/webContent'
 import { useRouter } from 'vue-router'
 import { kpdColor } from '../utils/formatters'
+import { useSquadConfig } from '../stores/squadConfig'
+
+const squad = useSquadConfig()
 
 const auth = useAuthStore()
 const roster = useRosterStore()
@@ -52,7 +55,7 @@ async function fetchStats() {
 
     // Find DELTA in squad stats (API returns { items: [...] } or plain array)
     const squadList = squadRes?.items || (Array.isArray(squadRes) ? squadRes : [])
-    const delta = squadList.find(s => s.name === 'DELTA')
+    const delta = squadList.find(s => s.name === squad.name)
     if (delta) squadStats.value = delta
 
     // Find DELTA in side stats (check both servers, both sides)
@@ -61,7 +64,7 @@ async function fetchStats() {
       for (const side of ['red', 'blue']) {
         const list = serverData.tables[side]
         if (!Array.isArray(list)) continue
-        const found = list.find(s => s.squad === 'DELTA')
+        const found = list.find(s => s.squad === squad.name)
         if (found) {
           const sideLabel = side === 'red' ? 'Красные' : 'Синие'
           const sideColor = side === 'red' ? 'text-red-400' : 'text-blue-400'
@@ -155,8 +158,8 @@ const aboutHtml = computed(() => {
                       border border-neutral-600/30 shadow-2xl shadow-black/60
                       ring-1 ring-orange-500/10 ring-offset-4 ring-offset-neutral-950">
             <img
-              src="https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png"
-              alt="DELTA"
+              :src="squad.logo"
+              :alt="squad.name"
               class="w-20 h-20 md:w-28 md:h-28 object-contain drop-shadow-lg"
             />
           </div>
@@ -385,11 +388,11 @@ const aboutHtml = computed(() => {
       <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <img
-            src="https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png"
-            alt="DELTA"
+            :src="squad.logo"
+            :alt="squad.name"
             class="w-6 h-6 object-contain opacity-40"
           />
-          <span class="text-neutral-600 text-sm">DELTA &bull; DeltaOps v1.0</span>
+          <span class="text-neutral-600 text-sm">{{ squad.name }} &bull; {{ squad.siteName }} v1.0</span>
         </div>
         <div class="text-neutral-700 text-xs tracking-wide">
           Tushino Serious Games &bull; Arma 3

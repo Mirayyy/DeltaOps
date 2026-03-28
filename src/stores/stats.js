@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useSquadConfig } from './squadConfig'
 
 const API_BASE = 'https://stats.tsgames.ru/api/v1'
 
@@ -64,7 +65,8 @@ export const useStatsStore = defineStore('stats', () => {
 
   /** Get DELTA squad stats */
   const deltaSquad = computed(() => {
-    return squadStats.value.find(s => s.name === 'DELTA') || null
+    const squad = useSquadConfig()
+    return squadStats.value.find(s => s.name === squad.name) || null
   })
 
   /** Filter any stats array by a set of nicknames (case-insensitive) */

@@ -1,7 +1,8 @@
 import { ref } from 'vue'
+import { useSquadConfig } from '../stores/squadConfig'
 
 /**
- * Telegram Bot API integration for DeltaOps notifications.
+ * Telegram Bot API integration for squad notifications.
  *
  * Env vars: VITE_TELEGRAM_BOT_TOKEN, VITE_TELEGRAM_CHAT_ID
  * Players need `telegramUsername` for @mentions.
@@ -13,6 +14,7 @@ const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || ''
 export function useTelegram() {
   const sending = ref(false)
   const lastError = ref(null)
+  const squad = useSquadConfig()
 
   const isConfigured = !!(botToken && chatId)
 
@@ -71,7 +73,7 @@ export function useTelegram() {
     }
 
     const lines = [
-      '<b>DeltaOps — Миссии на неделю</b>',
+      `<b>${squad.siteName} — Миссии на неделю</b>`,
       '',
     ]
 
@@ -99,7 +101,7 @@ export function useTelegram() {
       lines.push('')
     }
 
-    lines.push('<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>')
+    lines.push(`<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`)
     return lines.join('\n')
   }
 
@@ -111,7 +113,7 @@ export function useTelegram() {
     }
 
     const lines = [
-      `<b>DeltaOps — Расстановка</b>`,
+      `<b>${squad.siteName} — Расстановка</b>`,
       `Игрок: <b>${playerNickname}</b>`,
       '',
     ]
@@ -146,7 +148,7 @@ export function useTelegram() {
     }
 
     const lines = [
-      '<b>DeltaOps — Расстановка опубликована</b>',
+      `<b>${squad.siteName} — Расстановка опубликована</b>`,
       '',
     ]
 
@@ -172,31 +174,31 @@ export function useTelegram() {
     const mentions = unrespondedPlayers.map(p => `  - ${mention(p)} (${p.nickname})`)
 
     return [
-      `<b>DeltaOps — Неделя ${weekId}</b>`,
+      `<b>${squad.siteName} — Неделя ${weekId}</b>`,
       '',
       `Не отметили посещаемость (${unrespondedPlayers.length}):`,
       ...mentions,
       '',
-      '<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>',
+      `<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`,
     ].join('\n')
   }
 
   /** New week announcement */
   function buildNewWeekMessage(weekId, fridayDate, saturdayDate) {
     return [
-      `<b>DeltaOps — Новая неделя ${weekId}</b>`,
+      `<b>${squad.siteName} — Новая неделя ${weekId}</b>`,
       '',
       `Пятница: ${fridayDate || '—'}`,
       `Суббота: ${saturdayDate || '—'}`,
       '',
-      '<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>',
+      `<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`,
     ].join('\n')
   }
 
   /** Week finalized summary */
   function buildWeekSummaryMessage(weekId, stats) {
     const lines = [
-      `<b>DeltaOps — Неделя ${weekId} завершена</b>`,
+      `<b>${squad.siteName} — Неделя ${weekId} завершена</b>`,
       '',
     ]
     if (stats && stats.length) {
@@ -205,7 +207,7 @@ export function useTelegram() {
       }
     }
     lines.push('')
-    lines.push('<a href="https://mirayyy.github.io/DeltaOps/">Открыть DeltaOps</a>')
+    lines.push(`<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`)
     return lines.join('\n')
   }
 
