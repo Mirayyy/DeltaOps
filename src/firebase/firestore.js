@@ -14,7 +14,6 @@ export const rotationsRef = collection(db, 'rotations')
 export const archiveRef = collection(db, 'archive')
 export const statsRef = collection(db, 'stats')
 export const structuresRef = collection(db, 'structures')
-export const webContentRef = collection(db, 'webContent')
 export const configRef = doc(db, 'config', 'app')
 export const squadConfigRef = doc(db, 'config', 'squad')
 

@@ -2,9 +2,11 @@
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useSquadConfig } from '../../stores/squadConfig'
+import { useAppConfig } from '../../stores/appConfig'
 
 const auth = useAuthStore()
 const squad = useSquadConfig()
+const app = useAppConfig()
 const router = useRouter()
 
 async function handleLogout() {
@@ -26,7 +28,7 @@ async function handleLogout() {
       </div>
       <div class="hidden sm:flex items-baseline gap-2">
         <span class="text-base font-bold tracking-wide text-white">{{ squad.tag || squad.name }}</span>
-        <span class="text-[10px] font-medium tracking-[0.2em] uppercase text-neutral-500">{{ squad.siteName }}</span>
+        <span class="text-[10px] font-medium tracking-[0.2em] uppercase text-neutral-500">{{ app.siteName }}</span>
       </div>
     </router-link>
 

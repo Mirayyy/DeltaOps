@@ -8,9 +8,11 @@ import { useArchiveStore } from '../stores/archive'
 import { useRouter } from 'vue-router'
 import { kpdColor } from '../utils/formatters'
 import { useSquadConfig } from '../stores/squadConfig'
+import { useAppConfig } from '../stores/appConfig'
 import { getTsgUrl } from '../utils/constants'
 
 const squad = useSquadConfig()
+const app = useAppConfig()
 const archive = useArchiveStore()
 
 const auth = useAuthStore()
@@ -18,12 +20,12 @@ const roster = useRosterStore()
 const webContent = useWebContentStore()
 const router = useRouter()
 
-const activePlayerCount = computed(() => roster.activePlayers.length)
+const rosterCount = computed(() =>
+  roster.activePlayers.length + roster.reservePlayers.length + roster.bannedPlayers.length
+)
 
-// Server/side from active rotation (fallback to config for backward compat)
-const activeRotation = computed(() => archive.getActiveRotation())
-const currentServer = computed(() => activeRotation.value?.server || squad.config.server || '')
-const currentSide = computed(() => activeRotation.value?.side || squad.config.side || '')
+const currentServer = computed(() => squad.server || '')
+const currentSide = computed(() => squad.side || '')
 
 const contactPlayers = computed(() => {
   const uids = squad.config.contacts
@@ -106,7 +108,7 @@ async function fetchStats() {
 }
 
 onMounted(async () => {
-  await squad.fetch()
+  await Promise.all([squad.fetch(), app.fetch()])
   fetchStats()
   webContent.fetchContent()
   if (!roster.players.length) roster.fetchPlayers()
@@ -390,7 +392,7 @@ const aboutHtml = computed(() => {
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Игроков</div>
-            <div class="text-white font-semibold">{{ activePlayerCount }}</div>
+            <div class="text-white font-semibold">{{ rosterCount }}</div>
           </div>
         </div>
 
@@ -432,7 +434,7 @@ const aboutHtml = computed(() => {
             :alt="squad.name"
             class="w-6 h-6 object-contain opacity-40"
           />
-          <span class="text-neutral-600 text-sm">{{ squad.name }} &bull; {{ squad.siteName }} v{{ squad.version || '1.0' }}</span>
+          <span class="text-neutral-600 text-sm">{{ squad.name }} &bull; {{ app.siteName }}</span>
         </div>
         <div class="text-neutral-700 text-xs tracking-wide">
           Tushino Serious Games &bull; Arma 3

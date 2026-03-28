@@ -7,30 +7,24 @@ import { isFirebaseConfigured } from '../firebase/config'
  * Squad identity config — stored in Firestore `config/squad`.
  *
  * Dual ownership:
- *   App writes:       siteName, siteUrl, version, githubUrl, contacts, recruitment, createdAt
- *   Extension writes: name, tag, logo, status, server, side, guaranteedSlots,
- *                     recruitment, createdAt, projectMemberSince, scrapedAt
- *   Both can edit ALL fields through the Settings page.
+ *   App writes:       contacts, recruitment, createdAt
+ *   Extension writes: name, tag, logo, status, guaranteedSlots,
+ *                     recruitment, createdAt, scrapedAt
  *
- * Note: server/side are also on rotations (primary UI source).
- *       Extension still writes them here for reference.
+ * Site-level fields (siteName, siteUrl, etc.) live in config/app → appConfig store.
  */
 
 const DEFAULTS = {
-  // Identity
   name: 'DELTA',
   tag: 'DELTA',
   logo: '',
   status: '',
+  server: '',
+  side: '',
   guaranteedSlots: 0,
   recruitment: 'open',
   createdAt: '',
   contacts: [],  // array of player UIDs
-  // Site
-  siteName: 'DeltaOps',
-  siteUrl: '',
-  version: '1.0',
-  githubUrl: '',
 }
 
 export const useSquadConfig = defineStore('squadConfig', () => {
@@ -41,11 +35,9 @@ export const useSquadConfig = defineStore('squadConfig', () => {
   const name = computed(() => config.value.name)
   const logo = computed(() => config.value.logo)
   const tag = computed(() => config.value.tag)
-  const siteName = computed(() => config.value.siteName)
-  const siteUrl = computed(() => config.value.siteUrl)
-  const version = computed(() => config.value.version)
-  const githubUrl = computed(() => config.value.githubUrl)
   const status = computed(() => config.value.status)
+  const server = computed(() => config.value.server)
+  const side = computed(() => config.value.side)
   const recruitment = computed(() => config.value.recruitment)
   const guaranteedSlots = computed(() => config.value.guaranteedSlots)
   const createdAt = computed(() => config.value.createdAt)
@@ -88,8 +80,8 @@ export const useSquadConfig = defineStore('squadConfig', () => {
 
   return {
     config, loaded,
-    name, logo, tag, siteName, siteUrl, version, githubUrl,
-    status, recruitment, guaranteedSlots, createdAt, contacts,
+    name, logo, tag, status, server, side,
+    recruitment, guaranteedSlots, createdAt, contacts,
     tsgUrl,
     fetch, save,
   }

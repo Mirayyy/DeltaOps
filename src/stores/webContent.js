@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { isFirebaseConfigured } from '../firebase/config'
 
+/**
+ * Web content (awards + aboutMarkdown) — stored inside `config/squad`.
+ * This store manages the content locally, but persists via squadConfig.
+ */
+
 const DEMO_CONTENT = {
   awards: [
     {
@@ -36,12 +41,9 @@ const DEMO_CONTENT = {
 Специализируемся на выполнении сложных боевых задач: СПН, БПЛА, спецрасчёты, бронетехника. Действуем автономно от основных сил стороны, что позволяет вносить максимальный вклад в победу. Каждая миссия разбирается заранее — готовимся к играм серьёзно.`,
 }
 
-const DOC_ID = 'landing'
-
 let _awardIdCounter = 0
 function ensureAwardId(award) {
   if (!award._id) award._id = `award-${Date.now()}-${_awardIdCounter++}`
-  // Ensure new fields exist on legacy data
   if (!award.type) award.type = 'squad'
   if (award.playerUid === undefined) award.playerUid = null
   if (award.showOnLanding === undefined) award.showOnLanding = true
@@ -79,10 +81,6 @@ export const useWebContentStore = defineStore('webContent', () => {
     }
   }
 
-  function cleanAwards() {
-    return awards.value.map(({ _id, ...rest }) => rest)
-  }
-
   function saveDemo() {
     localStorage.setItem('deltaops_webContent', JSON.stringify({
       awards: cleanAwards(),
@@ -90,10 +88,14 @@ export const useWebContentStore = defineStore('webContent', () => {
     }))
   }
 
-  // --- Firestore ---
+  function cleanAwards() {
+    return awards.value.map(({ _id, ...rest }) => rest)
+  }
+
+  // --- Firestore (reads/writes config/squad) ---
   async function loadFirestore() {
-    const { doc, getDoc, db } = await import('../firebase/firestore')
-    const snap = await getDoc(doc(db, 'webContent', DOC_ID))
+    const { getDoc, squadConfigRef } = await import('../firebase/firestore')
+    const snap = await getDoc(squadConfigRef)
     if (snap.exists()) {
       const data = snap.data()
       awards.value = (data.awards || []).map(ensureAwardId)
@@ -105,11 +107,11 @@ export const useWebContentStore = defineStore('webContent', () => {
   }
 
   async function saveFirestore() {
-    const { doc, setDoc, db } = await import('../firebase/firestore')
-    await setDoc(doc(db, 'webContent', DOC_ID), {
+    const { setDoc, squadConfigRef } = await import('../firebase/firestore')
+    await setDoc(squadConfigRef, {
       awards: cleanAwards(),
       aboutMarkdown: aboutMarkdown.value,
-    })
+    }, { merge: true })
   }
 
   // --- Public API ---

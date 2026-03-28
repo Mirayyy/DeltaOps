@@ -73,9 +73,9 @@ export const useArchiveStore = defineStore('archive', () => {
   }
 
   // --- Rotation CRUD ---
-  async function createRotation(name, startDate, endDate = null, server = '', side = '') {
+  async function createRotation(name, startDate, endDate = null) {
     const id = `rotation-${Date.now()}`
-    const rotation = { id, name, startDate, endDate, server, side }
+    const rotation = { id, name, startDate, endDate }
     rotations.value.push(rotation)
 
     if (isFirebaseConfigured) {

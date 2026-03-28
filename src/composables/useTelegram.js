@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { useSquadConfig } from '../stores/squadConfig'
+import { useAppConfig } from '../stores/appConfig'
 
 /**
  * Telegram Bot API integration for squad notifications.
@@ -14,7 +14,7 @@ const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || ''
 export function useTelegram() {
   const sending = ref(false)
   const lastError = ref(null)
-  const squad = useSquadConfig()
+  const app = useAppConfig()
 
   const isConfigured = !!(botToken && chatId)
 
@@ -73,7 +73,7 @@ export function useTelegram() {
     }
 
     const lines = [
-      `<b>${squad.siteName} — Миссии на неделю</b>`,
+      `<b>${app.siteName} — Миссии на неделю</b>`,
       '',
     ]
 
@@ -101,7 +101,7 @@ export function useTelegram() {
       lines.push('')
     }
 
-    lines.push(`<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`)
+    lines.push(`<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`)
     return lines.join('\n')
   }
 
@@ -113,7 +113,7 @@ export function useTelegram() {
     }
 
     const lines = [
-      `<b>${squad.siteName} — Расстановка</b>`,
+      `<b>${app.siteName} — Расстановка</b>`,
       `Игрок: <b>${playerNickname}</b>`,
       '',
     ]
@@ -148,7 +148,7 @@ export function useTelegram() {
     }
 
     const lines = [
-      `<b>${squad.siteName} — Расстановка опубликована</b>`,
+      `<b>${app.siteName} — Расстановка опубликована</b>`,
       '',
     ]
 
@@ -174,31 +174,31 @@ export function useTelegram() {
     const mentions = unrespondedPlayers.map(p => `  - ${mention(p)} (${p.nickname})`)
 
     return [
-      `<b>${squad.siteName} — Неделя ${weekId}</b>`,
+      `<b>${app.siteName} — Неделя ${weekId}</b>`,
       '',
       `Не отметили посещаемость (${unrespondedPlayers.length}):`,
       ...mentions,
       '',
-      `<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`,
+      `<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`,
     ].join('\n')
   }
 
   /** New week announcement */
   function buildNewWeekMessage(weekId, fridayDate, saturdayDate) {
     return [
-      `<b>${squad.siteName} — Новая неделя ${weekId}</b>`,
+      `<b>${app.siteName} — Новая неделя ${weekId}</b>`,
       '',
       `Пятница: ${fridayDate || '—'}`,
       `Суббота: ${saturdayDate || '—'}`,
       '',
-      `<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`,
+      `<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`,
     ].join('\n')
   }
 
   /** Week finalized summary */
   function buildWeekSummaryMessage(weekId, stats) {
     const lines = [
-      `<b>${squad.siteName} — Неделя ${weekId} завершена</b>`,
+      `<b>${app.siteName} — Неделя ${weekId} завершена</b>`,
       '',
     ]
     if (stats && stats.length) {
@@ -207,7 +207,7 @@ export function useTelegram() {
       }
     }
     lines.push('')
-    lines.push(`<a href="${squad.siteUrl}">Открыть ${squad.siteName}</a>`)
+    lines.push(`<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`)
     return lines.join('\n')
   }
 

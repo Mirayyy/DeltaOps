@@ -6,8 +6,9 @@ import { useAttendanceStore } from '../stores/attendance'
 import { useWebContentStore } from '../stores/webContent'
 import { useRosterStore } from '../stores/roster'
 import { GAME_IDS } from '../utils/constants'
-import { isFirebaseConfigured, firebaseProjectId } from '../firebase/config'
+import { isFirebaseConfigured } from '../firebase/config'
 import { useSquadConfig } from '../stores/squadConfig'
+import { useAppConfig } from '../stores/appConfig'
 import { useToast } from '../composables/useToast'
 import BaseSelect from '../components/common/BaseSelect.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
@@ -19,6 +20,7 @@ const webContent = useWebContentStore()
 const roster = useRosterStore()
 const toast = useToast()
 const squadConfig = useSquadConfig()
+const appConfig = useAppConfig()
 
 // ═══════════════════════════════════════
 // SQUAD FORM
@@ -36,6 +38,8 @@ function initSquadForm() {
     status: c.status || '',
     guaranteedSlots: c.guaranteedSlots || 0,
     recruitment: c.recruitment || 'open',
+    server: c.server || '',
+    side: c.side || '',
     createdAt: c.createdAt || '',
     contacts: Array.isArray(c.contacts) ? [...c.contacts] : [],
   }
@@ -44,6 +48,16 @@ function initSquadForm() {
 const recruitmentOptions = [
   { value: 'open', label: 'Открыт' },
   { value: 'closed', label: 'Закрыт' },
+]
+const serverOptions = [
+  { value: '', label: '—' },
+  { value: 'T2', label: 'T2' },
+  { value: 'T3', label: 'T3' },
+]
+const sideOptions = [
+  { value: '', label: '—' },
+  { value: 'red', label: 'Красные' },
+  { value: 'blue', label: 'Синие' },
 ]
 
 // Contact player selector
@@ -103,22 +117,13 @@ async function saveSquadConfig() {
 // ROTATIONS
 // ═══════════════════════════════════════
 
-const serverOptions = [
-  { value: 'T2', label: 'T2' },
-  { value: 'T3', label: 'T3' },
-]
-const sideOptions = [
-  { value: 'red', label: 'Красные' },
-  { value: 'blue', label: 'Синие' },
-]
-
-const newRotation = ref({ name: '', startDate: '', endDate: '', server: 'T2', side: 'red' })
+const newRotation = ref({ name: '', startDate: '', endDate: '' })
 const creating = ref(false)
 const archiving = ref(false)
 const deleting = ref(null)
 
 const editingRotationId = ref(null)
-const editForm = ref({ name: '', startDate: '', endDate: '', server: '', side: '' })
+const editForm = ref({ name: '', startDate: '', endDate: '' })
 
 const statusConfig = {
   active: { label: 'Активна', class: 'bg-green-500/20 text-green-400 border-green-500/30' },
@@ -148,10 +153,8 @@ async function handleCreate() {
       newRotation.value.name.trim(),
       newRotation.value.startDate,
       newRotation.value.endDate || null,
-      newRotation.value.server,
-      newRotation.value.side,
     )
-    newRotation.value = { name: '', startDate: '', endDate: '', server: 'T2', side: 'red' }
+    newRotation.value = { name: '', startDate: '', endDate: '' }
     toast.success('Ротация создана')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
@@ -202,8 +205,6 @@ function startEditRotation(rot) {
     name: rot.name || '',
     startDate: toInputDate(rot.startDate),
     endDate: toInputDate(rot.endDate),
-    server: rot.server || 'T2',
-    side: rot.side || 'red',
   }
 }
 
@@ -218,8 +219,6 @@ async function saveEditRotation() {
       name: editForm.value.name.trim(),
       startDate: editForm.value.startDate || null,
       endDate: editForm.value.endDate || null,
-      server: editForm.value.server,
-      side: editForm.value.side,
     })
     toast.success('Ротация обновлена')
     editingRotationId.value = null
@@ -259,19 +258,19 @@ const siteForm = ref({})
 const savingSite = ref(false)
 
 function initSiteForm() {
-  const c = squadConfig.config
+  const c = appConfig.config
   siteForm.value = {
     siteName: c.siteName || '',
-    version: c.version || '1.0',
     siteUrl: c.siteUrl || '',
     githubUrl: c.githubUrl || '',
+    firestoreUrl: c.firestoreUrl || '',
   }
 }
 
 async function saveSiteConfig() {
   savingSite.value = true
   try {
-    await squadConfig.save(siteForm.value)
+    await appConfig.save(siteForm.value)
     toast.success('Настройки сайта сохранены')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
@@ -289,6 +288,7 @@ onMounted(async () => {
     webContent.fetchContent(),
     roster.players.length ? null : roster.fetchPlayers(),
     squadConfig.fetch(),
+    appConfig.fetch(),
   ])
   initSquadForm()
   initSiteForm()
@@ -350,16 +350,6 @@ function formatDate(ts) {
                       class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green text-neutral-300" />
                   </div>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label class="block text-xs text-neutral-400 mb-1">Сервер</label>
-                    <BaseSelect v-model="editForm.server" :options="serverOptions" />
-                  </div>
-                  <div>
-                    <label class="block text-xs text-neutral-400 mb-1">Сторона</label>
-                    <BaseSelect v-model="editForm.side" :options="sideOptions" />
-                  </div>
-                </div>
                 <div class="flex gap-2">
                   <button @click="saveEditRotation"
                     class="px-3 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors">
@@ -381,10 +371,6 @@ function formatDate(ts) {
                     <span class="text-sm font-medium">{{ rot.name }}</span>
                     <span :class="['text-xs px-2 py-0.5 rounded border', statusConfig[archive.getRotationStatus(rot)].class]">
                       {{ statusConfig[archive.getRotationStatus(rot)].label }}
-                    </span>
-                    <span v-if="rot.server" class="text-[10px] px-1.5 py-0.5 bg-neutral-700/50 rounded text-neutral-400">{{ rot.server }}</span>
-                    <span v-if="rot.side" :class="['text-[10px] px-1.5 py-0.5 rounded', rot.side === 'red' ? 'bg-red-500/15 text-red-400' : 'bg-blue-500/15 text-blue-400']">
-                      {{ rot.side === 'red' ? 'Красные' : 'Синие' }}
                     </span>
                   </div>
                   <div class="text-xs text-neutral-500 mt-1">
@@ -438,18 +424,10 @@ function formatDate(ts) {
                 class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green text-neutral-300" />
             </div>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-[auto_auto_1fr] gap-3 items-end">
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Сервер</label>
-              <BaseSelect v-model="newRotation.server" :options="serverOptions" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Сторона</label>
-              <BaseSelect v-model="newRotation.side" :options="sideOptions" />
-            </div>
+          <div class="flex justify-end mt-1">
             <button @click="handleCreate"
               :disabled="!newRotation.name.trim() || !newRotation.startDate || creating"
-              class="px-4 py-2 text-sm bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap justify-self-end">
+              class="px-4 py-2 text-sm bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
               {{ creating ? '...' : 'Создать' }}
             </button>
           </div>
@@ -592,6 +570,14 @@ function formatDate(ts) {
             <input v-model="squadForm.status" type="text" placeholder="Отряд Участник Проекта"
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Сервер</label>
+            <BaseSelect v-model="squadForm.server" :options="serverOptions" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Сторона</label>
+            <BaseSelect v-model="squadForm.side" :options="sideOptions" />
+          </div>
         </div>
 
         <!-- Row 4: Contacts -->
@@ -694,11 +680,6 @@ function formatDate(ts) {
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Версия</label>
-            <input v-model="siteForm.version" type="text" placeholder="1.0"
-              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-          </div>
-          <div>
             <label class="block text-xs text-neutral-500 mb-1">Ссылка</label>
             <input v-model="siteForm.siteUrl" type="url" placeholder="https://..."
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
@@ -706,6 +687,11 @@ function formatDate(ts) {
           <div>
             <label class="block text-xs text-neutral-500 mb-1">GitHub</label>
             <input v-model="siteForm.githubUrl" type="url" placeholder="https://github.com/..."
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Firestore URL</label>
+            <input v-model="siteForm.firestoreUrl" type="url" placeholder="https://console.firebase.google.com/..."
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
         </div>
@@ -718,15 +704,9 @@ function formatDate(ts) {
               {{ isFirebaseConfigured ? 'Firebase подключён' : 'Демо-режим' }}
             </span>
           </div>
-          <div v-if="isFirebaseConfigured" class="flex flex-wrap gap-3">
-            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/firestore`" target="_blank"
-              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Firestore</a>
-            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/authentication/users`" target="_blank"
-              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Auth</a>
-            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/settings/general`" target="_blank"
-              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Настройки</a>
-          </div>
           <div class="flex flex-wrap gap-3 mt-2">
+            <a v-if="appConfig.firestoreUrl" :href="appConfig.firestoreUrl" target="_blank"
+              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Firestore ↗</a>
             <a v-if="siteForm.githubUrl" :href="siteForm.githubUrl" target="_blank"
               class="text-xs text-neutral-500 hover:text-white transition-colors">GitHub ↗</a>
             <a v-if="siteForm.siteUrl" :href="siteForm.siteUrl" target="_blank"
