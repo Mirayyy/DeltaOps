@@ -21,18 +21,21 @@
 **Метод:** `updateFields()` (с updateMask!)
 **Почему НЕ writeDocument:** App хранит здесь же поля `name`, `logo`, `siteUrl`, `siteName`. Перезапись затрёт их.
 
-**Extension пишет ТОЛЬКО:**
+**Extension пишет:**
 
 | Поле | Тип | Откуда |
 |---|---|---|
-| `tag` | `string` | Парсинг страницы отряда |
-| `server` | `string` | Парсинг |
-| `side` | `string` | Парсинг |
-| `guaranteedSlots` | `number` | Парсинг |
-| `recruitment` | `string` | Парсинг |
+| `name` | `string` | Название отряда с TSG |
+| `tag` | `string` | Отрядный тег |
+| `logo` | `string` | URL лого отряда с TSG |
+| `status` | `string` | Статус отряда |
+| `server` | `string` | Сервер (T2/T3) |
+| `side` | `string` | Сторона (red/blue) |
+| `guaranteedSlots` | `number` | Гарантированные слоты |
+| `recruitment` | `string` | Набор (open/closed) |
 | `scrapedAt` | `string` | `new Date().toISOString()` |
 
-**Extension НЕ трогает:** `name`, `logo`, `siteUrl`, `siteName`
+**Extension НЕ трогает:** `siteUrl`, `siteName` (только App)
 
 ### 2. `missions/{gameId}` — миссии
 
@@ -82,10 +85,8 @@ for каждого игрока из парсинга TSG:
 
 ### Проверка полей
 
-- [ ] Extension НЕ пишет поле `name` в `config/squad`
-- [ ] Extension НЕ пишет поле `logo` в `config/squad`
-- [ ] Extension НЕ пишет поле `siteUrl` в `config/squad`
-- [ ] Extension НЕ пишет поле `siteName` в `config/squad`
+- [ ] Extension НЕ пишет поле `siteUrl` в `config/squad` (только App)
+- [ ] Extension НЕ пишет поле `siteName` в `config/squad` (только App)
 - [ ] Extension НЕ пишет поле `status` в `players`
 - [ ] Extension НЕ пишет поле `email` в `players`
 - [ ] Extension НЕ пишет поле `nickname` в `players`
@@ -110,10 +111,10 @@ for каждого игрока из парсинга TSG:
 ## Опасные паттерны (НЕ ДЕЛАТЬ)
 
 ```js
-// ❌ ОПАСНО — затирает App-поля в config/squad
+// ❌ ОПАСНО — затирает App-only поля (siteUrl, siteName) в config/squad
 await writeDocument(squad, "config/squad");
 
-// ✅ ПРАВИЛЬНО — обновляет только Extension-поля
+// ✅ ПРАВИЛЬНО — обновляет только переданные поля, не трогает остальные
 await updateFields(squad, "config/squad");
 ```
 
