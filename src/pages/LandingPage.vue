@@ -7,6 +7,7 @@ import { useWebContentStore } from '../stores/webContent'
 import { useRouter } from 'vue-router'
 import { kpdColor } from '../utils/formatters'
 import { useSquadConfig } from '../stores/squadConfig'
+import { getTsgUrl } from '../utils/constants'
 
 const squad = useSquadConfig()
 
@@ -16,6 +17,14 @@ const webContent = useWebContentStore()
 const router = useRouter()
 
 const activePlayerCount = computed(() => roster.activePlayers.length)
+
+const contactPlayers = computed(() => {
+  const uids = squad.config.contacts
+  if (!Array.isArray(uids) || !uids.length) return []
+  return uids
+    .map(uid => roster.getPlayer(uid))
+    .filter(Boolean)
+})
 
 async function handleLogin() {
   try {
@@ -362,12 +371,14 @@ const aboutHtml = computed(() => {
             </div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
-            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Статус</div>
-            <div class="text-white font-semibold">{{ squad.config.status || '—' }}</div>
+            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Сервер</div>
+            <div class="text-white font-semibold">{{ squad.config.server || '—' }}</div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
-            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Создан</div>
-            <div class="text-white font-semibold">{{ squad.config.createdAt || '—' }}</div>
+            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Сторона</div>
+            <div :class="['font-semibold', squad.config.side === 'red' ? 'text-red-400' : 'text-blue-400']">
+              {{ squad.config.side === 'red' ? 'Красные' : 'Синие' }}
+            </div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Игроков</div>
@@ -375,13 +386,29 @@ const aboutHtml = computed(() => {
           </div>
         </div>
 
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
+          <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
+            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Создан</div>
+            <div class="text-white font-semibold">{{ squad.config.createdAt || '—' }}</div>
+          </div>
+          <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
+            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Слоты</div>
+            <div class="text-white font-semibold">{{ squad.config.guaranteedSlots || '—' }}</div>
+          </div>
+          <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
+            <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Статус</div>
+            <div class="text-white font-semibold text-xs">{{ squad.config.status || '—' }}</div>
+          </div>
+        </div>
+
         <!-- Contact -->
-        <div v-if="squad.config.contacts?.length" class="mt-8 text-center">
+        <div v-if="contactPlayers.length" class="mt-8 text-center">
           <p class="text-neutral-500 text-sm">
             По всем вопросам обращаться к
-            <template v-for="(name, i) in squad.config.contacts" :key="name">
+            <template v-for="(cp, i) in contactPlayers" :key="cp.uid">
               <span v-if="i > 0" class="text-neutral-600">, </span>
-              <span class="text-white font-medium">{{ name }}</span>
+              <a :href="getTsgUrl(cp.nickname)" target="_blank"
+                class="text-white font-medium hover:text-orange-400 transition-colors">{{ cp.nickname }}</a>
             </template>
           </p>
         </div>

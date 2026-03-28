@@ -25,8 +25,8 @@ async function handleLogout() {
         />
       </div>
       <div class="hidden sm:flex items-baseline gap-2">
-        <span class="text-base font-bold tracking-wide text-white">{{ squad.name }}</span>
-        <span class="text-[10px] font-medium tracking-[0.2em] uppercase text-neutral-500">Ops</span>
+        <span class="text-base font-bold tracking-wide text-white">{{ squad.tag || squad.name }}</span>
+        <span class="text-[10px] font-medium tracking-[0.2em] uppercase text-neutral-500">{{ squad.siteName }}</span>
       </div>
     </router-link>
 

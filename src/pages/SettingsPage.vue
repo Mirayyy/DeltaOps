@@ -26,26 +26,79 @@ const squadConfig = useSquadConfig()
 
 // Squad identity editing
 const squadForm = ref({})
-const contactsInput = ref('')
 const savingSquad = ref(false)
 
 function initSquadForm() {
   const c = squadConfig.config
   squadForm.value = {
     name: c.name || '',
+    tag: c.tag || '',
     logo: c.logo || '',
     siteUrl: c.siteUrl || '',
     siteName: c.siteName || '',
+    status: c.status || '',
+    server: c.server || 'T2',
+    side: c.side || 'red',
+    guaranteedSlots: c.guaranteedSlots || 0,
+    recruitment: c.recruitment || 'open',
     createdAt: c.createdAt || '',
+    projectMemberSince: c.projectMemberSince || '',
+    contacts: Array.isArray(c.contacts) ? [...c.contacts] : [],
+    description: c.description || '',
   }
-  contactsInput.value = (c.contacts || []).join(', ')
+}
+
+const serverOptions = [
+  { value: 'T2', label: 'T2' },
+  { value: 'T3', label: 'T3' },
+]
+const sideOptions = [
+  { value: 'red', label: 'Красные' },
+  { value: 'blue', label: 'Синие' },
+]
+const recruitmentOptions = [
+  { value: 'open', label: 'Открыт' },
+  { value: 'closed', label: 'Закрыт' },
+]
+
+// Contact player selector
+const contactToAdd = ref(null)
+
+const availableContactOptions = computed(() => {
+  const selected = new Set(squadForm.value.contacts || [])
+  return [
+    { value: null, label: '— Выберите игрока —' },
+    ...roster.activePlayers
+      .filter(p => !selected.has(p.uid))
+      .map(p => ({ value: p.uid, label: p.nickname })),
+  ]
+})
+
+function contactPlayerName(uid) {
+  const p = roster.getPlayer(uid)
+  return p ? p.nickname : uid
+}
+
+function addContact() {
+  if (!contactToAdd.value) return
+  if (!squadForm.value.contacts.includes(contactToAdd.value)) {
+    squadForm.value.contacts.push(contactToAdd.value)
+  }
+  contactToAdd.value = null
+}
+
+function removeContact(uid) {
+  squadForm.value.contacts = squadForm.value.contacts.filter(id => id !== uid)
 }
 
 async function saveSquadConfig() {
   savingSquad.value = true
   try {
-    const contacts = contactsInput.value.split(',').map(s => s.trim()).filter(Boolean)
-    await squadConfig.save({ ...squadForm.value, contacts })
+    const data = {
+      ...squadForm.value,
+      guaranteedSlots: parseInt(squadForm.value.guaranteedSlots, 10) || 0,
+    }
+    await squadConfig.save(data)
     toast.success('Настройки отряда сохранены')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
@@ -509,43 +562,135 @@ function formatDate(ts) {
     <div class="mb-8">
       <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Отряд</h2>
 
-      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">Название отряда</label>
-            <input v-model="squadForm.name" type="text" placeholder="DELTA"
-              class="w-full" />
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-5">
+        <!-- Identity row -->
+        <div>
+          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Идентификация</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Название отряда</label>
+              <input v-model="squadForm.name" type="text" placeholder="DELTA"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Тэг</label>
+              <input v-model="squadForm.tag" type="text" placeholder="DELTA"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">URL логотипа</label>
+              <input v-model="squadForm.logo" type="url" placeholder="https://..."
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Статус отряда</label>
+              <input v-model="squadForm.status" type="text" placeholder="Отряд Участник Проекта"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
           </div>
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">Название сайта</label>
-            <input v-model="squadForm.siteName" type="text" placeholder="DeltaOps"
-              class="w-full" />
-          </div>
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">URL логотипа</label>
-            <input v-model="squadForm.logo" type="url" placeholder="https://..."
-              class="w-full" />
-          </div>
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">URL сайта</label>
-            <input v-model="squadForm.siteUrl" type="url" placeholder="https://..."
-              class="w-full" />
-          </div>
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">Дата создания</label>
-            <input v-model="squadForm.createdAt" type="text" placeholder="17.12.2024"
-              class="w-full" />
-          </div>
-          <div>
-            <label class="block text-xs text-neutral-500 mb-1">Контакты (через запятую)</label>
-            <input v-model="contactsInput" type="text" placeholder="HardKil, Mirrox"
-              class="w-full" />
+          <div v-if="squadForm.logo" class="flex items-center gap-3 mt-3">
+            <img :src="squadForm.logo" class="w-10 h-10 rounded-lg object-contain bg-neutral-800" />
+            <span class="text-xs text-neutral-500">Превью логотипа</span>
           </div>
         </div>
 
-        <div v-if="squadForm.logo" class="flex items-center gap-3">
-          <img :src="squadForm.logo" class="w-10 h-10 rounded-lg object-contain bg-neutral-800" />
-          <span class="text-xs text-neutral-500">Превью логотипа</span>
+        <!-- Game params row -->
+        <div>
+          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Игровые параметры</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Сервер</label>
+              <BaseSelect v-model="squadForm.server" :options="serverOptions" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Сторона</label>
+              <BaseSelect v-model="squadForm.side" :options="sideOptions" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Набор</label>
+              <BaseSelect v-model="squadForm.recruitment" :options="recruitmentOptions" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Гарантированные слоты</label>
+              <input v-model.number="squadForm.guaranteedSlots" type="number" min="0" max="99"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Dates row -->
+        <div>
+          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Даты</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Создан</label>
+              <input v-model="squadForm.createdAt" type="text" placeholder="17.12.2024"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Участник проекта с</label>
+              <input v-model="squadForm.projectMemberSince" type="text" placeholder="07.12.2025"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Site row -->
+        <div>
+          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Сайт</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Название сайта</label>
+              <input v-model="squadForm.siteName" type="text" placeholder="DeltaOps"
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">URL сайта</label>
+              <input v-model="squadForm.siteUrl" type="url" placeholder="https://..."
+                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Contacts (player selector) -->
+        <div>
+          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Контакты</div>
+          <label class="block text-xs text-neutral-500 mb-2">Контактные лица отряда</label>
+          <div class="flex flex-wrap gap-2 mb-3">
+            <div v-for="uid in squadForm.contacts" :key="uid"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm">
+              <span class="text-white">{{ contactPlayerName(uid) }}</span>
+              <button @click="removeContact(uid)" class="text-neutral-500 hover:text-red-400 transition-colors text-xs ml-1">&times;</button>
+            </div>
+            <div v-if="!squadForm.contacts.length" class="text-neutral-600 text-xs py-1.5">Не выбраны</div>
+          </div>
+          <div class="flex gap-2">
+            <BaseSelect v-model="contactToAdd" :options="availableContactOptions" size="sm" class="flex-1" />
+            <button @click="addContact" :disabled="!contactToAdd"
+              class="px-3 py-1 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
+              + Добавить
+            </button>
+          </div>
+        </div>
+
+        <!-- Description (markdown) -->
+        <div>
+          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Контент</div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Описание отряда <span class="text-neutral-600">(markdown)</span></label>
+            <textarea v-model="squadForm.description" rows="5" placeholder="Краткое описание отряда..."
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green resize-y font-mono"></textarea>
+          </div>
+        </div>
+
+        <!-- Player count (read-only) -->
+        <div class="flex items-center gap-3 text-sm text-neutral-400">
+          <span class="text-neutral-600">Личный состав:</span>
+          <span class="text-white font-medium">{{ roster.activePlayers.length }}</span>
+          <span class="text-neutral-600">активных игроков</span>
+          <router-link to="/roster" class="text-delta-green hover:text-orange-400 text-xs transition-colors ml-auto">
+            Управление →
+          </router-link>
         </div>
 
         <button @click="saveSquadConfig" :disabled="savingSquad"
