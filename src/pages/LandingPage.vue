@@ -304,7 +304,8 @@ const aboutHtml = computed(() => {
               <div class="text-orange-500/60 text-2xl mb-3">▲</div>
               <div class="text-3xl md:text-4xl font-black text-white mb-1">
                 #{{ squadStats.rank }}
-                <span :class="rankDeltaClass(squadStats.delta)" class="text-lg font-semibold ml-1">{{ rankDeltaText(squadStats.delta) }}</span>
+                <span v-if="squadStats.delta > 0" class="text-lg font-semibold ml-1 text-green-400">▲{{ squadStats.delta }}</span>
+                <span v-else-if="squadStats.delta < 0" class="text-lg font-semibold ml-1 text-red-400">▼{{ Math.abs(squadStats.delta) }}</span>
               </div>
               <div class="text-xs tracking-widest uppercase text-neutral-500">Рейтинг</div>
             </div>
