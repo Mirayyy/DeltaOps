@@ -85,9 +85,11 @@ function sortIcon(key) {
 
 // --- Helpers ---
 function kpdColor(kpd) {
-  if (kpd >= 4) return 'text-green-400'
-  if (kpd >= 2) return 'text-yellow-400'
-  return 'text-red-400'
+  if (kpd >= 2)   return 'text-green-400'   // 2+    — отлично
+  if (kpd >= 1.5) return 'text-lime-400'    // 1.5–2 — хорошо
+  if (kpd >= 1)   return 'text-yellow-400'  // 1–1.5 — средне
+  if (kpd >= 0.5) return 'text-orange-400'  // 0.5–1 — слабо
+  return 'text-red-400'                     // 0–0.5 — плохо
 }
 
 function fmt(val, decimals = 0) {
