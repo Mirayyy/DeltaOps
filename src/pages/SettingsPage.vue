@@ -26,21 +26,26 @@ const squadConfig = useSquadConfig()
 
 // Squad identity editing
 const squadForm = ref({})
+const contactsInput = ref('')
 const savingSquad = ref(false)
 
 function initSquadForm() {
+  const c = squadConfig.config
   squadForm.value = {
-    name: squadConfig.name,
-    logo: squadConfig.logo,
-    siteUrl: squadConfig.siteUrl,
-    siteName: squadConfig.siteName,
+    name: c.name || '',
+    logo: c.logo || '',
+    siteUrl: c.siteUrl || '',
+    siteName: c.siteName || '',
+    createdAt: c.createdAt || '',
   }
+  contactsInput.value = (c.contacts || []).join(', ')
 }
 
 async function saveSquadConfig() {
   savingSquad.value = true
   try {
-    await squadConfig.save(squadForm.value)
+    const contacts = contactsInput.value.split(',').map(s => s.trim()).filter(Boolean)
+    await squadConfig.save({ ...squadForm.value, contacts })
     toast.success('Настройки отряда сохранены')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
@@ -524,6 +529,16 @@ function formatDate(ts) {
           <div>
             <label class="block text-xs text-neutral-500 mb-1">URL сайта</label>
             <input v-model="squadForm.siteUrl" type="url" placeholder="https://..."
+              class="w-full" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Дата создания</label>
+            <input v-model="squadForm.createdAt" type="text" placeholder="17.12.2024"
+              class="w-full" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Контакты (через запятую)</label>
+            <input v-model="contactsInput" type="text" placeholder="HardKil, Mirrox"
               class="w-full" />
           </div>
         </div>

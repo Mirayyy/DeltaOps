@@ -357,15 +357,17 @@ const aboutHtml = computed(() => {
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10">
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Набор</div>
-            <div class="text-orange-400 font-semibold">Открыт</div>
+            <div :class="['font-semibold', squad.config.recruitment === 'open' ? 'text-orange-400' : 'text-neutral-400']">
+              {{ squad.config.recruitment === 'open' ? 'Открыт' : 'Закрыт' }}
+            </div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Статус</div>
-            <div class="text-white font-semibold">Участник Проекта</div>
+            <div class="text-white font-semibold">{{ squad.config.status || '—' }}</div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Создан</div>
-            <div class="text-white font-semibold">17.12.2024</div>
+            <div class="text-white font-semibold">{{ squad.config.createdAt || '—' }}</div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Игроков</div>
@@ -374,11 +376,13 @@ const aboutHtml = computed(() => {
         </div>
 
         <!-- Contact -->
-        <div class="mt-8 text-center">
+        <div v-if="squad.config.contacts?.length" class="mt-8 text-center">
           <p class="text-neutral-500 text-sm">
             По всем вопросам обращаться к
-            <span class="text-white font-medium">HardKil</span>,
-            <span class="text-white font-medium">Mirrox</span>
+            <template v-for="(name, i) in squad.config.contacts" :key="name">
+              <span v-if="i > 0" class="text-neutral-600">, </span>
+              <span class="text-white font-medium">{{ name }}</span>
+            </template>
           </p>
         </div>
       </div>
