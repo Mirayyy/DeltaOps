@@ -101,13 +101,12 @@ export const useArchiveStore = defineStore('archive', () => {
   }
 
   async function deleteRotation(rotationId) {
-    rotations.value = rotations.value.filter(r => r.id !== rotationId)
     if (isFirebaseConfigured) {
       const { doc, deleteDoc, db } = await import('../firebase/firestore')
       await deleteDoc(doc(db, 'rotations', rotationId))
-    } else {
-      saveDemo()
     }
+    rotations.value = rotations.value.filter(r => r.id !== rotationId)
+    if (!isFirebaseConfigured) saveDemo()
   }
 
   // --- Archiving ---
@@ -119,6 +118,12 @@ export const useArchiveStore = defineStore('archive', () => {
   async function archiveGame({ schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }) {
     const rotation = date ? getRotationForDate(date) : getActiveRotation()
     const id = `${date}-${schedule}`
+
+    // Prevent duplicate archive
+    if (archives.value.some(a => a.id === id)) {
+      console.warn(`Archive ${id} already exists, skipping`)
+      return null
+    }
 
     const entry = {
       id,

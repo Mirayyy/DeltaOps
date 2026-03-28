@@ -231,10 +231,13 @@ export const useRosterStore = defineStore('roster', () => {
 
     if (isFirebaseConfigured) {
       await savePlayerFirestore(updated)
-      // If nickname changed, update nicknameIndex + nicknameHistory
+      // If nickname changed, atomic swap in nicknameIndex
       if (updates.nickname && updates.nickname !== oldNickname) {
-        await deleteNicknameIndex(oldNickname)
-        await setNicknameIndex(updates.nickname, uid)
+        const { doc, writeBatch, db } = await import('../firebase/firestore')
+        const batch = writeBatch(db)
+        if (oldNickname) batch.delete(doc(db, 'nicknameIndex', oldNickname))
+        batch.set(doc(db, 'nicknameIndex', updates.nickname), { playerId: uid })
+        await batch.commit()
       }
     }
     players.value[idx] = updated
@@ -244,8 +247,12 @@ export const useRosterStore = defineStore('roster', () => {
   async function removePlayer(uid) {
     const player = getPlayer(uid)
     if (isFirebaseConfigured) {
-      await deletePlayerFirestore(uid)
-      if (player?.nickname) await deleteNicknameIndex(player.nickname)
+      // Atomic batch: delete player + nicknameIndex together
+      const { doc, writeBatch, db } = await import('../firebase/firestore')
+      const batch = writeBatch(db)
+      batch.delete(doc(db, 'players', uid))
+      if (player?.nickname) batch.delete(doc(db, 'nicknameIndex', player.nickname))
+      await batch.commit()
     }
     players.value = players.value.filter(p => p.uid !== uid)
     if (!isFirebaseConfigured) saveDemo()

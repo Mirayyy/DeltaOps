@@ -34,6 +34,7 @@ Firestore:   https://firestore.googleapis.com/v1/projects/<your-project-id>/data
 | `rotations` | `{rotationId}` | Постоянный | App |
 | `archive` | `{date}-{gameId}` | Постоянный (иммутабельно) | App |
 | `stats` | `{stableId}` | Перезаписывается | App (через API) |
+| `structures` | `{structId}` | Постоянный | App |
 | `webContent` | `{pageId}` | Постоянный | App |
 
 ---
@@ -351,6 +352,29 @@ function resolveNickname(playerId) {
 | `description` | `string` | Описание |
 | `text` | `string` | Текст |
 | `...` | `any` | Другие поля по необходимости |
+
+---
+
+## 11. structures/{structId} — Шаблоны расстановок
+
+**Document ID:** `struct-{name}` или произвольный
+**Пишет:** App (админ)
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `name` | `string` | Название шаблона |
+| `slots` | `array` | Массив слотов шаблона |
+
+**slots[]:**
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `slotNumber` | `number` | Номер слота |
+| `section` | `string` | Секция (отделение) |
+| `slotId` | `string` | Вычисляемый ID слота |
+| `roleName` | `string` | Название роли |
+| `type` | `string` | Тип (`'КО'` или пусто) |
+| `equipment` | `string[]` | Снаряжение по умолчанию |
 
 ---
 

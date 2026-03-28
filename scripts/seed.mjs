@@ -8,79 +8,53 @@
 import { doc, setDoc, Timestamp } from 'firebase/firestore'
 import { db } from './firebase-config.mjs'
 
+const now = Timestamp.now()
+const playerId = `p-${Date.now()}`
+
 // ─── 1. Player ──────────────────────────────────────────────
-const adminPlayer = {
-  nickname: 'HardKil',
-  email: '',  // Set your email here for auto-linking
-  telegramId: null,
-  squadRole: 'Командир отряда',
+const player = {
+  nickname: 'Admin',
+  email: '',          // Set your Google email for auto-linking
+  position: 'Командир отряда',
   status: 'active',
-  profileUrl: '',
-  joinedAt: Timestamp.now(),
-  updatedAt: Timestamp.now(),
-
-  skills: {
-    'Снайпер': 'experienced',
-    'БПЛА': 'intermediate',
-  },
-
-  allTime: {
-    totalGames: 0,
-    attendedGames: 0,
-    attendanceRate: 0,
-  },
-
-  rotation: {
-    rotationId: null,
-    totalGames: 0,
-    attendedGames: 0,
-    attendanceRate: 0,
-  },
-
-  adminNotes: '',
+  avatar: '',
+  telegramUsername: '',
+  telegramId: null,
+  skills: [],
+  wishes: '',
+  nicknameHistory: [],
+  createdAt: now,
+  updatedAt: now,
 }
 
 // ─── 2. User (website account) ──────────────────────────────
-const adminUser = {
-  email: '',  // Set your Google account email here
-  displayName: 'HardKil',
+const user = {
+  email: '',          // Set your Google email
+  displayName: 'Admin',
   photoURL: '',
   role: 'admin',
-  createdAt: Timestamp.now(),
-  lastLoginAt: Timestamp.now(),
+  createdAt: now,
+  lastLoginAt: now,
 }
 
-// ─── 3. Current rotation ────────────────────────────────────
+// ─── 3. Rotation ─────────────────────────────────────────────
 const rotation = {
-  name: 'Весна 2026',
-  status: 'active',
-  startedAt: Timestamp.now(),
-  archivedAt: null,
+  name: 'Сезон 1',
+  startDate: new Date().toISOString().split('T')[0],
+  endDate: null,
 }
 
-// ─── 4. Current game week ───────────────────────────────────
-const currentWeekId = '2026-W13'
-const gameWeek = {
-  rotationId: 'rotation-2026-spring',
-  fridayDate: '2026-03-27',
-  saturdayDate: '2026-03-28',
-  status: 'active',
-  createdAt: Timestamp.now(),
-  archivedAt: null,
-}
-
-// ─── 5. App config ──────────────────────────────────────────
+// ─── 4. App config ──────────────────────────────────────────
 const appConfig = {
-  currentWeekId: '2026-W13',
-  currentRotationId: 'rotation-2026-spring',
+  currentRotationId: 'rotation-1',
 }
 
-// ─── 6. Squad identity ──────────────────────────────────────
+// ─── 5. Squad identity ──────────────────────────────────────
 const squadConfig = {
-  name: 'DELTA',
-  logo: 'https://tsgames.ru/images/tsg_squad/J0/fB/R6jwSt75lUXL-iBtTpIfUQpYAzLEP9EW.png',
-  siteUrl: 'https://mirayyy.github.io/DeltaOps/',
-  siteName: 'DeltaOps',
+  name: 'MY_SQUAD',
+  logo: '',
+  siteUrl: '',
+  siteName: 'SquadOps',
 }
 
 // ─── Write to Firestore ─────────────────────────────────────
@@ -88,37 +62,35 @@ async function seed() {
   console.log('Seeding Firestore...\n')
 
   try {
-    await setDoc(doc(db, 'players', 'HardKil'), adminPlayer)
-    console.log('players/HardKil — created')
+    // Player + nickname index
+    await setDoc(doc(db, 'players', playerId), player)
+    console.log(`✓ players/${playerId}`)
 
-    await setDoc(doc(db, 'users', 'seed-admin'), adminUser)
-    console.log('users/seed-admin — created')
+    await setDoc(doc(db, 'nicknameIndex', player.nickname), { playerId })
+    console.log(`✓ nicknameIndex/${player.nickname}`)
 
-    await setDoc(doc(db, 'rotations', 'rotation-2026-spring'), rotation)
-    console.log('rotations/rotation-2026-spring — created')
+    // User account (use 'seed-admin' as placeholder UID)
+    await setDoc(doc(db, 'users', 'seed-admin'), user)
+    console.log('✓ users/seed-admin')
 
-    await setDoc(doc(db, 'gameWeeks', currentWeekId), gameWeek)
-    console.log('gameWeeks/2026-W13 — created')
+    // Rotation
+    await setDoc(doc(db, 'rotations', 'rotation-1'), rotation)
+    console.log('✓ rotations/rotation-1')
 
-    await setDoc(doc(db, 'gameWeeks', currentWeekId, 'readiness', 'HardKil'), {
-      nickname: 'HardKil',
-      friday_1: 'no_response',
-      friday_2: 'no_response',
-      saturday_1: 'no_response',
-      saturday_2: 'no_response',
-      updatedAt: Timestamp.now(),
-    })
-    console.log('gameWeeks/2026-W13/readiness/HardKil — created')
-
+    // Config
     await setDoc(doc(db, 'config', 'app'), appConfig)
-    console.log('config/app — created')
+    console.log('✓ config/app')
 
     await setDoc(doc(db, 'config', 'squad'), squadConfig)
-    console.log('config/squad — created')
+    console.log('✓ config/squad')
 
-    console.log('\nSeed complete.')
+    console.log('\n✅ Seed complete.')
+    console.log('\nNext steps:')
+    console.log('1. Set your email in players and users docs')
+    console.log('2. Log in with Google → auto-link by email')
+    console.log('3. Update squad config in Settings')
   } catch (e) {
-    console.error('Error:', e.message)
+    console.error('❌ Error:', e.message)
   }
 
   process.exit(0)
