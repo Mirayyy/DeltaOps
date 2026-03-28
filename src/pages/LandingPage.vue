@@ -4,12 +4,14 @@ import { marked } from 'marked'
 import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useWebContentStore } from '../stores/webContent'
+import { useArchiveStore } from '../stores/archive'
 import { useRouter } from 'vue-router'
 import { kpdColor } from '../utils/formatters'
 import { useSquadConfig } from '../stores/squadConfig'
 import { getTsgUrl } from '../utils/constants'
 
 const squad = useSquadConfig()
+const archive = useArchiveStore()
 
 const auth = useAuthStore()
 const roster = useRosterStore()
@@ -17,6 +19,11 @@ const webContent = useWebContentStore()
 const router = useRouter()
 
 const activePlayerCount = computed(() => roster.activePlayers.length)
+
+// Server/side from active rotation (fallback to config for backward compat)
+const activeRotation = computed(() => archive.getActiveRotation())
+const currentServer = computed(() => activeRotation.value?.server || squad.config.server || '')
+const currentSide = computed(() => activeRotation.value?.side || squad.config.side || '')
 
 const contactPlayers = computed(() => {
   const uids = squad.config.contacts
@@ -103,6 +110,7 @@ onMounted(async () => {
   fetchStats()
   webContent.fetchContent()
   if (!roster.players.length) roster.fetchPlayers()
+  if (!archive.rotations.length) archive.fetchArchives()
 })
 
 function awardPlayerName(award) {
@@ -372,12 +380,12 @@ const aboutHtml = computed(() => {
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Сервер</div>
-            <div class="text-white font-semibold">{{ squad.config.server || '—' }}</div>
+            <div class="text-white font-semibold">{{ currentServer || '—' }}</div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
             <div class="text-orange-400 text-xs tracking-widest uppercase mb-2">Сторона</div>
-            <div :class="['font-semibold', squad.config.side === 'red' ? 'text-red-400' : 'text-blue-400']">
-              {{ squad.config.side === 'red' ? 'Красные' : 'Синие' }}
+            <div :class="['font-semibold', currentSide === 'red' ? 'text-red-400' : 'text-blue-400']">
+              {{ currentSide === 'red' ? 'Красные' : currentSide === 'blue' ? 'Синие' : '—' }}
             </div>
           </div>
           <div class="bg-neutral-800/40 border border-neutral-700/30 rounded-lg p-4 text-center">
@@ -424,7 +432,7 @@ const aboutHtml = computed(() => {
             :alt="squad.name"
             class="w-6 h-6 object-contain opacity-40"
           />
-          <span class="text-neutral-600 text-sm">{{ squad.name }} &bull; {{ squad.siteName }} v1.0</span>
+          <span class="text-neutral-600 text-sm">{{ squad.name }} &bull; {{ squad.siteName }} v{{ squad.version || '1.0' }}</span>
         </div>
         <div class="text-neutral-700 text-xs tracking-wide">
           Tushino Serious Games &bull; Arma 3

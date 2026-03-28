@@ -7,10 +7,13 @@ import { isFirebaseConfigured } from '../firebase/config'
  * Squad identity config — stored in Firestore `config/squad`.
  *
  * Dual ownership:
- *   App writes:       siteUrl, siteName, contacts, description
- *   Extension writes: name, tag, logo, status, server, side, guaranteedSlots, recruitment,
- *                     createdAt, projectMemberSince, scrapedAt
+ *   App writes:       siteName, siteUrl, version, githubUrl, contacts, recruitment, createdAt
+ *   Extension writes: name, tag, logo, status, server, side, guaranteedSlots,
+ *                     recruitment, createdAt, projectMemberSince, scrapedAt
  *   Both can edit ALL fields through the Settings page.
+ *
+ * Note: server/side are also on rotations (primary UI source).
+ *       Extension still writes them here for reference.
  */
 
 const DEFAULTS = {
@@ -18,40 +21,41 @@ const DEFAULTS = {
   name: 'DELTA',
   tag: 'DELTA',
   logo: '',
-  // Site
-  siteUrl: 'https://mirayyy.github.io/DeltaOps/',
-  siteName: 'DeltaOps',
-  // Squad info
   status: '',
-  server: 'T2',
-  side: 'red',
   guaranteedSlots: 0,
   recruitment: 'open',
   createdAt: '',
-  projectMemberSince: '',
-  // Content (markdown)
   contacts: [],  // array of player UIDs
-  description: '',
+  // Site
+  siteName: 'DeltaOps',
+  siteUrl: '',
+  version: '1.0',
+  githubUrl: '',
 }
 
 export const useSquadConfig = defineStore('squadConfig', () => {
   const config = ref({ ...DEFAULTS })
   const loaded = ref(false)
 
-  // Convenience computed (used across components)
+  // Convenience computed
   const name = computed(() => config.value.name)
   const logo = computed(() => config.value.logo)
-  const siteUrl = computed(() => config.value.siteUrl)
-  const siteName = computed(() => config.value.siteName)
   const tag = computed(() => config.value.tag)
-  const server = computed(() => config.value.server)
-  const side = computed(() => config.value.side)
-  const recruitment = computed(() => config.value.recruitment)
+  const siteName = computed(() => config.value.siteName)
+  const siteUrl = computed(() => config.value.siteUrl)
+  const version = computed(() => config.value.version)
+  const githubUrl = computed(() => config.value.githubUrl)
   const status = computed(() => config.value.status)
+  const recruitment = computed(() => config.value.recruitment)
   const guaranteedSlots = computed(() => config.value.guaranteedSlots)
   const createdAt = computed(() => config.value.createdAt)
   const contacts = computed(() => config.value.contacts)
-  const description = computed(() => config.value.description)
+
+  // Derived
+  const tsgUrl = computed(() => {
+    const t = config.value.tag || config.value.name
+    return t ? `https://tsgames.ru/squad/${t}` : ''
+  })
 
   async function fetch() {
     if (loaded.value) return
@@ -63,7 +67,7 @@ export const useSquadConfig = defineStore('squadConfig', () => {
       const snap = await getDoc(squadConfigRef)
       if (snap.exists()) {
         const data = snap.data()
-        // Migration: contacts was previously string/nicknames array, now UIDs array
+        // Migration: contacts was previously string/nicknames, now UIDs array
         if (typeof data.contacts === 'string') {
           data.contacts = []
         }
@@ -84,8 +88,9 @@ export const useSquadConfig = defineStore('squadConfig', () => {
 
   return {
     config, loaded,
-    name, logo, siteUrl, siteName, tag, server, side,
-    recruitment, status, guaranteedSlots, createdAt, contacts, description,
+    name, logo, tag, siteName, siteUrl, version, githubUrl,
+    status, recruitment, guaranteedSlots, createdAt, contacts,
+    tsgUrl,
     fetch, save,
   }
 })

@@ -3,11 +3,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useArchiveStore } from '../stores/archive'
 import { useGamesStore } from '../stores/games'
 import { useAttendanceStore } from '../stores/attendance'
-import { useMissionsStore } from '../stores/missions'
 import { useWebContentStore } from '../stores/webContent'
 import { useRosterStore } from '../stores/roster'
-import { useGameWeek } from '../composables/useGameWeek'
-import { GAMES, GAME_IDS } from '../utils/constants'
+import { GAME_IDS } from '../utils/constants'
 import { isFirebaseConfigured, firebaseProjectId } from '../firebase/config'
 import { useSquadConfig } from '../stores/squadConfig'
 import { useToast } from '../composables/useToast'
@@ -17,14 +15,15 @@ import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 const archive = useArchiveStore()
 const gamesStore = useGamesStore()
 const attendanceStore = useAttendanceStore()
-const missionsStore = useMissionsStore()
 const webContent = useWebContentStore()
 const roster = useRosterStore()
-const { currentWeekId, gameDates } = useGameWeek()
 const toast = useToast()
 const squadConfig = useSquadConfig()
 
-// Squad identity editing
+// ═══════════════════════════════════════
+// SQUAD FORM
+// ═══════════════════════════════════════
+
 const squadForm = ref({})
 const savingSquad = ref(false)
 
@@ -34,28 +33,14 @@ function initSquadForm() {
     name: c.name || '',
     tag: c.tag || '',
     logo: c.logo || '',
-    siteUrl: c.siteUrl || '',
-    siteName: c.siteName || '',
     status: c.status || '',
-    server: c.server || 'T2',
-    side: c.side || 'red',
     guaranteedSlots: c.guaranteedSlots || 0,
     recruitment: c.recruitment || 'open',
     createdAt: c.createdAt || '',
-    projectMemberSince: c.projectMemberSince || '',
     contacts: Array.isArray(c.contacts) ? [...c.contacts] : [],
-    description: c.description || '',
   }
 }
 
-const serverOptions = [
-  { value: 'T2', label: 'T2' },
-  { value: 'T3', label: 'T3' },
-]
-const sideOptions = [
-  { value: 'red', label: 'Красные' },
-  { value: 'blue', label: 'Синие' },
-]
 const recruitmentOptions = [
   { value: 'open', label: 'Открыт' },
   { value: 'closed', label: 'Закрыт' },
@@ -91,6 +76,12 @@ function removeContact(uid) {
   squadForm.value.contacts = squadForm.value.contacts.filter(id => id !== uid)
 }
 
+// TSG URL (derived from tag)
+const tsgUrl = computed(() => {
+  const t = squadForm.value.tag || squadForm.value.name
+  return t ? `https://tsgames.ru/squad/${t}` : ''
+})
+
 async function saveSquadConfig() {
   savingSquad.value = true
   try {
@@ -99,6 +90,8 @@ async function saveSquadConfig() {
       guaranteedSlots: parseInt(squadForm.value.guaranteedSlots, 10) || 0,
     }
     await squadConfig.save(data)
+    // Also save aboutMarkdown (description on landing page)
+    await webContent.saveContent()
     toast.success('Настройки отряда сохранены')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
@@ -106,48 +99,26 @@ async function saveSquadConfig() {
   savingSquad.value = false
 }
 
-// Rotation form
-const newRotation = ref({ name: '', startDate: '', endDate: '' })
+// ═══════════════════════════════════════
+// ROTATIONS
+// ═══════════════════════════════════════
+
+const serverOptions = [
+  { value: 'T2', label: 'T2' },
+  { value: 'T3', label: 'T3' },
+]
+const sideOptions = [
+  { value: 'red', label: 'Красные' },
+  { value: 'blue', label: 'Синие' },
+]
+
+const newRotation = ref({ name: '', startDate: '', endDate: '', server: 'T2', side: 'red' })
 const creating = ref(false)
 const archiving = ref(false)
+const deleting = ref(null)
 
-// Rotation editing
 const editingRotationId = ref(null)
-const editForm = ref({ name: '', startDate: '', endDate: '' })
-
-// Web content saving
-const savingContent = ref(false)
-
-// Award player options
-const playerOptions = computed(() => [
-  { value: null, label: '— Не выбран —' },
-  ...roster.activePlayers.map(p => ({ value: p.uid, label: p.nickname })),
-])
-
-onMounted(async () => {
-  await Promise.all([
-    archive.rotations.length ? null : archive.fetchArchives(),
-    missionsStore.fetchMissions(),
-    webContent.fetchContent(),
-    roster.players.length ? null : roster.fetchPlayers(),
-    squadConfig.fetch(),
-  ])
-  initSquadForm()
-})
-
-const activeRotation = computed(() => archive.getActiveRotation())
-
-// Current week mission info
-const weekMissions = computed(() => {
-  return GAMES.map(game => {
-    const mission = missionsStore.getMission(game.id)
-    return {
-      ...game,
-      mission,
-      loaded: !!mission,
-    }
-  })
-})
+const editForm = ref({ name: '', startDate: '', endDate: '', server: '', side: '' })
 
 const statusConfig = {
   active: { label: 'Активна', class: 'bg-green-500/20 text-green-400 border-green-500/30' },
@@ -159,7 +130,6 @@ function rotationGamesCount(rotationId) {
   return archive.archives.filter(a => a.rotation === rotationId).length
 }
 
-// Check if current week has unfinalized data
 const hasUnfinalizedWeek = computed(() => {
   for (const id of GAME_IDS) {
     const slots = gamesStore.getSlots(id)
@@ -170,7 +140,6 @@ const hasUnfinalizedWeek = computed(() => {
   return false
 })
 
-// --- Rotation handlers ---
 async function handleCreate() {
   if (!newRotation.value.name.trim() || !newRotation.value.startDate || creating.value) return
   creating.value = true
@@ -179,8 +148,10 @@ async function handleCreate() {
       newRotation.value.name.trim(),
       newRotation.value.startDate,
       newRotation.value.endDate || null,
+      newRotation.value.server,
+      newRotation.value.side,
     )
-    newRotation.value = { name: '', startDate: '', endDate: '' }
+    newRotation.value = { name: '', startDate: '', endDate: '', server: 'T2', side: 'red' }
     toast.success('Ротация создана')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
@@ -190,7 +161,8 @@ async function handleCreate() {
 }
 
 async function handleArchive() {
-  if (!activeRotation.value || archiving.value) return
+  const active = archive.getActiveRotation()
+  if (!active || archiving.value) return
   if (hasUnfinalizedWeek.value) {
     toast.error('Сначала завершите текущую неделю (Дашборд → Завершить неделю)')
     return
@@ -198,12 +170,29 @@ async function handleArchive() {
   archiving.value = true
   try {
     const today = new Date().toISOString().slice(0, 10)
-    await archive.updateRotation(activeRotation.value.id, { endDate: today })
+    await archive.updateRotation(active.id, { endDate: today })
     toast.success('Ротация завершена')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
   } finally {
     archiving.value = false
+  }
+}
+
+async function handleDeleteRotation(rot) {
+  const gamesCount = rotationGamesCount(rot.id)
+  if (gamesCount > 0) {
+    toast.error(`Нельзя удалить: ${gamesCount} игр привязано к ротации`)
+    return
+  }
+  deleting.value = rot.id
+  try {
+    await archive.deleteRotation(rot.id)
+    toast.success('Ротация удалена')
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message)
+  } finally {
+    deleting.value = null
   }
 }
 
@@ -213,6 +202,8 @@ function startEditRotation(rot) {
     name: rot.name || '',
     startDate: toInputDate(rot.startDate),
     endDate: toInputDate(rot.endDate),
+    server: rot.server || 'T2',
+    side: rot.side || 'red',
   }
 }
 
@@ -227,6 +218,8 @@ async function saveEditRotation() {
       name: editForm.value.name.trim(),
       startDate: editForm.value.startDate || null,
       endDate: editForm.value.endDate || null,
+      server: editForm.value.server,
+      side: editForm.value.side,
     })
     toast.success('Ротация обновлена')
     editingRotationId.value = null
@@ -235,12 +228,22 @@ async function saveEditRotation() {
   }
 }
 
-// --- Web content handlers ---
+// ═══════════════════════════════════════
+// AWARDS (web content)
+// ═══════════════════════════════════════
+
+const savingContent = ref(false)
+
+const playerOptions = computed(() => [
+  { value: null, label: '— Не выбран —' },
+  ...roster.activePlayers.map(p => ({ value: p.uid, label: p.nickname })),
+])
+
 async function saveWebContent() {
   savingContent.value = true
   try {
     await webContent.saveContent()
-    toast.success('Настройки сайта сохранены')
+    toast.success('Достижения сохранены')
   } catch (e) {
     toast.error('Ошибка: ' + e.message)
   } finally {
@@ -248,7 +251,53 @@ async function saveWebContent() {
   }
 }
 
-// --- Helpers ---
+// ═══════════════════════════════════════
+// SITE CONFIG
+// ═══════════════════════════════════════
+
+const siteForm = ref({})
+const savingSite = ref(false)
+
+function initSiteForm() {
+  const c = squadConfig.config
+  siteForm.value = {
+    siteName: c.siteName || '',
+    version: c.version || '1.0',
+    siteUrl: c.siteUrl || '',
+    githubUrl: c.githubUrl || '',
+  }
+}
+
+async function saveSiteConfig() {
+  savingSite.value = true
+  try {
+    await squadConfig.save(siteForm.value)
+    toast.success('Настройки сайта сохранены')
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message)
+  }
+  savingSite.value = false
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+
+onMounted(async () => {
+  await Promise.all([
+    archive.rotations.length ? null : archive.fetchArchives(),
+    webContent.fetchContent(),
+    roster.players.length ? null : roster.fetchPlayers(),
+    squadConfig.fetch(),
+  ])
+  initSquadForm()
+  initSiteForm()
+})
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+
 function toInputDate(ts) {
   if (!ts) return ''
   if (typeof ts === 'string' && /^\d{4}-\d{2}-\d{2}/.test(ts)) return ts.slice(0, 10)
@@ -271,49 +320,12 @@ function formatDate(ts) {
   <div class="pb-20 md:pb-0 max-w-4xl mx-auto">
     <h1 class="text-2xl font-bold mb-6">Настройки</h1>
 
-    <!-- ═══ GAMES / PROCESS ═══ -->
-    <div class="mb-8">
-      <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Настройка игр / процессов</h2>
-
-      <div class="space-y-4">
-        <!-- Current week + missions -->
-        <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
-          <h3 class="text-sm font-medium text-neutral-300 mb-3">Текущая неделя</h3>
-          <div class="flex items-center gap-6 mb-4">
-            <div class="text-lg font-bold font-mono text-delta-green">{{ currentWeekId }}</div>
-            <div class="text-sm text-neutral-400">
-              Пт: {{ gameDates.friday }}
-              <span class="mx-2 text-neutral-600">•</span>
-              Сб: {{ gameDates.saturday }}
-            </div>
-          </div>
-
-          <!-- Mission slots -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div v-for="slot in weekMissions" :key="slot.id"
-              :class="[
-                'rounded-lg border p-3',
-                slot.loaded ? 'bg-neutral-800/50 border-neutral-700' : 'bg-neutral-800/20 border-neutral-800 border-dashed'
-              ]">
-              <div class="text-[10px] text-neutral-500 uppercase tracking-wider mb-1">{{ slot.label }}</div>
-              <template v-if="slot.loaded">
-                <div class="text-sm font-medium text-neutral-200 truncate">{{ slot.mission.title }}</div>
-                <div class="text-[10px] text-neutral-500 mt-0.5">{{ slot.mission.map }}</div>
-              </template>
-              <div v-else class="text-xs text-neutral-600">Не загружена</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ═══ ROTATIONS ═══ -->
+    <!-- ═══ 1. ROTATIONS ═══ -->
     <div class="mb-8">
       <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Ротации</h2>
 
       <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
-        <!-- All rotations list -->
+        <!-- Rotation list -->
         <div class="space-y-3 mb-5">
           <div v-for="rot in archive.rotations" :key="rot.id"
             class="bg-neutral-800/50 rounded-lg p-4">
@@ -333,9 +345,19 @@ function formatDate(ts) {
                       class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green text-neutral-300" />
                   </div>
                   <div>
-                    <label class="block text-xs text-neutral-400 mb-1">Конец <span class="text-neutral-600">(необяз.)</span></label>
+                    <label class="block text-xs text-neutral-400 mb-1">Конец</label>
                     <input v-model="editForm.endDate" type="date"
                       class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green text-neutral-300" />
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label class="block text-xs text-neutral-400 mb-1">Сервер</label>
+                    <BaseSelect v-model="editForm.server" :options="serverOptions" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-neutral-400 mb-1">Сторона</label>
+                    <BaseSelect v-model="editForm.side" :options="sideOptions" />
                   </div>
                 </div>
                 <div class="flex gap-2">
@@ -355,13 +377,15 @@ function formatDate(ts) {
             <template v-else>
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium">{{ rot.name }}</span>
                     <span :class="['text-xs px-2 py-0.5 rounded border', statusConfig[archive.getRotationStatus(rot)].class]">
                       {{ statusConfig[archive.getRotationStatus(rot)].label }}
                     </span>
-                    <button @click="startEditRotation(rot)"
-                      class="text-xs text-neutral-600 hover:text-neutral-300 transition-colors">✎</button>
+                    <span v-if="rot.server" class="text-[10px] px-1.5 py-0.5 bg-neutral-700/50 rounded text-neutral-400">{{ rot.server }}</span>
+                    <span v-if="rot.side" :class="['text-[10px] px-1.5 py-0.5 rounded', rot.side === 'red' ? 'bg-red-500/15 text-red-400' : 'bg-blue-500/15 text-blue-400']">
+                      {{ rot.side === 'red' ? 'Красные' : 'Синие' }}
+                    </span>
                   </div>
                   <div class="text-xs text-neutral-500 mt-1">
                     {{ formatDate(rot.startDate) }}
@@ -371,12 +395,22 @@ function formatDate(ts) {
                   </div>
                 </div>
 
-                <button v-if="archive.getRotationStatus(rot) === 'active'"
-                  @click="handleArchive"
-                  :disabled="archiving"
-                  class="px-3 py-1.5 text-xs border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 shrink-0">
-                  {{ archiving ? 'Архивирую...' : 'Завершить' }}
-                </button>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button @click="startEditRotation(rot)"
+                    class="text-xs text-neutral-600 hover:text-neutral-300 transition-colors px-2 py-1">✎</button>
+                  <button v-if="archive.getRotationStatus(rot) === 'active'"
+                    @click="handleArchive"
+                    :disabled="archiving"
+                    class="px-3 py-1.5 text-xs border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50">
+                    {{ archiving ? '...' : 'Завершить' }}
+                  </button>
+                  <button v-if="rotationGamesCount(rot.id) === 0"
+                    @click="handleDeleteRotation(rot)"
+                    :disabled="deleting === rot.id"
+                    class="px-2 py-1.5 text-xs text-red-600 hover:text-red-400 transition-colors disabled:opacity-50">
+                    ✕
+                  </button>
+                </div>
               </div>
             </template>
           </div>
@@ -384,10 +418,10 @@ function formatDate(ts) {
 
         <div v-if="!archive.rotations.length" class="text-neutral-600 text-sm mb-5">Нет ротаций</div>
 
-        <!-- Create new rotation -->
+        <!-- Create -->
         <div class="pt-4 border-t border-neutral-800">
           <h4 class="text-xs text-neutral-400 mb-3">Новая ротация</h4>
-          <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
               <label class="block text-xs text-neutral-500 mb-1">Название *</label>
               <input v-model="newRotation.name" type="text" placeholder="Лето 2026"
@@ -403,9 +437,19 @@ function formatDate(ts) {
               <input v-model="newRotation.endDate" type="date"
                 class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green text-neutral-300" />
             </div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-[auto_auto_1fr] gap-3 items-end">
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Сервер</label>
+              <BaseSelect v-model="newRotation.server" :options="serverOptions" />
+            </div>
+            <div>
+              <label class="block text-xs text-neutral-500 mb-1">Сторона</label>
+              <BaseSelect v-model="newRotation.side" :options="sideOptions" />
+            </div>
             <button @click="handleCreate"
               :disabled="!newRotation.name.trim() || !newRotation.startDate || creating"
-              class="px-4 py-2 text-sm bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap">
+              class="px-4 py-2 text-sm bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap justify-self-end">
               {{ creating ? '...' : 'Создать' }}
             </button>
           </div>
@@ -413,249 +457,146 @@ function formatDate(ts) {
       </div>
     </div>
 
-    <!-- ═══ WEBSITE CONTENT ═══ -->
+    <!-- ═══ 2. AWARDS ═══ -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Настройки сайта</h2>
+        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Достижения</h2>
         <button @click="saveWebContent" :disabled="savingContent"
           class="px-4 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-50">
           {{ savingContent ? 'Сохранение...' : 'Сохранить' }}
         </button>
       </div>
 
-      <div class="space-y-4">
-        <!-- Awards / Достижения -->
-        <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-medium text-neutral-300">Достижения</h3>
-            <button @click="webContent.addAward"
-              class="text-xs px-3 py-1 border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors">
-              + Добавить
-            </button>
-          </div>
-
-          <div v-if="!webContent.awards.length" class="text-neutral-600 text-sm">Нет достижений</div>
-
-          <div class="space-y-3">
-            <div v-for="(award, idx) in webContent.awards" :key="award._id"
-              class="bg-neutral-800/50 rounded-lg p-4">
-              <div class="flex items-start gap-4">
-                <!-- Preview icon -->
-                <div class="w-14 h-14 bg-neutral-800 rounded-lg flex items-center justify-center border border-neutral-700 shrink-0 overflow-hidden">
-                  <img v-if="award.icon" :src="award.icon" :alt="award.title" class="w-10 h-10 object-contain" />
-                  <span v-else class="text-neutral-600 text-xl">?</span>
-                </div>
-
-                <!-- Fields -->
-                <div class="flex-1 space-y-2">
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-[10px] text-neutral-500 mb-0.5">Иконка (URL)</label>
-                      <input v-model="award.icon" type="text" placeholder="https://..."
-                        class="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-delta-green" />
-                    </div>
-                    <div>
-                      <label class="block text-[10px] text-neutral-500 mb-0.5">Название</label>
-                      <input v-model="award.title" type="text" placeholder="Название достижения"
-                        class="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-delta-green" />
-                    </div>
-                  </div>
-                  <div>
-                    <label class="block text-[10px] text-neutral-500 mb-0.5">Описание</label>
-                    <input v-model="award.description" type="text" placeholder="За что получено"
-                      class="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-delta-green" />
-                  </div>
-                  <!-- Type, Player, Show on landing -->
-                  <div class="flex flex-wrap items-center gap-3 pt-1">
-                    <!-- Type toggle -->
-                    <div class="flex items-center gap-1">
-                      <label class="text-[10px] text-neutral-500 mr-1">Тип:</label>
-                      <button @click="award.type = 'squad'; award.playerUid = null"
-                        :class="[
-                          'px-2 py-0.5 text-[10px] rounded border transition-colors',
-                          award.type === 'squad'
-                            ? 'bg-delta-green/20 border-delta-green/40 text-delta-green'
-                            : 'border-neutral-700 text-neutral-500 hover:text-neutral-300'
-                        ]">Отряд</button>
-                      <button @click="award.type = 'player'"
-                        :class="[
-                          'px-2 py-0.5 text-[10px] rounded border transition-colors',
-                          award.type === 'player'
-                            ? 'bg-blue-500/20 border-blue-500/40 text-blue-400'
-                            : 'border-neutral-700 text-neutral-500 hover:text-neutral-300'
-                        ]">Игрок</button>
-                    </div>
-
-                    <!-- Player selector (only for player type) -->
-                    <div v-if="award.type === 'player'" class="flex items-center gap-1">
-                      <label class="text-[10px] text-neutral-500">Игрок:</label>
-                      <BaseSelect v-model="award.playerUid" :options="playerOptions" size="sm" />
-                    </div>
-
-                    <!-- Show on landing checkbox -->
-                    <BaseCheckbox v-model="award.showOnLanding" size="sm" class="ml-auto">
-                      <span class="text-[10px] text-neutral-500">На главную</span>
-                    </BaseCheckbox>
-                  </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="flex flex-col gap-1 shrink-0">
-                  <button @click="webContent.moveAward(idx, -1)" :disabled="idx === 0"
-                    class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▲</button>
-                  <button @click="webContent.moveAward(idx, 1)" :disabled="idx === webContent.awards.length - 1"
-                    class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▼</button>
-                  <button @click="webContent.removeAward(idx)"
-                    class="text-red-600 hover:text-red-400 text-xs transition-colors mt-1">✕</button>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-medium text-neutral-300">Список достижений</h3>
+          <button @click="webContent.addAward"
+            class="text-xs px-3 py-1 border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors">
+            + Добавить
+          </button>
         </div>
 
-        <!-- About / Об отряде -->
-        <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
-          <h3 class="text-sm font-medium text-neutral-300 mb-3">Об отряде</h3>
+        <div v-if="!webContent.awards.length" class="text-neutral-600 text-sm">Нет достижений</div>
 
-          <!-- Markdown reference -->
-          <div class="bg-neutral-800/50 rounded-lg p-3 mb-3 text-[11px] text-neutral-500 leading-relaxed space-y-1.5">
-            <div class="text-neutral-400 font-medium mb-1">Подсказка по синтаксису Markdown:</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-              <div><code class="text-neutral-400">**жирный**</code> → <strong class="text-white">жирный</strong></div>
-              <div><code class="text-neutral-400">*курсив*</code> → <em class="text-neutral-300 italic">курсив</em></div>
-              <div><code class="text-neutral-400">~~зачёркнутый~~</code> → <span class="line-through">зачёркнутый</span></div>
-              <div><code class="text-neutral-400"># Заголовок 1</code> — большой заголовок</div>
-              <div><code class="text-neutral-400">## Заголовок 2</code> — средний заголовок</div>
-              <div><code class="text-neutral-400">### Заголовок 3</code> — малый заголовок</div>
-              <div><code class="text-neutral-400">[текст](url)</code> → ссылка</div>
-              <div><code class="text-neutral-400">- элемент</code> — маркированный список</div>
-              <div><code class="text-neutral-400">1. элемент</code> — нумерованный список</div>
-              <div><code class="text-neutral-400">> цитата</code> — блок цитаты</div>
-              <div><code class="text-neutral-400">---</code> — горизонтальная линия</div>
-              <div><code class="text-neutral-400">`код`</code> → <code class="text-delta-green">код</code></div>
-            </div>
-            <div class="border-t border-neutral-700/50 pt-1.5 mt-1.5">
-              <div class="text-neutral-400 font-medium mb-1">Цвета (спец. синтаксис):</div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-                <div><code class="text-neutral-400">{orange}текст{/orange}</code> → <span class="text-orange-400">текст</span></div>
-                <div><code class="text-neutral-400">{green}текст{/green}</code> → <span class="text-green-400">текст</span></div>
-                <div><code class="text-neutral-400">{red}текст{/red}</code> → <span class="text-red-400">текст</span></div>
-                <div><code class="text-neutral-400">{blue}текст{/blue}</code> → <span class="text-blue-400">текст</span></div>
-                <div><code class="text-neutral-400">{yellow}текст{/yellow}</code> → <span class="text-yellow-400">текст</span></div>
-                <div><code class="text-neutral-400">{white}текст{/white}</code> → <span class="text-white">текст</span></div>
-                <div><code class="text-neutral-400">{delta}текст{/delta}</code> → <span class="text-delta-green">текст</span></div>
+        <div class="space-y-3">
+          <div v-for="(award, idx) in webContent.awards" :key="award._id"
+            class="bg-neutral-800/50 rounded-lg p-4">
+            <div class="flex items-start gap-4">
+              <div class="w-14 h-14 bg-neutral-800 rounded-lg flex items-center justify-center border border-neutral-700 shrink-0 overflow-hidden">
+                <img v-if="award.icon" :src="award.icon" :alt="award.title" class="w-10 h-10 object-contain" />
+                <span v-else class="text-neutral-600 text-xl">?</span>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-[10px] text-neutral-500 mb-0.5">Иконка (URL)</label>
+                    <input v-model="award.icon" type="text" placeholder="https://..."
+                      class="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-delta-green" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-neutral-500 mb-0.5">Название</label>
+                    <input v-model="award.title" type="text" placeholder="Название достижения"
+                      class="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-delta-green" />
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-[10px] text-neutral-500 mb-0.5">Описание</label>
+                  <input v-model="award.description" type="text" placeholder="За что получено"
+                    class="w-full bg-neutral-900 border border-neutral-700 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-delta-green" />
+                </div>
+                <div class="flex flex-wrap items-center gap-3 pt-1">
+                  <div class="flex items-center gap-1">
+                    <label class="text-[10px] text-neutral-500 mr-1">Тип:</label>
+                    <button @click="award.type = 'squad'; award.playerUid = null"
+                      :class="['px-2 py-0.5 text-[10px] rounded border transition-colors', award.type === 'squad' ? 'bg-delta-green/20 border-delta-green/40 text-delta-green' : 'border-neutral-700 text-neutral-500 hover:text-neutral-300']">
+                      Отряд
+                    </button>
+                    <button @click="award.type = 'player'"
+                      :class="['px-2 py-0.5 text-[10px] rounded border transition-colors', award.type === 'player' ? 'bg-blue-500/20 border-blue-500/40 text-blue-400' : 'border-neutral-700 text-neutral-500 hover:text-neutral-300']">
+                      Игрок
+                    </button>
+                  </div>
+                  <div v-if="award.type === 'player'" class="flex items-center gap-1">
+                    <label class="text-[10px] text-neutral-500">Игрок:</label>
+                    <BaseSelect v-model="award.playerUid" :options="playerOptions" size="sm" />
+                  </div>
+                  <BaseCheckbox v-model="award.showOnLanding" size="sm" class="ml-auto">
+                    <span class="text-[10px] text-neutral-500">На главную</span>
+                  </BaseCheckbox>
+                </div>
+              </div>
+              <div class="flex flex-col gap-1 shrink-0">
+                <button @click="webContent.moveAward(idx, -1)" :disabled="idx === 0"
+                  class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▲</button>
+                <button @click="webContent.moveAward(idx, 1)" :disabled="idx === webContent.awards.length - 1"
+                  class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▼</button>
+                <button @click="webContent.removeAward(idx)"
+                  class="text-red-600 hover:text-red-400 text-xs transition-colors mt-1">✕</button>
               </div>
             </div>
           </div>
-
-          <textarea v-model="webContent.aboutMarkdown"
-            rows="10"
-            placeholder="Текст об отряде..."
-            class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-sm text-neutral-300 focus:outline-none focus:border-delta-green resize-y font-mono leading-relaxed">
-          </textarea>
         </div>
       </div>
     </div>
 
-    <!-- ═══ TECHNICAL ═══ -->
-    <!-- Squad identity -->
+    <!-- ═══ 3. SQUAD ═══ -->
     <div class="mb-8">
-      <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Отряд</h2>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Отряд</h2>
+        <button @click="saveSquadConfig" :disabled="savingSquad"
+          class="px-4 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-50">
+          {{ savingSquad ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </div>
 
       <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-5">
-        <!-- Identity row -->
-        <div>
-          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Идентификация</div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Название отряда</label>
-              <input v-model="squadForm.name" type="text" placeholder="DELTA"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Тэг</label>
-              <input v-model="squadForm.tag" type="text" placeholder="DELTA"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">URL логотипа</label>
-              <input v-model="squadForm.logo" type="url" placeholder="https://..."
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Статус отряда</label>
-              <input v-model="squadForm.status" type="text" placeholder="Отряд Участник Проекта"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
+        <!-- Row 1: Identity -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Название</label>
+            <input v-model="squadForm.name" type="text" placeholder="DELTA"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
-          <div v-if="squadForm.logo" class="flex items-center gap-3 mt-3">
-            <img :src="squadForm.logo" class="w-10 h-10 rounded-lg object-contain bg-neutral-800" />
-            <span class="text-xs text-neutral-500">Превью логотипа</span>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Тэг</label>
+            <input v-model="squadForm.tag" type="text" placeholder="DELTA"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
         </div>
 
-        <!-- Game params row -->
+        <!-- Row 2: Logo + preview -->
         <div>
-          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Игровые параметры</div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Сервер</label>
-              <BaseSelect v-model="squadForm.server" :options="serverOptions" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Сторона</label>
-              <BaseSelect v-model="squadForm.side" :options="sideOptions" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Набор</label>
-              <BaseSelect v-model="squadForm.recruitment" :options="recruitmentOptions" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Гарантированные слоты</label>
-              <input v-model.number="squadForm.guaranteedSlots" type="number" min="0" max="99"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          <label class="block text-xs text-neutral-500 mb-1">Логотип (URL)</label>
+          <div class="flex gap-3">
+            <input v-model="squadForm.logo" type="url" placeholder="https://..."
+              class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+            <div v-if="squadForm.logo" class="w-10 h-10 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center shrink-0 overflow-hidden">
+              <img :src="squadForm.logo" class="w-8 h-8 object-contain" />
             </div>
           </div>
         </div>
 
-        <!-- Dates row -->
-        <div>
-          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Даты</div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Создан</label>
-              <input v-model="squadForm.createdAt" type="text" placeholder="17.12.2024"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Участник проекта с</label>
-              <input v-model="squadForm.projectMemberSince" type="text" placeholder="07.12.2025"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
+        <!-- Row 3: Params -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Слотов</label>
+            <input v-model.number="squadForm.guaranteedSlots" type="number" min="0" max="99"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Набор</label>
+            <BaseSelect v-model="squadForm.recruitment" :options="recruitmentOptions" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Статус</label>
+            <input v-model="squadForm.status" type="text" placeholder="Отряд Участник Проекта"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
         </div>
 
-        <!-- Site row -->
+        <!-- Row 4: Contacts -->
         <div>
-          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Сайт</div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">Название сайта</label>
-              <input v-model="squadForm.siteName" type="text" placeholder="DeltaOps"
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
-            <div>
-              <label class="block text-xs text-neutral-500 mb-1">URL сайта</label>
-              <input v-model="squadForm.siteUrl" type="url" placeholder="https://..."
-                class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Contacts (player selector) -->
-        <div>
-          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Контакты</div>
-          <label class="block text-xs text-neutral-500 mb-2">Контактные лица отряда</label>
+          <label class="block text-xs text-neutral-500 mb-2">Контакты</label>
           <div class="flex flex-wrap gap-2 mb-3">
             <div v-for="uid in squadForm.contacts" :key="uid"
               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm">
@@ -673,77 +614,127 @@ function formatDate(ts) {
           </div>
         </div>
 
-        <!-- Description (markdown) -->
-        <div>
-          <div class="text-[10px] text-neutral-600 uppercase tracking-wider mb-2">Контент</div>
+        <!-- Row 5: Date + TSG URL -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs text-neutral-500 mb-1">Описание отряда <span class="text-neutral-600">(markdown)</span></label>
-            <textarea v-model="squadForm.description" rows="5" placeholder="Краткое описание отряда..."
-              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green resize-y font-mono"></textarea>
+            <label class="block text-xs text-neutral-500 mb-1">Дата создания</label>
+            <input v-model="squadForm.createdAt" type="text" placeholder="17.12.2024"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">TSG URL</label>
+            <div class="flex items-center h-[38px] px-3 bg-neutral-800/50 border border-neutral-700/50 rounded-lg text-sm text-neutral-400">
+              <a v-if="tsgUrl" :href="tsgUrl" target="_blank" class="hover:text-orange-400 transition-colors truncate">{{ tsgUrl }}</a>
+              <span v-else class="text-neutral-600">Введите тэг</span>
+            </div>
           </div>
         </div>
 
-        <!-- Player count (read-only) -->
-        <div class="flex items-center gap-3 text-sm text-neutral-400">
+        <!-- Row 6: Description (aboutMarkdown) -->
+        <div>
+          <label class="block text-xs text-neutral-500 mb-1">Описание <span class="text-neutral-600">(главная страница, markdown)</span></label>
+
+          <!-- Markdown reference (collapsible) -->
+          <details class="mb-2">
+            <summary class="text-[10px] text-neutral-600 cursor-pointer hover:text-neutral-400 transition-colors">Подсказка по Markdown</summary>
+            <div class="bg-neutral-800/50 rounded-lg p-3 mt-1 text-[11px] text-neutral-500 leading-relaxed space-y-1.5">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                <div><code class="text-neutral-400">**жирный**</code> → <strong class="text-white">жирный</strong></div>
+                <div><code class="text-neutral-400">*курсив*</code> → <em class="text-neutral-300 italic">курсив</em></div>
+                <div><code class="text-neutral-400">[текст](url)</code> → ссылка</div>
+                <div><code class="text-neutral-400">- элемент</code> — список</div>
+                <div><code class="text-neutral-400"># Заголовок</code> — заголовок</div>
+                <div><code class="text-neutral-400">> цитата</code> — цитата</div>
+              </div>
+              <div class="border-t border-neutral-700/50 pt-1.5 mt-1.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                  <div><code class="text-neutral-400">{orange}текст{/orange}</code> → <span class="text-orange-400">текст</span></div>
+                  <div><code class="text-neutral-400">{green}текст{/green}</code> → <span class="text-green-400">текст</span></div>
+                  <div><code class="text-neutral-400">{delta}текст{/delta}</code> → <span class="text-delta-green">текст</span></div>
+                  <div><code class="text-neutral-400">{red}текст{/red}</code> → <span class="text-red-400">текст</span></div>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <textarea v-model="webContent.aboutMarkdown"
+            rows="8"
+            placeholder="Текст об отряде на главной странице..."
+            class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-sm text-neutral-300 focus:outline-none focus:border-delta-green resize-y font-mono leading-relaxed">
+          </textarea>
+        </div>
+
+        <!-- Player count (read-only info) -->
+        <div class="flex items-center gap-3 text-sm text-neutral-400 pt-2 border-t border-neutral-800">
           <span class="text-neutral-600">Личный состав:</span>
           <span class="text-white font-medium">{{ roster.activePlayers.length }}</span>
-          <span class="text-neutral-600">активных игроков</span>
+          <span class="text-neutral-600">активных</span>
           <router-link to="/roster" class="text-delta-green hover:text-orange-400 text-xs transition-colors ml-auto">
             Управление →
           </router-link>
         </div>
-
-        <button @click="saveSquadConfig" :disabled="savingSquad"
-          class="px-4 py-2 text-sm bg-delta-green text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50">
-          {{ savingSquad ? 'Сохранение...' : 'Сохранить' }}
-        </button>
       </div>
     </div>
 
+    <!-- ═══ 4. SITE ═══ -->
     <div class="mb-8">
-      <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Техническое</h2>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Сайт</h2>
+        <button @click="saveSiteConfig" :disabled="savingSite"
+          class="px-4 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-50">
+          {{ savingSite ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </div>
 
-      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
-        <h3 class="text-sm font-medium text-neutral-300 mb-3">Подключение</h3>
-        <div class="flex items-center gap-3">
-          <span :class="['w-2.5 h-2.5 rounded-full', isFirebaseConfigured ? 'bg-green-400' : 'bg-yellow-400']"></span>
-          <span class="text-sm text-neutral-400">
-            {{ isFirebaseConfigured ? 'Firebase подключён' : 'Демо-режим (localStorage)' }}
-          </span>
-        </div>
-
-        <div v-if="isFirebaseConfigured" class="mt-4 pt-4 border-t border-neutral-800">
-          <h3 class="text-sm font-medium text-neutral-300 mb-2">Firebase Console</h3>
-          <div class="flex flex-col gap-1.5">
-            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/firestore`" target="_blank"
-              class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-amber-400 transition-colors">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3.89 15.673L6.255.461A.542.542 0 017.27.289l2.543 4.771zm16.794 3.692l-2.25-14a.54.54 0 00-.919-.295L3.316 19.365l7.856 4.427a1.621 1.621 0 001.588 0zM14.3 7.148l-1.82-3.482a.542.542 0 00-.96 0L3.53 17.984z"/></svg>
-              Firestore
-            </a>
-            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/authentication/users`" target="_blank"
-              class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-amber-400 transition-colors">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3.89 15.673L6.255.461A.542.542 0 017.27.289l2.543 4.771zm16.794 3.692l-2.25-14a.54.54 0 00-.919-.295L3.316 19.365l7.856 4.427a1.621 1.621 0 001.588 0zM14.3 7.148l-1.82-3.482a.542.542 0 00-.96 0L3.53 17.984z"/></svg>
-              Authentication
-            </a>
-            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/settings/general`" target="_blank"
-              class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-amber-400 transition-colors">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3.89 15.673L6.255.461A.542.542 0 017.27.289l2.543 4.771zm16.794 3.692l-2.25-14a.54.54 0 00-.919-.295L3.316 19.365l7.856 4.427a1.621 1.621 0 001.588 0zM14.3 7.148l-1.82-3.482a.542.542 0 00-.96 0L3.53 17.984z"/></svg>
-              Настройки проекта
-            </a>
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Название</label>
+            <input v-model="siteForm.siteName" type="text" placeholder="DeltaOps"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Версия</label>
+            <input v-model="siteForm.version" type="text" placeholder="1.0"
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">Ссылка</label>
+            <input v-model="siteForm.siteUrl" type="url" placeholder="https://..."
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          </div>
+          <div>
+            <label class="block text-xs text-neutral-500 mb-1">GitHub</label>
+            <input v-model="siteForm.githubUrl" type="url" placeholder="https://github.com/..."
+              class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
         </div>
 
-        <div class="mt-4 pt-4 border-t border-neutral-800">
-          <h3 class="text-sm font-medium text-neutral-300 mb-2">Репозиторий</h3>
-          <a href="https://github.com/Mirayyy/DeltaOps" target="_blank"
-            class="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-            </svg>
-            github.com/Mirayyy/DeltaOps
-          </a>
+        <!-- Quick links -->
+        <div class="pt-4 border-t border-neutral-800">
+          <div class="flex items-center gap-2 mb-2">
+            <span :class="['w-2 h-2 rounded-full', isFirebaseConfigured ? 'bg-green-400' : 'bg-yellow-400']"></span>
+            <span class="text-xs text-neutral-500">
+              {{ isFirebaseConfigured ? 'Firebase подключён' : 'Демо-режим' }}
+            </span>
+          </div>
+          <div v-if="isFirebaseConfigured" class="flex flex-wrap gap-3">
+            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/firestore`" target="_blank"
+              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Firestore</a>
+            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/authentication/users`" target="_blank"
+              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Auth</a>
+            <a :href="`https://console.firebase.google.com/project/${firebaseProjectId}/settings/general`" target="_blank"
+              class="text-xs text-neutral-500 hover:text-amber-400 transition-colors">Настройки</a>
+          </div>
+          <div class="flex flex-wrap gap-3 mt-2">
+            <a v-if="siteForm.githubUrl" :href="siteForm.githubUrl" target="_blank"
+              class="text-xs text-neutral-500 hover:text-white transition-colors">GitHub ↗</a>
+            <a v-if="siteForm.siteUrl" :href="siteForm.siteUrl" target="_blank"
+              class="text-xs text-neutral-500 hover:text-white transition-colors">Сайт ↗</a>
+          </div>
         </div>
       </div>
     </div>
+
   </div>
 </template>
