@@ -105,6 +105,8 @@ export const useRosterStore = defineStore('roster', () => {
   const reservePlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'reserve')))
   const bannedPlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'banned')))
   const leftPlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'left')))
+  // Active + reserve + banned (full squad, excluding "left")
+  const squadMembers = computed(() => sortByPositionThenName(players.value.filter(p => p.status !== 'left')))
 
   // O(1) lookup
   const playerMap = computed(() => {
@@ -278,7 +280,7 @@ export const useRosterStore = defineStore('roster', () => {
 
   return {
     players, loading,
-    activePlayers, reservePlayers, bannedPlayers, leftPlayers,
+    activePlayers, reservePlayers, bannedPlayers, leftPlayers, squadMembers,
     playerMap, nicknameMap,
     getPlayer, getPlayerByNickname, resolveNickname,
     fetchPlayers, addPlayer, updatePlayer, removePlayer, markAsLeft,

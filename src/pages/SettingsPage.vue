@@ -68,7 +68,7 @@ const availableContactOptions = computed(() => {
   const selected = new Set(squadForm.value.contacts || [])
   return [
     { value: null, label: '— Выберите игрока —' },
-    ...roster.activePlayers
+    ...roster.squadMembers
       .filter(p => !selected.has(p.uid))
       .map(p => ({ value: p.uid, label: p.nickname })),
   ]
@@ -236,7 +236,7 @@ const savingContent = ref(false)
 
 const playerOptions = computed(() => [
   { value: null, label: '— Не выбран —' },
-  ...roster.activePlayers.map(p => ({ value: p.uid, label: p.nickname })),
+  ...roster.squadMembers.map(p => ({ value: p.uid, label: p.nickname })),
 ])
 
 async function saveWebContent() {
