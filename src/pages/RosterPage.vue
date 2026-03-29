@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
 import { useRosterStore } from '../stores/roster'
 import { useArchiveStore } from '../stores/archive'
@@ -16,6 +17,8 @@ const router = useRouter()
 const roster = useRosterStore()
 const archiveStore = useArchiveStore()
 const statsStore = useStatsStore()
+const auth = useAuthStore()
+const isAdmin = computed(() => auth.isUserAdmin)
 
 const statusFilter = ref('all')
 const searchQuery = ref('')
@@ -249,7 +252,7 @@ function goToProfile(uid) {
         <h1 class="text-2xl font-bold">Состав</h1>
         <p class="text-sm text-neutral-500">{{ statusCounts.active }} активных, {{ statusCounts.reserve }} запас</p>
       </div>
-      <button @click="openAdd"
+      <button v-if="isAdmin" @click="openAdd"
         class="px-4 py-2 bg-delta-green hover:bg-delta-green/90 text-white text-sm font-medium rounded-lg transition-colors">
         + Добавить игрока
       </button>
@@ -456,7 +459,7 @@ function goToProfile(uid) {
             </td>
 
             <!-- Edit button -->
-            <td class="px-4 py-2.5 text-right">
+            <td v-if="isAdmin" class="px-4 py-2.5 text-right">
               <button @click.stop="openEdit(player)"
                 class="text-neutral-500 hover:text-delta-green text-xs transition-colors">
                 Ред.
@@ -489,7 +492,7 @@ function goToProfile(uid) {
           </div>
           <div class="flex items-center gap-2">
             <StatusBadge :status="player.status" />
-            <button @click.stop="openEdit(player)"
+            <button v-if="isAdmin" @click.stop="openEdit(player)"
               class="text-neutral-500 hover:text-delta-green text-xs">
               Ред.
             </button>

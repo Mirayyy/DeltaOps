@@ -40,7 +40,7 @@ const routes = [
     path: '/roster',
     name: 'roster',
     component: () => import('../pages/RosterPage.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true },
+    meta: { requiresAuth: true },
   },
   {
     path: '/stats',

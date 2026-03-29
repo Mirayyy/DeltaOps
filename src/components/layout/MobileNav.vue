@@ -10,7 +10,7 @@ const navItems = [
   { name: 'dashboard', label: 'Дашборд', icon: 'grid', roles: ['member', 'admin'] },
   { name: 'lineup', label: 'Расст.', icon: 'layers', roles: ['member', 'admin'] },
   { name: 'stats', label: 'Стат.', icon: 'chart', roles: ['member', 'admin'] },
-  { name: 'roster', label: 'Состав', icon: 'users', roles: ['admin'] },
+  { name: 'roster', label: 'Состав', icon: 'users', roles: ['member', 'admin'] },
   { name: 'users', label: 'Юзеры', icon: 'shield', roles: ['admin'] },
   { name: 'archive', label: 'Архив', icon: 'archive', roles: ['admin'] },
   { name: 'settings', label: 'Настр.', icon: 'settings', roles: ['admin'] },
