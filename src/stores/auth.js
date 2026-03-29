@@ -116,31 +116,34 @@ export const useAuthStore = defineStore('auth', () => {
       return initPromise
     }
 
-    initPromise = new Promise((resolve) => {
+    initPromise = (async () => {
       const timeout = setTimeout(() => {
         console.warn('Auth init timeout — proceeding without auth')
         loading.value = false
-        resolve()
       }, 15000)
 
-      // Handle redirect result (Safari/iOS fallback from signInWithRedirect)
-      import('../firebase/auth').then(({ handleRedirectResult }) =>
-        handleRedirectResult().catch(() => {})
-      )
+      // Process redirect result FIRST (Safari/iOS returns here after Google login)
+      try {
+        const { handleRedirectResult } = await import('../firebase/auth')
+        await handleRedirectResult()
+      } catch {}
 
-      onAuthStateChanged(auth, async (fbUser) => {
-        clearTimeout(timeout)
-        firebaseUser.value = fbUser
-        if (fbUser) {
-          await resolveAuth(fbUser)
-        } else {
-          user.value = null
-          player.value = null
-        }
-        loading.value = false
-        resolve()
+      // Now listen for auth state — redirect user (if any) is already resolved
+      await new Promise((resolve) => {
+        onAuthStateChanged(auth, async (fbUser) => {
+          clearTimeout(timeout)
+          firebaseUser.value = fbUser
+          if (fbUser) {
+            await resolveAuth(fbUser)
+          } else {
+            user.value = null
+            player.value = null
+          }
+          loading.value = false
+          resolve()
+        })
       })
-    })
+    })()
     return initPromise
   }
 
