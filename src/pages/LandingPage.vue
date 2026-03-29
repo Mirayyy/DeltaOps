@@ -239,6 +239,16 @@ const aboutHtml = computed(() => {
           Ваш доступ ограничен. Обратитесь к командиру.
         </p>
 
+        <div v-if="auth.isLoggedIn && auth.userRole === 'guest'" class="mt-4 bg-amber-500/10 border border-amber-500/20 rounded-lg px-5 py-3 text-sm text-amber-300 max-w-md mx-auto">
+          <p>Ваш аккаунт не подтверждён.</p>
+          <p v-if="contactPlayers.length" class="mt-1 text-amber-400/70">
+            Обратитесь к:
+            <span v-for="(c, i) in contactPlayers" :key="c.uid">
+              <strong class="text-amber-200">{{ c.nickname }}</strong><span v-if="i < contactPlayers.length - 1">, </span>
+            </span>
+          </p>
+        </div>
+
         <!-- Scroll hint -->
         <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-neutral-600">
           <span class="text-[10px] tracking-[0.3em] uppercase">Scroll</span>
