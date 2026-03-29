@@ -244,7 +244,7 @@ const aboutHtml = computed(() => {
           <p v-if="contactPlayers.length" class="mt-1 text-amber-400/70">
             Обратитесь к:
             <span v-for="(c, i) in contactPlayers" :key="c.uid">
-              <strong class="text-amber-200">{{ c.nickname }}</strong><span v-if="i < contactPlayers.length - 1">, </span>
+              <a :href="getTsgUrl(c.nickname)" target="_blank" class="text-amber-200 underline hover:text-white transition-colors">{{ c.nickname }}</a><span v-if="i < contactPlayers.length - 1">, </span>
             </span>
           </p>
         </div>
