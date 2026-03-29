@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { isFirebaseConfigured } from '../firebase/config'
+import { POSITIONS } from '../utils/constants'
 
 const DEMO_PLAYERS = [
   {
@@ -87,11 +88,23 @@ export const useRosterStore = defineStore('roster', () => {
   const players = ref([])
   const loading = ref(false)
 
+  // --- Default sort: position rank → nickname ---
+  function sortByPositionThenName(list) {
+    return [...list].sort((a, b) => {
+      const posA = POSITIONS.indexOf(a.position)
+      const posB = POSITIONS.indexOf(b.position)
+      const rankA = posA === -1 ? 999 : posA
+      const rankB = posB === -1 ? 999 : posB
+      if (rankA !== rankB) return rankA - rankB
+      return (a.nickname || '').localeCompare(b.nickname || '', 'ru')
+    })
+  }
+
   // --- Computed ---
-  const activePlayers = computed(() => players.value.filter(p => p.status === 'active'))
-  const reservePlayers = computed(() => players.value.filter(p => p.status === 'reserve'))
-  const bannedPlayers = computed(() => players.value.filter(p => p.status === 'banned'))
-  const leftPlayers = computed(() => players.value.filter(p => p.status === 'left'))
+  const activePlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'active')))
+  const reservePlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'reserve')))
+  const bannedPlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'banned')))
+  const leftPlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'left')))
 
   // O(1) lookup
   const playerMap = computed(() => {
@@ -125,7 +138,7 @@ export const useRosterStore = defineStore('roster', () => {
   // --- Demo/localStorage mode ---
   function loadDemo() {
     const saved = localStorage.getItem('deltaops_players')
-    players.value = saved ? JSON.parse(saved) : [...DEMO_PLAYERS]
+    players.value = sortByPositionThenName(saved ? JSON.parse(saved) : [...DEMO_PLAYERS])
   }
 
   function saveDemo() {
@@ -144,11 +157,11 @@ export const useRosterStore = defineStore('roster', () => {
   async function loadFirestore() {
     const { playersRef, getDocs } = await import('../firebase/firestore')
     const snapshot = await getDocs(playersRef)
-    players.value = snapshot.docs.map(doc => ({
+    players.value = sortByPositionThenName(snapshot.docs.map(doc => ({
       uid: doc.id,
       ...PLAYER_DEFAULTS,
       ...doc.data(),
-    }))
+    })))
   }
 
   // Whitelist of fields allowed in players/ documents

@@ -64,7 +64,7 @@ const playerRows = computed(() => {
   return roster.activePlayers.map(p => {
     const r = attendance.getPlayerReadiness(p.uid)
     return { ...p, readiness: r }
-  }).sort((a, b) => (a.nickname || '').localeCompare(b.nickname || ''))
+  })
 })
 
 function statusClass(status) {

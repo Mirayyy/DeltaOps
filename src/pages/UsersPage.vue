@@ -31,7 +31,6 @@ const unllinkedPlayers = computed(() => {
   return roster.players
     .filter(p => !p.email || !userEmails.has(p.email))
     .filter(p => p.status !== 'left')
-    .sort((a, b) => (a.nickname || '').localeCompare(b.nickname || ''))
 })
 
 async function linkPlayer(user, playerUid) {

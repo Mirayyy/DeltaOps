@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useRosterStore } from '../stores/roster'
 import { useArchiveStore } from '../stores/archive'
 import { useStatsStore } from '../stores/stats'
-import { getTsgUrl } from '../utils/constants'
+import { getTsgUrl, POSITIONS } from '../utils/constants'
 import { kpdColor } from '../utils/formatters'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import SkillBadge from '../components/common/SkillBadge.vue'
@@ -191,13 +191,10 @@ function sortIcon(key) {
 }
 
 // --- Custom sort orders ---
-const POSITION_ORDER = { 'КО': 0, 'Зам. КО': 1, 'Штаб': 2, 'Боец': 3, 'Курсант': 4, 'Запас': 5 }
-
 function positionRank(pos) {
   if (!pos) return 999
-  // Case-insensitive match
-  const key = Object.keys(POSITION_ORDER).find(k => k.toLowerCase() === pos.toLowerCase())
-  return key != null ? POSITION_ORDER[key] : 998
+  const idx = POSITIONS.findIndex(p => p.toLowerCase() === pos.toLowerCase())
+  return idx === -1 ? 998 : idx
 }
 
 // --- Helpers ---
