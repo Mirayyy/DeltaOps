@@ -24,6 +24,7 @@ const form = ref({
   position: 'Боец отряда',
   status: 'active',
   avatar: '',
+  nicknameColor: '',
   steamUrl: '',
   telegramUsername: '',
   telegramId: '',
@@ -42,6 +43,7 @@ if (isEdit) {
     position: props.player.position || 'Боец отряда',
     status: props.player.status || 'active',
     avatar: props.player.avatar || '',
+    nicknameColor: props.player.nicknameColor || '',
     steamUrl: props.player.steamUrl || '',
     telegramUsername: props.player.telegramUsername || '',
     telegramId: props.player.telegramId || '',
@@ -184,6 +186,19 @@ function handleSave() {
           </div>
           <input v-model="form.avatar" type="url" placeholder="https://..."
             class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+        </div>
+      </div>
+
+      <!-- Nickname color (admin only) -->
+      <div v-if="isAdmin">
+        <label class="block text-xs text-neutral-400 mb-1">Цвет ника</label>
+        <div class="flex gap-2 items-center">
+          <input type="color" :value="form.nicknameColor || '#e5e5e5'"
+            @input="form.nicknameColor = $event.target.value"
+            class="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0" />
+          <span class="text-sm font-medium" :style="{ color: form.nicknameColor || '#e5e5e5' }">{{ form.nickname || 'Превью' }}</span>
+          <button v-if="form.nicknameColor" @click="form.nicknameColor = ''"
+            class="text-[10px] text-neutral-500 hover:text-neutral-300 ml-auto">Сбросить</button>
         </div>
       </div>
 

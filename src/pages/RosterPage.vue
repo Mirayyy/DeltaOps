@@ -344,7 +344,7 @@ function goToProfile(uid) {
                     <img v-if="player.avatar" :src="player.avatar" :alt="player.nickname" class="w-full h-full object-cover" />
                     <span v-else class="text-xs font-bold text-delta-green">{{ (player.nickname || '?')[0] }}</span>
                   </div>
-                  <span class="font-medium">{{ player.nickname }}</span>
+                  <span class="font-medium" :style="player.nicknameColor ? { color: player.nicknameColor } : {}">{{ player.nickname }}</span>
                 </div>
               </template>
 
@@ -483,7 +483,7 @@ function goToProfile(uid) {
               <span v-else class="text-sm font-bold text-delta-green">{{ (player.nickname || '?')[0] }}</span>
             </div>
             <div>
-              <div class="font-medium text-sm">{{ player.nickname }}</div>
+              <div class="font-medium text-sm" :style="player.nicknameColor ? { color: player.nicknameColor } : {}">{{ player.nickname }}</div>
               <div class="text-xs text-neutral-500">{{ player.position }}</div>
             </div>
           </div>

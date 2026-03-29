@@ -137,6 +137,11 @@ export const useRosterStore = defineStore('roster', () => {
     return playerMap.value[uid]?.nickname || uid
   }
 
+  /** Resolve playerId → nickname color (empty string = default) */
+  function getNicknameColor(uid) {
+    return playerMap.value[uid]?.nicknameColor || ''
+  }
+
   // --- Demo/localStorage mode ---
   function loadDemo() {
     const saved = localStorage.getItem('deltaops_players')
@@ -150,7 +155,7 @@ export const useRosterStore = defineStore('roster', () => {
   // --- Firestore mode ---
   const PLAYER_DEFAULTS = {
     nickname: '', email: '', position: 'Боец отряда', status: 'active',
-    avatar: '', steamUrl: '',
+    avatar: '', nicknameColor: '', steamUrl: '',
     telegramUsername: '', telegramId: null,
     discordId: '', discordUsername: '',
     skills: [], wishes: '', nicknameHistory: [],
@@ -168,7 +173,7 @@ export const useRosterStore = defineStore('roster', () => {
 
   // Whitelist of fields allowed in players/ documents
   const PLAYER_FIELDS = [
-    'nickname', 'email', 'position', 'status', 'avatar', 'steamUrl',
+    'nickname', 'email', 'position', 'status', 'avatar', 'nicknameColor', 'steamUrl',
     'telegramUsername', 'telegramId', 'discordId', 'discordUsername',
     'skills', 'wishes', 'nicknameHistory', 'createdAt', 'updatedAt',
   ]
@@ -282,7 +287,7 @@ export const useRosterStore = defineStore('roster', () => {
     players, loading,
     activePlayers, reservePlayers, bannedPlayers, leftPlayers, squadMembers,
     playerMap, nicknameMap,
-    getPlayer, getPlayerByNickname, resolveNickname,
+    getPlayer, getPlayerByNickname, resolveNickname, getNicknameColor,
     fetchPlayers, addPlayer, updatePlayer, removePlayer, markAsLeft,
   }
 })

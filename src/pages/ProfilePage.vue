@@ -261,7 +261,7 @@ async function handleSave(data) {
           </div>
           <div>
             <div class="flex items-center gap-3 mb-1">
-              <h1 class="text-2xl font-bold">{{ player.nickname }}</h1>
+              <h1 class="text-2xl font-bold" :style="player.nicknameColor ? { color: player.nicknameColor } : {}">{{ player.nickname }}</h1>
               <StatusBadge :status="player.status" />
             </div>
             <p class="text-neutral-400 mb-1">{{ player.position }}</p>

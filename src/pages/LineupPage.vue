@@ -154,6 +154,10 @@ function resolveSlotPlayer(slot) {
   return slot.playerId ? roster.resolveNickname(slot.playerId) : null
 }
 
+function slotPlayerColor(slot) {
+  return slot.playerId ? roster.getNicknameColor(slot.playerId) : ''
+}
+
 const SLOT_TYPE_STYLES = {
   squadCommander: 'bg-delta-green/20 text-delta-green border-delta-green/30',
   sideCommander: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -496,10 +500,12 @@ function readinessDot(status) {
                       resolveSlotPlayer(row.slot)
                         ? 'border-neutral-700 hover:border-neutral-500 text-neutral-200'
                         : 'border-dashed border-neutral-700 hover:border-neutral-500 text-neutral-500'
-                    ]">
+                    ]"
+                    :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                     {{ resolveSlotPlayer(row.slot) || '—' }}
                   </button>
-                  <span v-else :class="resolveSlotPlayer(row.slot) ? 'text-neutral-200' : 'text-neutral-600'">
+                  <span v-else :class="resolveSlotPlayer(row.slot) ? 'text-neutral-200' : 'text-neutral-600'"
+                    :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                     {{ resolveSlotPlayer(row.slot) || '—' }}
                   </span>
 
@@ -523,7 +529,7 @@ function readinessDot(status) {
                       ]">
                       <span class="flex items-center gap-2">
                         <span :class="[readinessDot(p.readiness), 'w-2 h-2 rounded-full shrink-0']"></span>
-                        {{ p.nickname }}
+                        <span :style="p.nicknameColor && !p.assigned ? { color: p.nicknameColor } : {}">{{ p.nickname }}</span>
                       </span>
                       <span v-if="p.assigned" class="text-[10px] text-neutral-600">назначен</span>
                     </button>
@@ -645,10 +651,12 @@ function readinessDot(status) {
             <div class="flex items-center justify-between">
               <button v-if="isAdmin" @click="startAssign(row.idx)"
                 :class="['text-sm px-2 py-0.5 rounded transition-all',
-                  resolveSlotPlayer(row.slot) ? 'text-neutral-200 bg-neutral-800' : 'text-neutral-500 bg-neutral-800/50']">
+                  resolveSlotPlayer(row.slot) ? 'text-neutral-200 bg-neutral-800' : 'text-neutral-500 bg-neutral-800/50']"
+                :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                 {{ resolveSlotPlayer(row.slot) || '— свободно —' }}
               </button>
-              <span v-else :class="resolveSlotPlayer(row.slot) ? 'text-sm text-neutral-200' : 'text-sm text-neutral-600'">
+              <span v-else :class="resolveSlotPlayer(row.slot) ? 'text-sm text-neutral-200' : 'text-sm text-neutral-600'"
+                :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                 {{ resolveSlotPlayer(row.slot) || '—' }}
               </span>
 
@@ -670,7 +678,7 @@ function readinessDot(status) {
                   p.assigned ? 'text-neutral-600' : 'text-neutral-300']">
                 <span class="flex items-center gap-2">
                   <span :class="[readinessDot(p.readiness), 'w-2 h-2 rounded-full']"></span>
-                  {{ p.nickname }}
+                  <span :style="p.nicknameColor && !p.assigned ? { color: p.nicknameColor } : {}">{{ p.nickname }}</span>
                 </span>
               </button>
             </div>

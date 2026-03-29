@@ -267,7 +267,7 @@ async function onWeekFinalized() {
             <tr v-for="row in playerRows" :key="row.uid"
               class="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
               @click="router.push({ name: 'player-profile', params: { id: row.uid } })">
-              <td class="px-4 py-2.5 font-medium">{{ row.nickname }}</td>
+              <td class="px-4 py-2.5 font-medium" :style="row.nicknameColor ? { color: row.nicknameColor } : {}">{{ row.nickname }}</td>
               <td v-for="game in games" :key="game.id" class="text-center px-3 py-2.5">
                 <button
                   @click.stop="cycleReadiness(game.id, row.uid, row.readiness[game.id])"
@@ -290,7 +290,7 @@ async function onWeekFinalized() {
         <div v-for="row in playerRows" :key="row.uid"
           class="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-neutral-800/30"
           @click="router.push({ name: 'player-profile', params: { id: row.uid } })">
-          <span class="text-sm font-medium">{{ row.nickname }}</span>
+          <span class="text-sm font-medium" :style="row.nicknameColor ? { color: row.nicknameColor } : {}">{{ row.nickname }}</span>
           <div class="flex gap-1">
             <button v-for="game in games" :key="game.id"
               @click.stop="cycleReadiness(game.id, row.uid, row.readiness[game.id])"
