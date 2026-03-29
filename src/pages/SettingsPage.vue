@@ -547,7 +547,7 @@ function formatDate(ts) {
                   </div>
                   <div v-if="award.type === 'player'" class="flex items-center gap-1">
                     <label class="text-[10px] text-neutral-500">Игрок:</label>
-                    <BaseSelect v-model="award.playerUid" :options="playerOptions" size="sm" />
+                    <BaseSelect v-model="award.playerUid" :options="playerOptions" size="sm" class="min-w-[140px]" />
                   </div>
                   <BaseCheckbox v-model="award.showOnLanding" size="sm" class="ml-auto">
                     <span class="text-[10px] text-neutral-500">На главную</span>

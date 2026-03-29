@@ -46,8 +46,7 @@ function updatePosition() {
   dropStyle.value = {
     position: 'fixed',
     left: `${rect.left}px`,
-    width: 'fit-content',
-    minWidth: `${rect.width}px`,
+    width: `${rect.width}px`,
     ...(dropUp.value
       ? { bottom: `${window.innerHeight - rect.top + 4}px` }
       : { top: `${rect.bottom + 4}px` }
@@ -147,7 +146,7 @@ const sizeClasses = computed(() => {
             :data-active="opt.value === modelValue"
             @click="select(opt.value)"
             :class="[
-              'w-full text-left transition-colors cursor-pointer whitespace-nowrap',
+              'w-full text-left transition-colors cursor-pointer truncate',
               sizeClasses.item,
               opt.value === modelValue
                 ? 'bg-orange-500/15 text-orange-400'
