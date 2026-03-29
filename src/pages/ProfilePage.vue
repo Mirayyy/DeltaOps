@@ -356,6 +356,12 @@ async function handleSave(data) {
       </div>
     </div>
 
+    <!-- Wishes -->
+    <div v-if="player.wishes" class="bg-neutral-900 rounded-xl border border-neutral-800 p-6 mb-4">
+      <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Пожелания</h3>
+      <p class="text-sm text-neutral-300 whitespace-pre-line">{{ player.wishes }}</p>
+    </div>
+
     <!-- Stats (full width, TSG table format) -->
     <div class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden mb-4">
       <div class="flex items-center justify-between px-6 py-3 border-b border-neutral-800">
