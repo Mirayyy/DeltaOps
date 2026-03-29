@@ -46,7 +46,8 @@ function updatePosition() {
   dropStyle.value = {
     position: 'fixed',
     left: `${rect.left}px`,
-    width: `${rect.width}px`,
+    minWidth: `${rect.width}px`,
+    maxWidth: `${window.innerWidth - rect.left - 16}px`,
     ...(dropUp.value
       ? { bottom: `${window.innerHeight - rect.top + 4}px` }
       : { top: `${rect.bottom + 4}px` }
@@ -137,7 +138,7 @@ const sizeClasses = computed(() => {
       >
         <div v-if="open" ref="listRef"
           :style="dropStyle"
-          class="z-[9999] max-h-52 overflow-y-auto rounded-lg border border-[#333] bg-[#191919] shadow-xl shadow-black/50 py-1"
+          class="z-[9999] max-h-52 overflow-y-auto rounded-lg border border-[#333] bg-[#191919] shadow-xl shadow-black/50 py-1 w-max"
         >
           <button
             v-for="opt in normalizedOptions"
@@ -146,7 +147,7 @@ const sizeClasses = computed(() => {
             :data-active="opt.value === modelValue"
             @click="select(opt.value)"
             :class="[
-              'w-full text-left transition-colors cursor-pointer truncate',
+              'w-full text-left transition-colors cursor-pointer whitespace-nowrap',
               sizeClasses.item,
               opt.value === modelValue
                 ? 'bg-orange-500/15 text-orange-400'
