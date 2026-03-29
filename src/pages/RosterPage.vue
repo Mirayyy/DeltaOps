@@ -19,7 +19,7 @@ const statsStore = useStatsStore()
 
 const statusFilter = ref('all')
 const searchQuery = ref('')
-const sortKey = ref('nickname')
+const sortKey = ref('position')
 const sortAsc = ref(true)
 const showEditor = ref(false)
 const editingPlayer = ref(null)
@@ -145,9 +145,11 @@ const filteredPlayers = computed(() => {
   const dir = sortAsc.value ? 1 : -1
 
   enriched.sort((a, b) => {
-    // Custom position sort
+    // Custom position sort + nickname as secondary
     if (key === 'position') {
-      return (positionRank(a.position) - positionRank(b.position)) * dir
+      const diff = (positionRank(a.position) - positionRank(b.position)) * dir
+      if (diff !== 0) return diff
+      return (a.nickname || '').localeCompare(b.nickname || '', 'ru')
     }
 
     let va = a[key]
