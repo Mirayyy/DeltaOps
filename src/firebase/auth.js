@@ -11,12 +11,17 @@ const googleProvider = new GoogleAuthProvider()
 
 export async function signInWithGoogle() {
   try {
-    // Try popup first
     const result = await signInWithPopup(auth, googleProvider)
     return result.user
   } catch (e) {
-    // If popup blocked or failed, fall back to redirect
-    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+    // Popup failed — fall back to redirect (Safari, iOS, blocked popups)
+    const redirectCodes = [
+      'auth/popup-blocked',
+      'auth/popup-closed-by-user',
+      'auth/cancelled-popup-request',
+      'auth/operation-not-supported-in-this-environment',
+    ]
+    if (redirectCodes.includes(e.code)) {
       await signInWithRedirect(auth, googleProvider)
       return null // redirect will reload the page
     }

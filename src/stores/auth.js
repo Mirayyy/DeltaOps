@@ -123,6 +123,11 @@ export const useAuthStore = defineStore('auth', () => {
         resolve()
       }, 15000)
 
+      // Handle redirect result (Safari/iOS fallback from signInWithRedirect)
+      import('../firebase/auth').then(({ handleRedirectResult }) =>
+        handleRedirectResult().catch(() => {})
+      )
+
       onAuthStateChanged(auth, async (fbUser) => {
         clearTimeout(timeout)
         firebaseUser.value = fbUser
@@ -151,6 +156,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     const { signInWithGoogle } = await import('../firebase/auth')
     const fbUser = await signInWithGoogle()
+    if (!fbUser) return // redirect flow — page will reload
     firebaseUser.value = fbUser
     await resolveAuth(fbUser)
   }
