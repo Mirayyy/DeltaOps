@@ -740,13 +740,10 @@ function formatDate(ts) {
           </textarea>
         </div>
 
-        <!-- Player count (read-only info) -->
-        <div class="flex items-center gap-3 text-sm text-neutral-400 pt-2 border-t border-neutral-800">
-          <span class="text-neutral-600">Личный состав:</span>
-          <span class="text-white font-medium">{{ roster.activePlayers.length }}</span>
-          <span class="text-neutral-600">активных</span>
+        <!-- Roster link -->
+        <div class="flex items-center pt-2 border-t border-neutral-800">
           <router-link to="/roster" class="text-delta-green hover:text-orange-400 text-xs transition-colors ml-auto">
-            Управление →
+            Управление составом →
           </router-link>
         </div>
       </div>

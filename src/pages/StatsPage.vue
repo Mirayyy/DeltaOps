@@ -19,9 +19,12 @@ onMounted(async () => {
   await statsStore.fetchStats()
 })
 
-// Active player nicknames for filtering
-const activeNicknames = computed(() =>
-  roster.activePlayers.map(p => p.nickname).filter(Boolean)
+// Squad members: active + reserve + banned (exclude "left")
+const squadNicknames = computed(() =>
+  roster.players
+    .filter(p => p.status !== 'left')
+    .map(p => p.nickname)
+    .filter(Boolean)
 )
 
 // --- DELTA squad card ---
@@ -29,10 +32,10 @@ const deltaSquad = computed(() => statsStore.deltaSquad)
 
 // --- Filtered player tables (unsorted, sorting applied in currentPlayers) ---
 const tabData = computed(() => ({
-  general: statsStore.filterByNicknames(statsStore.allStats, activeNicknames.value),
-  infantry: statsStore.filterByNicknames(statsStore.infantryStats, activeNicknames.value),
-  vehicle: statsStore.filterByNicknames(statsStore.vehicleStats, activeNicknames.value),
-  artillery: statsStore.filterByNicknames(statsStore.artilleryStats, activeNicknames.value),
+  general: statsStore.filterByNicknames(statsStore.allStats, squadNicknames.value),
+  infantry: statsStore.filterByNicknames(statsStore.infantryStats, squadNicknames.value),
+  vehicle: statsStore.filterByNicknames(statsStore.vehicleStats, squadNicknames.value),
+  artillery: statsStore.filterByNicknames(statsStore.artilleryStats, squadNicknames.value),
 }))
 
 // Current tab data — sorted
