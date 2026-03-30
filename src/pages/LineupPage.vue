@@ -295,7 +295,6 @@ function removeSlotRequest(index) {
 }
 
 async function confirmClearGame() {
-  if (!confirm('Удалить данные миссии? Слоты, задачи и запросы будут сброшены.')) return
   await gamesStore.clearGame(activeTab.value)
 }
 
