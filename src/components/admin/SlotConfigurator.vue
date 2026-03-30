@@ -117,6 +117,12 @@ const currentSideAllActive = computed(() => {
       </button>
     </div>
 
+    <!-- Vehicles info -->
+    <div v-if="currentSide.vehicles" class="mb-3 px-3 py-2 bg-neutral-800/50 rounded-lg border border-neutral-800">
+      <div class="text-[10px] text-neutral-500 uppercase tracking-wider mb-0.5">Техника</div>
+      <div class="text-xs text-neutral-300 leading-relaxed">{{ currentSide.vehicles }}</div>
+    </div>
+
     <!-- Bulk actions -->
     <div class="flex items-center justify-between mb-3">
       <p class="text-xs text-neutral-500">
