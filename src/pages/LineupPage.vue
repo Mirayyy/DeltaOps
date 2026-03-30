@@ -294,6 +294,11 @@ function removeSlotRequest(index) {
   gamesStore.removeSlotRequest(activeTab.value, index)
 }
 
+async function confirmClearGame() {
+  if (!confirm('Удалить данные миссии? Слоты, задачи и запросы будут сброшены.')) return
+  await gamesStore.clearGame(activeTab.value)
+}
+
 function sideColorForName(sideName) {
   const mission = currentMission.value
   if (!mission?.sides) return null
@@ -342,6 +347,11 @@ function readinessDot(status) {
           @click="showSlotConfigurator = true"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-500 text-neutral-400 hover:text-white rounded-lg transition-colors">
           Настроить слоты
+        </button>
+        <button v-if="isAdmin && gamesStore.getGame(activeTab)"
+          @click="confirmClearGame"
+          class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-red-500/50 text-neutral-500 hover:text-red-400 rounded-lg transition-colors">
+          Удалить миссию
         </button>
       </div>
     </div>

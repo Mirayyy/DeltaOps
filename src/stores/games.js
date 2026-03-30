@@ -224,6 +224,17 @@ export const useGamesStore = defineStore('games', () => {
     }
   }
 
+  /** Clear a single game */
+  async function clearGame(gameId) {
+    if (isFirebaseConfigured) {
+      const { doc, deleteDoc, db } = await import('../firebase/firestore')
+      await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
+    }
+    delete games.value[gameId]
+    delete slotMemory.value[gameId]
+    if (!isFirebaseConfigured) saveDemo()
+  }
+
   /** Clear all games (new week reset) */
   async function clearGames() {
     if (isFirebaseConfigured) {
@@ -243,7 +254,7 @@ export const useGamesStore = defineStore('games', () => {
   return {
     games, loading,
     getGame, getSlots, getPlayerSlot, getPlayerSlots,
-    fetchGames, clearGames,
+    fetchGames, clearGame, clearGames,
     toggleSlot, setSlots, assignPlayer, unassignPlayer, unassignPlayerFromGame, updateSlot,
     setTask, setGameMeta, getSlotRequests, addSlotRequest, removeSlotRequest, cleanup,
   }
