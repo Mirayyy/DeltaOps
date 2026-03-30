@@ -294,6 +294,19 @@ function removeSlotRequest(index) {
   gamesStore.removeSlotRequest(activeTab.value, index)
 }
 
+function sideColorForName(sideName) {
+  const mission = currentMission.value
+  if (!mission?.sides) return null
+  const side = mission.sides.find(s => s.name === sideName)
+  return side ? SIDE_COLORS[side.color] : null
+}
+
+function slotRequestTagClass(sideName) {
+  const c = sideColorForName(sideName)
+  if (!c) return 'bg-neutral-700/50 border-neutral-700 text-neutral-400'
+  return `${c.bg} ${c.border} ${c.text}`
+}
+
 function readinessDot(status) {
   const map = {
     confirmed: 'bg-status-confirmed',
@@ -832,7 +845,7 @@ function readinessDot(status) {
             </div>
             <div v-if="req.slots.length" class="flex flex-wrap gap-1 mb-1">
               <span v-for="s in req.slots" :key="`${s.side}::${s.squad}::${s.number}`"
-                class="px-1.5 py-0.5 rounded text-[10px] bg-neutral-700/50 border border-neutral-700 text-neutral-400">
+                :class="['px-1.5 py-0.5 rounded text-[10px] border', slotRequestTagClass(s.side)]">
                 {{ s.squad }} #{{ s.number }} {{ s.name }}
               </span>
             </div>
