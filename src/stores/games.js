@@ -170,7 +170,9 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function addSlotRequest(gameId, { playerId, slots, text }) {
-    if (!games.value[gameId]) return
+    if (!games.value[gameId]) {
+      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
+    }
     if (!games.value[gameId].slotRequests) games.value[gameId].slotRequests = []
     // Replace existing request from same player
     const idx = games.value[gameId].slotRequests.findIndex(r => r.playerId === playerId)
