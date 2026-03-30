@@ -189,6 +189,14 @@ export const useMissionsStore = defineStore('missions', () => {
     await fetchMissions()
   }
 
+  async function clearMission(gameId) {
+    if (isFirebaseConfigured) {
+      const { doc, deleteDoc, db } = await import('../firebase/firestore')
+      await deleteDoc(doc(db, 'missions', gameId)).catch(() => {})
+    }
+    delete missions.value[gameId]
+  }
+
   async function clearMissions() {
     if (!isFirebaseConfigured) {
       missions.value = {}
@@ -204,6 +212,6 @@ export const useMissionsStore = defineStore('missions', () => {
   return {
     missions, loading, error,
     getMission, availableMissions, getMissionStats,
-    fetchMissions, refreshMissions, clearMissions,
+    fetchMissions, refreshMissions, clearMission, clearMissions,
   }
 })

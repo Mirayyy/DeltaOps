@@ -295,7 +295,10 @@ function removeSlotRequest(index) {
 }
 
 async function confirmClearGame() {
-  await gamesStore.clearGame(activeTab.value)
+  await Promise.all([
+    gamesStore.clearGame(activeTab.value),
+    missionsStore.clearMission(activeTab.value),
+  ])
 }
 
 function sideColorForName(sideName) {
