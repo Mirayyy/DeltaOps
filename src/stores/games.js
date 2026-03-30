@@ -163,6 +163,32 @@ export const useGamesStore = defineStore('games', () => {
     persist(gameId)
   }
 
+  // --- Slot Requests ---
+
+  function getSlotRequests(gameId) {
+    return games.value[gameId]?.slotRequests || []
+  }
+
+  function addSlotRequest(gameId, { playerId, slots, text }) {
+    if (!games.value[gameId]) return
+    if (!games.value[gameId].slotRequests) games.value[gameId].slotRequests = []
+    // Replace existing request from same player
+    const idx = games.value[gameId].slotRequests.findIndex(r => r.playerId === playerId)
+    const request = { playerId, slots, text, createdAt: new Date().toISOString() }
+    if (idx !== -1) {
+      games.value[gameId].slotRequests[idx] = request
+    } else {
+      games.value[gameId].slotRequests.push(request)
+    }
+    persist(gameId)
+  }
+
+  function removeSlotRequest(gameId, index) {
+    if (!games.value[gameId]?.slotRequests) return
+    games.value[gameId].slotRequests.splice(index, 1)
+    persist(gameId)
+  }
+
   function setGameMeta(gameId, { date, sourceUrl, version }) {
     if (!games.value[gameId]) {
       games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
@@ -217,6 +243,6 @@ export const useGamesStore = defineStore('games', () => {
     getGame, getSlots, getPlayerSlot, getPlayerSlots,
     fetchGames, clearGames,
     toggleSlot, setSlots, assignPlayer, unassignPlayer, unassignPlayerFromGame, updateSlot,
-    setTask, setGameMeta, cleanup,
+    setTask, setGameMeta, getSlotRequests, addSlotRequest, removeSlotRequest, cleanup,
   }
 })

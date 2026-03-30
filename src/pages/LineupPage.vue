@@ -9,6 +9,7 @@ import { useGameWeek } from '../composables/useGameWeek'
 import { EQUIPMENT_LIST, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import SlotConfigurator from '../components/admin/SlotConfigurator.vue'
+import SlotRequestModal from '../components/lineup/SlotRequestModal.vue'
 import ImageLightbox from '../components/common/ImageLightbox.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 import { useTelegram } from '../composables/useTelegram'
@@ -26,6 +27,8 @@ const editingSlot = ref(null)
 const editingNotes = ref('')
 const showEquipmentMenu = ref(null)
 const showSlotConfigurator = ref(false)
+const showSlotRequestModal = ref(false)
+const requestsCollapsed = ref(false)
 const editingPersonalTask = ref(null) // slotIndex being edited
 const personalTaskDraft = ref('')
 
@@ -278,6 +281,19 @@ function canEditPersonalTask(slot) {
   return slot.playerId && slot.playerId === auth.player?.uid
 }
 
+// Slot requests
+const slotRequests = computed(() => gamesStore.getSlotRequests(activeTab.value))
+
+const hasMyRequest = computed(() => {
+  const uid = auth.player?.uid
+  if (!uid) return false
+  return slotRequests.value.some(r => r.playerId === uid)
+})
+
+function removeSlotRequest(index) {
+  gamesStore.removeSlotRequest(activeTab.value, index)
+}
+
 function readinessDot(status) {
   const map = {
     confirmed: 'bg-status-confirmed',
@@ -297,14 +313,19 @@ function readinessDot(status) {
         <h1 class="text-2xl font-bold">Расстановка</h1>
         <p class="text-sm text-neutral-500">Неделя {{ currentWeekId }}</p>
       </div>
-      <div v-if="isAdmin" class="flex items-center gap-2">
-        <button v-if="slots.length"
+      <div class="flex items-center gap-2">
+        <button v-if="slots.length && auth.isUserMember && auth.player?.uid"
+          @click="showSlotRequestModal = true"
+          class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-500 text-sm text-neutral-300 hover:text-white font-medium rounded-lg transition-colors">
+          {{ hasMyRequest ? 'Изменить запрос' : 'Запросить слот' }}
+        </button>
+        <button v-if="isAdmin && slots.length"
           @click="sendLineupToTelegram" :disabled="telegram.sending.value"
           class="tg-btn">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
           {{ telegram.sending.value ? '...' : 'Расстановка' }}
         </button>
-        <button v-if="currentMission"
+        <button v-if="isAdmin && currentMission"
           @click="showSlotConfigurator = true"
           class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-500 text-sm text-neutral-300 hover:text-white font-medium rounded-lg transition-colors">
           Настроить слоты
@@ -784,6 +805,56 @@ function readinessDot(status) {
         Нет личных задач
       </p>
     </div>
+
+    <!-- Slot Requests block -->
+    <div v-if="slotRequests.length" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+      <button @click="requestsCollapsed = !requestsCollapsed"
+        class="w-full flex items-center justify-between px-4 py-3 text-left">
+        <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">
+          Запросы слотов
+          <span class="text-neutral-600 font-mono ml-1">{{ slotRequests.length }}</span>
+        </h3>
+        <svg :class="['w-4 h-4 text-neutral-500 transition-transform', requestsCollapsed ? '-rotate-90' : '']"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <div v-if="!requestsCollapsed" class="px-4 pb-4 space-y-2">
+        <div v-for="(req, ri) in slotRequests" :key="ri"
+          class="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-neutral-800/50 border border-neutral-800">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-medium"
+                :style="roster.getNicknameColor(req.playerId) ? { color: roster.getNicknameColor(req.playerId) } : {}">
+                {{ roster.resolveNickname(req.playerId) || '—' }}
+              </span>
+            </div>
+            <div v-if="req.slots.length" class="flex flex-wrap gap-1 mb-1">
+              <span v-for="s in req.slots" :key="`${s.side}::${s.squad}::${s.number}`"
+                class="px-1.5 py-0.5 rounded text-[10px] bg-neutral-700/50 border border-neutral-700 text-neutral-400">
+                {{ s.squad }} #{{ s.number }} {{ s.name }}
+              </span>
+            </div>
+            <p v-if="req.text" class="text-xs text-neutral-500 whitespace-pre-line">{{ req.text }}</p>
+          </div>
+          <button v-if="isAdmin" @click="removeSlotRequest(ri)"
+            class="shrink-0 p-1 text-neutral-600 hover:text-red-400 transition-colors" title="Удалить запрос">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slot Request modal -->
+    <SlotRequestModal
+      v-if="showSlotRequestModal && auth.player?.uid"
+      :game-id="activeTab"
+      :player-id="auth.player.uid"
+      @close="showSlotRequestModal = false"
+    />
 
     <!-- Slot Configurator modal -->
     <SlotConfigurator
