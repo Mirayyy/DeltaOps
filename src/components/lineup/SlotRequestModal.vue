@@ -7,14 +7,18 @@ import BaseModal from '../common/BaseModal.vue'
 const props = defineProps({
   gameId: { type: String, required: true },
   playerId: { type: String, required: true },
+  mission: { type: Object, required: true },
 })
 
 const emit = defineEmits(['close'])
 
 const gamesStore = useGamesStore()
 
+const activeSide = ref(0)
 const selectedKeys = ref(new Set())
 const text = ref('')
+
+const currentSide = computed(() => props.mission.sides[activeSide.value])
 
 // Load existing request for this player
 const existing = computed(() =>
@@ -29,49 +33,16 @@ if (existing.value) {
   })
 }
 
-// Group configured slots by side → squad
-const groupedSlots = computed(() => {
-  const slots = gamesStore.getSlots(props.gameId)
-  const sides = []
-  const sideMap = {}
-
-  for (const slot of slots) {
-    if (!sideMap[slot.side]) {
-      sideMap[slot.side] = { name: slot.side, color: slot.sideColor, squads: {} }
-      sides.push(sideMap[slot.side])
-    }
-    const side = sideMap[slot.side]
-    if (!side.squads[slot.squad]) {
-      side.squads[slot.squad] = { name: slot.squad, slots: [] }
-    }
-    side.squads[slot.squad].slots.push(slot)
-  }
-
-  return sides.map(s => ({
-    ...s,
-    squads: Object.values(s.squads),
-  }))
-})
-
-// Find side color from mission data (slots don't carry sideColor directly)
-// We'll detect from LineupPage's SIDE_COLORS using the first slot's data
-function getSideColor(sideName) {
-  const slots = gamesStore.getSlots(props.gameId)
-  // Try to find from the mission data stored in game
-  // For now just return null — the parent can pass colors if needed
-  return null
+function slotKey(sideName, squadName, slotIdx) {
+  return `${sideName}::${squadName}::${slotIdx + 1}`
 }
 
-function slotKey(slot) {
-  return `${slot.side}::${slot.squad}::${slot.number}`
+function isSelected(sideName, squadName, slotIdx) {
+  return selectedKeys.value.has(slotKey(sideName, squadName, slotIdx))
 }
 
-function isSelected(slot) {
-  return selectedKeys.value.has(slotKey(slot))
-}
-
-function toggleSlot(slot) {
-  const key = slotKey(slot)
+function toggleSlot(sideName, squadName, slotIdx) {
+  const key = slotKey(sideName, squadName, slotIdx)
   if (selectedKeys.value.has(key)) {
     selectedKeys.value.delete(key)
   } else {
@@ -79,15 +50,50 @@ function toggleSlot(slot) {
   }
 }
 
+// Toggle entire squad
+function toggleSquad(sideName, squad) {
+  const allActive = squad.slots.every((_, i) => isSelected(sideName, squad.name, i))
+  squad.slots.forEach((_, i) => {
+    const active = isSelected(sideName, squad.name, i)
+    if (allActive && active) toggleSlot(sideName, squad.name, i)
+    else if (!allActive && !active) toggleSlot(sideName, squad.name, i)
+  })
+}
+
+function isSquadFullyActive(sideName, squad) {
+  return squad.slots.every((_, i) => isSelected(sideName, squad.name, i))
+}
+
+function isSquadPartiallyActive(sideName, squad) {
+  return squad.slots.some((_, i) => isSelected(sideName, squad.name, i)) && !isSquadFullyActive(sideName, squad)
+}
+
+function sideSelectedCount(side) {
+  let count = 0
+  for (const sq of side.squads) {
+    for (let i = 0; i < sq.slots.length; i++) {
+      if (isSelected(side.name, sq.name, i)) count++
+    }
+  }
+  return count
+}
+
 const canSubmit = computed(() => selectedKeys.value.size > 0 || text.value.trim())
 
 function submit() {
   if (!canSubmit.value) return
 
-  const allSlots = gamesStore.getSlots(props.gameId)
-  const slots = allSlots
-    .filter(s => selectedKeys.value.has(slotKey(s)))
-    .map(s => ({ side: s.side, squad: s.squad, number: s.number, name: s.name }))
+  // Build slots array from selected keys
+  const slots = []
+  for (const side of props.mission.sides) {
+    for (const squad of side.squads) {
+      squad.slots.forEach((roleName, i) => {
+        if (isSelected(side.name, squad.name, i)) {
+          slots.push({ side: side.name, squad: squad.name, number: i + 1, name: roleName })
+        }
+      })
+    }
+  }
 
   gamesStore.addSlotRequest(props.gameId, {
     playerId: props.playerId,
@@ -101,37 +107,74 @@ function submit() {
 
 <template>
   <BaseModal title="Запросить слот" wide @close="emit('close')">
-    <p class="text-xs text-neutral-500 mb-4">
+    <!-- Side tabs -->
+    <div class="flex gap-1 mb-4 bg-neutral-800 rounded-lg p-1">
+      <button v-for="(side, idx) in mission.sides" :key="side.name"
+        @click="activeSide = idx"
+        :class="[
+          'flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2',
+          activeSide === idx
+            ? [SIDE_COLORS[side.color]?.bg || 'bg-neutral-700', SIDE_COLORS[side.color]?.text || 'text-neutral-200', 'border', SIDE_COLORS[side.color]?.border || 'border-neutral-600']
+            : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700/50'
+        ]">
+        <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
+        {{ side.name }}
+        <span v-if="sideSelectedCount(side)" class="text-[10px] font-mono text-delta-green">{{ sideSelectedCount(side) }}</span>
+      </button>
+    </div>
+
+    <p class="text-xs text-neutral-500 mb-3">
       Выберите желаемые слоты и/или напишите комментарий.
     </p>
 
-    <!-- Slots grouped by side → squad -->
+    <!-- Squads and slots -->
     <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-1 mb-4">
-      <div v-for="side in groupedSlots" :key="side.name">
-        <div class="text-xs font-medium text-neutral-400 mb-1.5">{{ side.name }}</div>
+      <div v-for="squad in currentSide.squads" :key="squad.name"
+        class="bg-neutral-800/50 rounded-lg overflow-hidden">
+        <!-- Squad header -->
+        <button
+          @click="toggleSquad(currentSide.name, squad)"
+          :class="[
+            'w-full flex items-center justify-between px-3 py-2 text-left transition-colors',
+            isSquadFullyActive(currentSide.name, squad)
+              ? 'bg-delta-green/10 hover:bg-delta-green/15'
+              : isSquadPartiallyActive(currentSide.name, squad)
+                ? 'bg-neutral-700/30 hover:bg-neutral-700/50'
+                : 'hover:bg-neutral-700/30'
+          ]">
+          <div class="flex items-center gap-2">
+            <span :class="[
+              'w-4 h-4 rounded border text-[10px] flex items-center justify-center shrink-0 transition-colors',
+              isSquadFullyActive(currentSide.name, squad)
+                ? 'bg-delta-green border-delta-green text-white'
+                : isSquadPartiallyActive(currentSide.name, squad)
+                  ? 'border-delta-green/50 bg-delta-green/20 text-delta-green'
+                  : 'border-neutral-600 text-transparent'
+            ]">
+              <template v-if="isSquadFullyActive(currentSide.name, squad)">&#10003;</template>
+              <template v-else-if="isSquadPartiallyActive(currentSide.name, squad)">&#8211;</template>
+            </span>
+            <span class="text-sm font-medium text-neutral-200">{{ squad.name }}</span>
+          </div>
+          <span class="text-[10px] font-mono text-neutral-500">
+            {{ squad.slots.filter((_, i) => isSelected(currentSide.name, squad.name, i)).length }}/{{ squad.slots.length }}
+          </span>
+        </button>
 
-        <div v-for="squad in side.squads" :key="squad.name" class="bg-neutral-800/50 rounded-lg overflow-hidden mb-2">
-          <div class="px-3 py-1.5 text-xs font-medium text-neutral-300 border-b border-neutral-700/50">
-            {{ squad.name }}
-          </div>
-          <div class="px-2 pb-2 pt-1.5 flex flex-wrap gap-1">
-            <button v-for="slot in squad.slots" :key="slot.number"
-              @click="toggleSlot(slot)"
-              :class="[
-                'px-2.5 py-1.5 rounded-md text-xs transition-all border',
-                isSelected(slot)
-                  ? 'bg-delta-green/15 border-delta-green/40 text-delta-green hover:bg-delta-green/25'
-                  : 'bg-neutral-800 border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:border-neutral-500'
-              ]">
-              <span class="font-mono text-[10px] opacity-50 mr-1">{{ slot.number }}</span>
-              {{ slot.name }}
-            </button>
-          </div>
+        <!-- Individual slots -->
+        <div class="px-2 pb-2 pt-1 flex flex-wrap gap-1">
+          <button v-for="(roleName, slotIdx) in squad.slots" :key="slotIdx"
+            @click="toggleSlot(currentSide.name, squad.name, slotIdx)"
+            :class="[
+              'px-2.5 py-1.5 rounded-md text-xs transition-all border',
+              isSelected(currentSide.name, squad.name, slotIdx)
+                ? 'bg-delta-green/15 border-delta-green/40 text-delta-green hover:bg-delta-green/25'
+                : 'bg-neutral-800 border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:border-neutral-500'
+            ]">
+            <span class="font-mono text-[10px] opacity-50 mr-1">{{ slotIdx + 1 }}</span>
+            {{ roleName }}
+          </button>
         </div>
-      </div>
-
-      <div v-if="!groupedSlots.length" class="text-sm text-neutral-600 text-center py-4">
-        Слоты ещё не настроены
       </div>
     </div>
 

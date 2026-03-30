@@ -314,7 +314,7 @@ function readinessDot(status) {
         <p class="text-sm text-neutral-500">Неделя {{ currentWeekId }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <button v-if="slots.length && auth.isUserMember && auth.player?.uid"
+        <button v-if="currentMission && auth.isUserMember && auth.player?.uid"
           @click="showSlotRequestModal = true"
           class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-500 text-sm text-neutral-300 hover:text-white font-medium rounded-lg transition-colors">
           {{ hasMyRequest ? 'Изменить запрос' : 'Запросить слот' }}
@@ -850,9 +850,10 @@ function readinessDot(status) {
 
     <!-- Slot Request modal -->
     <SlotRequestModal
-      v-if="showSlotRequestModal && auth.player?.uid"
+      v-if="showSlotRequestModal && auth.player?.uid && currentMission"
       :game-id="activeTab"
       :player-id="auth.player.uid"
+      :mission="currentMission"
       @close="showSlotRequestModal = false"
     />
 
