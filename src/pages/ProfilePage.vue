@@ -37,6 +37,7 @@ const editingAvatar = ref(false)
 const avatarUrl = ref('')
 const telegramIdInput = ref('')
 const savingTelegramId = ref(false)
+const telegramBotUrl = import.meta.env.VITE_TELEGRAM_BOT_URL || ''
 
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
@@ -340,6 +341,8 @@ async function saveTelegramId() {
         <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Уведомления в Telegram</h3>
         <p class="text-sm text-neutral-400 mb-2">Чтобы получать личные уведомления о слотах и задачах:</p>
         <ol class="text-sm text-neutral-400 list-decimal list-inside space-y-1 mb-3">
+          <li v-if="telegramBotUrl">Откройте чат с ботом отряда: <a :href="telegramBotUrl" target="_blank" class="text-sky-400 hover:underline">{{ telegramBotUrl }}</a> и нажмите <code class="text-sky-400">Start</code></li>
+          <li v-else>Откройте чат с ботом отряда в Telegram и нажмите <code class="text-sky-400">Start</code></li>
           <li>Напишите боту <a href="https://t.me/userinfobot" target="_blank" class="text-sky-400 hover:underline">@userinfobot</a> в Telegram</li>
           <li>Он ответит вашим <code class="text-sky-400">Id</code> — скопируйте число</li>
           <li>Вставьте ID в поле ниже</li>
