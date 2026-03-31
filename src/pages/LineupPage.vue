@@ -546,6 +546,11 @@ async function sendSlotNotification(slot, slotIdx) {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </th>
+              <th v-if="isAdmin" class="text-center px-1 py-2.5 font-medium w-8">
+                <svg class="w-3.5 h-3.5 mx-auto text-neutral-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -556,7 +561,7 @@ async function sendSlotNotification(slot, slotIdx) {
                   'border-b border-neutral-800',
                   SIDE_COLORS[row.color]?.bg || 'bg-neutral-800/60'
                 ]">
-                <td colspan="8" class="px-4 py-2">
+                <td :colspan="isAdmin ? 9 : 8" class="px-4 py-2">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                       <span :class="[SIDE_COLORS[row.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
@@ -734,45 +739,46 @@ async function sendSlotNotification(slot, slotIdx) {
                   <span v-else class="text-neutral-500 text-xs">{{ row.slot.notes || '—' }}</span>
                 </td>
 
-                <!-- Personal task + Telegram notify -->
-                <td class="px-2 py-2.5">
-                  <div class="flex items-center justify-center gap-0.5">
-                    <button v-if="canEditPersonalTask(row.slot)"
-                      @click="startEditPersonalTask(row.idx)"
-                      :class="[
-                        'w-6 h-6 rounded flex items-center justify-center transition-colors',
-                        row.slot.personalTask
-                          ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                          : 'text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800'
-                      ]"
-                      :title="row.slot.personalTask || 'Добавить личную задачу'">
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                    </button>
-                    <span v-else-if="row.slot.personalTask" class="text-amber-500/50">
-                      <svg class="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                    </span>
-                    <button v-if="isAdmin && row.slot.playerId && getPlayerTelegramId(row.slot.playerId)"
-                      @click.stop="sendSlotNotification(row.slot, row.idx)"
-                      :disabled="slotNotifSending[row.idx]"
-                      :class="[
-                        'w-6 h-6 rounded flex items-center justify-center transition-colors',
-                        slotNotifSent[row.idx]
-                          ? 'text-emerald-400'
-                          : 'text-sky-500/40 hover:text-sky-400 hover:bg-sky-500/10'
-                      ]"
-                      :title="slotNotifSent[row.idx] ? 'Отправлено' : 'Уведомить в Telegram'">
-                      <svg v-if="slotNotifSent[row.idx]" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                      </svg>
-                    </button>
-                  </div>
+                <!-- Personal task indicator -->
+                <td class="px-2 py-2.5 text-center">
+                  <button v-if="canEditPersonalTask(row.slot)"
+                    @click="startEditPersonalTask(row.idx)"
+                    :class="[
+                      'w-6 h-6 rounded flex items-center justify-center transition-colors mx-auto',
+                      row.slot.personalTask
+                        ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
+                        : 'text-neutral-600 hover:text-neutral-400 hover:bg-neutral-800'
+                    ]"
+                    :title="row.slot.personalTask || 'Добавить личную задачу'">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </button>
+                  <span v-else-if="row.slot.personalTask" class="text-amber-500/50">
+                    <svg class="w-3.5 h-3.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </span>
+                </td>
+                <!-- Telegram notify -->
+                <td v-if="isAdmin" class="px-1 py-2.5 text-center">
+                  <button v-if="row.slot.playerId && getPlayerTelegramId(row.slot.playerId)"
+                    @click.stop="sendSlotNotification(row.slot, row.idx)"
+                    :disabled="slotNotifSending[row.idx]"
+                    :class="[
+                      'w-6 h-6 rounded flex items-center justify-center transition-colors mx-auto',
+                      slotNotifSent[row.idx]
+                        ? 'text-emerald-400'
+                        : 'text-sky-500/40 hover:text-sky-400 hover:bg-sky-500/10'
+                    ]"
+                    :title="slotNotifSent[row.idx] ? 'Отправлено' : 'Уведомить в Telegram'">
+                    <svg v-if="slotNotifSent[row.idx]" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                    </svg>
+                  </button>
                 </td>
               </tr>
             </template>
