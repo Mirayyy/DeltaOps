@@ -125,6 +125,7 @@ const currentSideAllActive = computed(() => {
                 ]">
                 <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
                 {{ side.name }}
+                <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500 text-xs">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
                 <span class="text-[10px] font-mono opacity-60">{{ sideActiveCount(side) }}/{{ sideTotalCount(side) }}</span>
               </button>
             </div>
@@ -144,6 +145,7 @@ const currentSideAllActive = computed(() => {
         ]">
         <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
+        <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500 text-xs">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
         <span class="text-[10px] font-mono opacity-60">{{ sideActiveCount(side) }}/{{ sideTotalCount(side) }}</span>
       </button>
     </div>

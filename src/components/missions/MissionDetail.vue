@@ -109,6 +109,7 @@ function formatDate(dateStr) {
             ]">
             <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
             {{ side.name }}
+            <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
             <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
           </button>
         </div>
@@ -126,6 +127,7 @@ function formatDate(dateStr) {
             ]">
             <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
             {{ side.name }}
+            <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
             <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
           </button>
         </div>
@@ -143,6 +145,7 @@ function formatDate(dateStr) {
         ]">
         <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
+        <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
         <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
       </button>
     </div>

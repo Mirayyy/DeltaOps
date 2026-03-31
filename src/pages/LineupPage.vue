@@ -461,6 +461,7 @@ async function sendSlotNotification(slot, slotIdx) {
         <span v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).ally" :key="side.name" class="flex items-center gap-1">
           <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
           <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
+          <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
           <span class="text-neutral-600 font-mono">{{ side.players }}</span>
         </span>
         <span class="text-neutral-700">|</span>
@@ -468,6 +469,7 @@ async function sendSlotNotification(slot, slotIdx) {
         <span v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).enemy" :key="side.name" class="flex items-center gap-1">
           <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
           <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
+          <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
           <span class="text-neutral-600 font-mono">{{ side.players }}</span>
         </span>
       </template>

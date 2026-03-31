@@ -131,6 +131,7 @@ function submit() {
                 ]">
                 <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
                 {{ side.name }}
+                <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500 text-xs">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
                 <span v-if="sideSelectedCount(side)" class="text-[10px] font-mono text-delta-green">{{ sideSelectedCount(side) }}</span>
               </button>
             </div>
@@ -150,6 +151,7 @@ function submit() {
         ]">
         <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
+        <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500 text-xs">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
         <span v-if="sideSelectedCount(side)" class="text-[10px] font-mono text-delta-green">{{ sideSelectedCount(side) }}</span>
       </button>
     </div>
