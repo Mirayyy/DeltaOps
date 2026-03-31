@@ -5,6 +5,7 @@ import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
 import { useGamesStore } from '../stores/games'
 import { useMissionsStore } from '../stores/missions'
+import { useSquadConfig } from '../stores/squadConfig'
 import { useGameWeek } from '../composables/useGameWeek'
 import { EQUIPMENT_LIST, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
@@ -20,6 +21,7 @@ const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const missionsStore = useMissionsStore()
+const squadConfig = useSquadConfig()
 const { games, currentWeekId } = useGameWeek()
 
 const activeTab = ref('friday_1')
@@ -58,16 +60,27 @@ async function sendLineupToTelegram() {
   }
 }
 
-// Gallery: collect all images from all sides
-const galleryImages = computed(() => {
+// Gallery: split by ally/enemy
+const allyGalleryImages = computed(() => {
   if (!currentMission.value?.sides) return []
-  return currentMission.value.sides.flatMap(s => s.gallery || [])
+  return currentMission.value.sides
+    .filter(s => missionsStore.getSideTeam(currentMission.value, s.color, squadConfig.side) === 'ally')
+    .flatMap(s => s.gallery || [])
 })
+const enemyGalleryImages = computed(() => {
+  if (!currentMission.value?.sides) return []
+  return currentMission.value.sides
+    .filter(s => missionsStore.getSideTeam(currentMission.value, s.color, squadConfig.side) === 'enemy')
+    .flatMap(s => s.gallery || [])
+})
+const galleryImages = computed(() => [...allyGalleryImages.value, ...enemyGalleryImages.value])
 const showGallery = ref(false)
 const galleryStartIndex = ref(0)
+const galleryLabel = ref('')
 
-function openGallery(index = 0) {
+function openGallery(index = 0, label = '') {
   galleryStartIndex.value = index
+  galleryLabel.value = label
   showGallery.value = true
 }
 
@@ -380,10 +393,30 @@ function readinessDot(status) {
       <span v-for="side in currentMission.sides" :key="side.name" class="flex items-center gap-1">
         <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
         <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
+        <span v-if="missionsStore.getSideTeam(currentMission, side.color, squadConfig.side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
+        <span v-else-if="missionsStore.getSideTeam(currentMission, side.color, squadConfig.side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
         <span class="text-neutral-600 font-mono">{{ side.players }}</span>
       </span>
       <div class="ml-auto flex items-center gap-3">
-        <button v-if="galleryImages.length"
+        <button v-if="allyGalleryImages.length"
+          @click="openGallery(0, 'МЫ')"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span class="text-xs font-medium">Галерея МЫ</span>
+          <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
+        </button>
+        <button v-if="enemyGalleryImages.length"
+          @click="openGallery(allyGalleryImages.length, 'Враг')"
+          class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/30 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span class="text-xs font-medium">Галерея Враг</span>
+          <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
+        </button>
+        <button v-if="galleryImages.length && !allyGalleryImages.length"
           @click="openGallery()"
           class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-delta-green/15 text-delta-green hover:bg-delta-green/25 border border-delta-green/30 transition-colors">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

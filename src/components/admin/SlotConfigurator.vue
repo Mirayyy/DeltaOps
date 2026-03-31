@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGamesStore } from '../../stores/games'
+import { useMissionsStore } from '../../stores/missions'
+import { useSquadConfig } from '../../stores/squadConfig'
 import { SIDE_COLORS } from '../../utils/constants'
 import BaseModal from '../common/BaseModal.vue'
 
@@ -12,6 +14,8 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const gamesStore = useGamesStore()
+const missionsStore = useMissionsStore()
+const squadConfig = useSquadConfig()
 
 // Active side tab (index into mission.sides[])
 const activeSide = ref(0)
@@ -113,6 +117,8 @@ const currentSideAllActive = computed(() => {
         ]">
         <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
+        <span v-if="missionsStore.getSideTeam(mission, side.color, squadConfig.side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
+        <span v-else-if="missionsStore.getSideTeam(mission, side.color, squadConfig.side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
         <span class="text-[10px] font-mono opacity-60">{{ sideActiveCount(side) }}/{{ sideTotalCount(side) }}</span>
       </button>
     </div>

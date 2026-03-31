@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { SIDE_COLORS } from '../../utils/constants'
+import { useMissionsStore } from '../../stores/missions'
+import { useSquadConfig } from '../../stores/squadConfig'
 
 const props = defineProps({
   mission: { type: Object, default: null },
@@ -18,8 +20,15 @@ const stats = computed(() => {
   return { totalPlayers, totalSquads }
 })
 
+const missionsStore = useMissionsStore()
+const squadConfig = useSquadConfig()
+
 function sideColor(color) {
   return SIDE_COLORS[color] || SIDE_COLORS.blue
+}
+
+function sideTeam(side) {
+  return missionsStore.getSideTeam(props.mission, side.color, squadConfig.side)
 }
 </script>
 
@@ -77,6 +86,8 @@ function sideColor(color) {
           <div class="flex items-center gap-1.5">
             <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
             <span :class="sideColor(side.color).text">{{ side.name }}</span>
+            <span v-if="sideTeam(side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
+            <span v-else-if="sideTeam(side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
             <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
           </div>
           <span class="font-mono text-neutral-500">{{ side.players }}</span>

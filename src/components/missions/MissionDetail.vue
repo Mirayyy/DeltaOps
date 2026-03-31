@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { SIDE_COLORS } from '../../utils/constants'
+import { useMissionsStore } from '../../stores/missions'
+import { useSquadConfig } from '../../stores/squadConfig'
 import BaseModal from '../common/BaseModal.vue'
 import ImageLightbox from '../common/ImageLightbox.vue'
 
@@ -10,6 +12,8 @@ const props = defineProps({
 
 defineEmits(['close'])
 
+const missionsStore = useMissionsStore()
+const squadConfig = useSquadConfig()
 const activeSide = ref(0)
 
 // Lightbox state
@@ -31,6 +35,10 @@ const currentSide = computed(() => props.mission.sides[activeSide.value])
 
 function sideColor(color) {
   return SIDE_COLORS[color] || SIDE_COLORS.blue
+}
+
+function sideTeam(side) {
+  return missionsStore.getSideTeam(props.mission, side.color, squadConfig.side)
 }
 
 function formatDate(dateStr) {
@@ -100,6 +108,8 @@ function formatDate(dateStr) {
         ]">
         <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
+        <span v-if="sideTeam(side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
+        <span v-else-if="sideTeam(side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
         <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
       </button>
     </div>

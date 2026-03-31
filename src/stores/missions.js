@@ -42,6 +42,10 @@ const DEMO_MISSIONS = {
         gallery: [],
       },
     ],
+    rotationSides: [
+      { color: 'red', role: 'Атака', gameSides: [{ color: 'blue', name: 'НАПА', players: 102 }] },
+      { color: 'blue', role: 'Оборона', gameSides: [{ color: 'red', name: 'ЧДКЗ', players: 94 }] },
+    ],
     scrapedAt: '2026-03-27T06:28:27.551Z',
   },
   friday_2: {
@@ -75,6 +79,10 @@ const DEMO_MISSIONS = {
         ],
         gallery: [],
       },
+    ],
+    rotationSides: [
+      { color: 'red', role: 'Неопределено', gameSides: [{ color: 'blue', name: 'USMC', players: 98 }] },
+      { color: 'blue', role: 'Неопределено', gameSides: [{ color: 'red', name: 'МП РФ', players: 98 }] },
     ],
     scrapedAt: '2026-03-26T18:00:00.000Z',
   },
@@ -117,6 +125,10 @@ const DEMO_MISSIONS = {
         gallery: [],
       },
     ],
+    rotationSides: [
+      { color: 'red', role: 'Атака', gameSides: [{ color: 'red', name: 'ВКС России', players: 10 }, { color: 'green', name: 'САА', players: 86 }] },
+      { color: 'blue', role: 'Оборона', gameSides: [{ color: 'blue', name: 'Бойцы фронта', players: 100 }] },
+    ],
     scrapedAt: '2026-03-26T14:00:00.000Z',
   },
   saturday_2: null,
@@ -136,6 +148,16 @@ export const useMissionsStore = defineStore('missions', () => {
       .filter(([, m]) => m != null)
       .map(([slot, m]) => ({ slot, ...m }))
   })
+
+  function getSideTeam(mission, sideColor, squadSide) {
+    if (!mission?.rotationSides || !squadSide) return null
+    for (const rot of mission.rotationSides) {
+      if (rot.gameSides.some(gs => gs.color === sideColor)) {
+        return rot.color === squadSide ? 'ally' : 'enemy'
+      }
+    }
+    return null
+  }
 
   function getMissionStats(mission) {
     if (!mission) return null
@@ -211,7 +233,7 @@ export const useMissionsStore = defineStore('missions', () => {
 
   return {
     missions, loading, error,
-    getMission, availableMissions, getMissionStats,
+    getMission, availableMissions, getMissionStats, getSideTeam,
     fetchMissions, refreshMissions, clearMission, clearMissions,
   }
 })

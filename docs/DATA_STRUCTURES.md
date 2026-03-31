@@ -163,6 +163,23 @@ function resolveNickname(playerId) {
 | `authors` | `string[]` | Авторы |
 | `map` | `string` | Карта |
 | `scrapedAt` | `string` | ISO 8601 |
+| `rotationSides` | `array` | Маппинг ротация→игровые стороны (из расписания, см. ниже) |
+
+**rotationSides[]** (добавляется Extension из страницы расписания):
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `color` | `'red'\|'blue'` | Цвет ротационной стороны |
+| `role` | `string` | "Атака", "Оборона" |
+| `gameSides` | `array` | Игровые стороны в этой ротации |
+
+**rotationSides[].gameSides[]:**
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `color` | `'blue'\|'red'\|'green'` | Цвет игровой стороны |
+| `name` | `string` | Название фракции (напр. "ЧСО", "ВС РФ") |
+| `players` | `number` | Кол-во игроков |
 
 **sides[]:**
 
