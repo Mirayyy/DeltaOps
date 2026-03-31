@@ -161,30 +161,38 @@ export function useTelegram() {
   }
 
   /** Personal slot notification — sent to player DM */
-  function buildSlotNotification(playerNickname, slot, gameLabel, gameDate, squadTask) {
+  function buildSlotNotification({ slot, dayLabel, gameDate, missionTitle, missionNumber }) {
+    const SLOT_TYPE_LABELS = {
+      squadCommander: 'КО',
+      sideCommander: 'Командир стороны',
+      vehicle: 'Техника',
+      reserve: 'Запас',
+    }
+    const missionNum = missionNumber === 1 ? 'Первая миссия' : 'Вторая миссия'
+
     const lines = [
-      `<b>${app.siteName} — Уведомление о слоте</b>`,
+      `<b>Уведомление о слоте</b>`,
       '',
-      `Игрок: <b>${playerNickname}</b>`,
-      `Игра: <b>${gameLabel}</b> (${gameDate})`,
+      `<b>${dayLabel} ${gameDate}</b>`,
       '',
-      `<b>Слот:</b> ${slot.side} — ${slot.squad} — ${slot.name}`,
     ]
 
-    if (slot.equipment?.length) {
-      lines.push(`<b>Снаряжение:</b> ${slot.equipment.join(', ')}`)
+    if (missionTitle) {
+      lines.push(`${missionNum}: ${missionTitle}`)
+      lines.push('')
     }
+
+    lines.push(`<b>${slot.side} — ${slot.squad} — ${slot.number} — ${slot.name}</b>`)
+
+    if (slot.type) lines.push(`Тип: ${SLOT_TYPE_LABELS[slot.type] || slot.type}`)
+    if (slot.fireteam) lines.push(`ФТ: ${slot.fireteam}`)
+    if (slot.equipment?.length) lines.push(`Снаряжение: ${slot.equipment.join(', ')}`)
+    if (slot.notes) lines.push(`Заметки: ${slot.notes}`)
 
     if (slot.personalTask) {
       lines.push('')
       lines.push(`<b>Личная задача:</b>`)
       lines.push(slot.personalTask)
-    }
-
-    if (squadTask) {
-      lines.push('')
-      lines.push(`<b>Задача отряда:</b>`)
-      lines.push(squadTask)
     }
 
     lines.push('')

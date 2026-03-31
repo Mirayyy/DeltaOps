@@ -375,13 +375,19 @@ async function sendSlotNotification(slot, slotIdx) {
   if (!telegramId) return
 
   slotNotifSending.value[slotIdx] = true
-  const nickname = roster.resolveNickname(slot.playerId)
   const game = games.value.find(g => g.id === activeTab.value)
-  const gameDate = game ? gameDates[game.day] : ''
-  const squadTask = gamesStore.getGame(activeTab.value)?.task || ''
-  const slotWithGameId = { ...slot, gameId: activeTab.value }
+  const dayLabel = game?.day === 'friday' ? 'Пятница' : 'Суббота'
+  const gameDate = game ? gameDates.value[game.day] : ''
+  const missionNumber = game?.id?.endsWith('_2') ? 2 : 1
+  const mission = currentMission.value
 
-  const msg = telegram.buildSlotNotification(nickname, slotWithGameId, game?.label || '', gameDate, squadTask)
+  const msg = telegram.buildSlotNotification({
+    slot: { ...slot, gameId: activeTab.value },
+    dayLabel,
+    gameDate,
+    missionTitle: mission?.title || '',
+    missionNumber,
+  })
   const result = await telegram.sendMessage(msg, { chatId: telegramId })
 
   slotNotifSending.value[slotIdx] = false
