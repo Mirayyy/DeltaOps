@@ -684,9 +684,9 @@ function formatDate(ts) {
                 :class="[item.color, 'w-5 h-5 rounded-sm flex-shrink-0 ring-1 ring-white/20 hover:ring-white/50 transition-all']"></button>
               <!-- Color grid dropdown -->
               <div v-if="colorPickerOpen === idx"
-                class="absolute left-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2"
+                class="absolute left-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 w-[11rem]"
                 @click.stop>
-                <div class="grid grid-cols-5 gap-1.5">
+                <div class="grid grid-cols-5 gap-1.5 w-full">
                   <button v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value"
                     @click="setEquipmentColor(idx, c.value); colorPickerOpen = null"
                     :class="[c.value, 'w-6 h-6 rounded-sm hover:scale-110 transition-transform ring-1',
@@ -716,9 +716,9 @@ function formatDate(ts) {
             <button @click.stop="colorPickerOpen = colorPickerOpen === 'new' ? null : 'new'"
               :class="[newEquipColor, 'w-9 h-9 rounded-lg ring-1 ring-white/20 hover:ring-white/50 transition-all flex-shrink-0']"></button>
             <div v-if="colorPickerOpen === 'new'"
-              class="absolute right-0 bottom-full mb-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2"
+              class="absolute right-0 bottom-full mb-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 w-[11rem]"
               @click.stop>
-              <div class="grid grid-cols-5 gap-1.5">
+              <div class="grid grid-cols-5 gap-1.5 w-full">
                 <button v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value"
                   @click="newEquipColor = c.value; colorPickerOpen = null"
                   :class="[c.value, 'w-6 h-6 rounded-sm hover:scale-110 transition-transform ring-1',
