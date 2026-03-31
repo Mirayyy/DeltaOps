@@ -113,15 +113,16 @@ function openGallery(images, index = 0, label = '') {
 
 // Players available for assignment
 const availablePlayers = computed(() => {
+  const assignedIds = new Set(slots.value.filter(s => s.playerId).map(s => s.playerId))
   return roster.activePlayers
     .map(p => {
       const status = attendance.getPlayerAttendance(activeTab.value, p.uid)
-      const assigned = slots.value.some(s => s.playerId === p.uid)
-      return { ...p, readiness: status, assigned }
+      return { ...p, readiness: status }
     })
+    .filter(p => (p.readiness === 'confirmed' || p.readiness === 'tentative') && !assignedIds.has(p.uid))
     .sort((a, b) => {
-      const order = { confirmed: 0, tentative: 1, no_response: 2, absent: 3 }
-      return (order[a.readiness] ?? 2) - (order[b.readiness] ?? 2)
+      const order = { confirmed: 0, tentative: 1 }
+      return (order[a.readiness] ?? 1) - (order[b.readiness] ?? 1)
     })
 })
 
@@ -692,15 +693,9 @@ async function sendSlotNotification(slot, slotIdx) {
                     </button>
                     <button v-for="p in availablePlayers" :key="p.uid"
                       @click="assignToSlot(row.idx, p)"
-                      :class="[
-                        'w-full text-left px-3 py-2 text-sm hover:bg-neutral-700 transition-colors flex items-center justify-between',
-                        p.assigned ? 'text-neutral-600' : 'text-neutral-300'
-                      ]">
-                      <span class="flex items-center gap-2">
-                        <span :class="[readinessDot(p.readiness), 'w-2 h-2 rounded-full shrink-0']"></span>
-                        <span :style="p.nicknameColor && !p.assigned ? { color: p.nicknameColor } : {}">{{ p.nickname }}</span>
-                      </span>
-                      <span v-if="p.assigned" class="text-[10px] text-neutral-600">назначен</span>
+                      class="w-full text-left px-3 py-2 text-sm hover:bg-neutral-700 transition-colors flex items-center gap-2 text-neutral-300">
+                      <span :class="[readinessDot(p.readiness), 'w-2 h-2 rounded-full shrink-0']"></span>
+                      <span :style="p.nicknameColor ? { color: p.nicknameColor } : {}">{{ p.nickname }}</span>
                     </button>
                   </div>
                 </td>
@@ -863,12 +858,9 @@ async function sendSlotNotification(slot, slotIdx) {
               </button>
               <button v-for="p in availablePlayers" :key="p.uid"
                 @click="assignToSlot(row.idx, p)"
-                :class="['w-full text-left px-3 py-2 text-sm hover:bg-neutral-700 flex items-center justify-between',
-                  p.assigned ? 'text-neutral-600' : 'text-neutral-300']">
-                <span class="flex items-center gap-2">
-                  <span :class="[readinessDot(p.readiness), 'w-2 h-2 rounded-full']"></span>
-                  <span :style="p.nicknameColor && !p.assigned ? { color: p.nicknameColor } : {}">{{ p.nickname }}</span>
-                </span>
+                class="w-full text-left px-3 py-2 text-sm hover:bg-neutral-700 flex items-center gap-2 text-neutral-300">
+                <span :class="[readinessDot(p.readiness), 'w-2 h-2 rounded-full']"></span>
+                <span :style="p.nicknameColor ? { color: p.nicknameColor } : {}">{{ p.nickname }}</span>
               </button>
             </div>
 
