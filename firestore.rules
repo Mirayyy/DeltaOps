@@ -14,15 +14,26 @@ service cloud.firestore {
       return isAuthenticated() && getUserDoc().role == 'admin';
     }
 
+    function isMember() {
+      return isAuthenticated() && getUserDoc().role in ['admin', 'member'];
+    }
+
     // ─── Users ───
     match /users/{uid} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == uid);
+      // Admin can do anything
+      allow write: if isAdmin();
+      // User can create own doc but role MUST be 'guest'
+      allow create: if isAuthenticated() && request.auth.uid == uid
+        && request.resource.data.role == 'guest';
+      // User can update own doc but CANNOT change role
+      allow update: if isAuthenticated() && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
     }
 
     // ─── Players ───
     match /players/{playerId} {
-      allow read: if isAuthenticated();
+      allow read: if isMember();
       allow write: if isAdmin();
     }
 
@@ -47,7 +58,7 @@ service cloud.firestore {
     // ─── Attendance (current week) ───
     match /attendance/{gameId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow write: if isMember();
     }
 
     // ─── Missions (Extension writes via REST API) ───

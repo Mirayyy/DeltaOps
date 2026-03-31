@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useWebContentStore } from '../stores/webContent'
@@ -163,7 +164,7 @@ function processColors(md) {
 const aboutHtml = computed(() => {
   if (!webContent.aboutMarkdown) return ''
   const processed = processColors(webContent.aboutMarkdown)
-  return marked.parse(processed, { breaks: true })
+  return DOMPurify.sanitize(marked.parse(processed, { breaks: true }))
 })
 </script>
 
