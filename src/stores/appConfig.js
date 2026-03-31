@@ -21,7 +21,7 @@ export const useAppConfig = defineStore('appConfig', () => {
 
   // Convenience computed
   const siteName = computed(() => config.value.siteName)
-  const siteUrl = computed(() => config.value.siteUrl || import.meta.env.VITE_SITE_URL || window.location.origin)
+  const siteUrl = computed(() => (config.value.siteUrl || import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, ''))
   const githubUrl = computed(() => config.value.githubUrl)
   const firestoreUrl = computed(() =>
     config.value.firestoreUrl ||
