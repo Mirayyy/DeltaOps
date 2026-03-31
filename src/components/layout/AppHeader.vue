@@ -31,7 +31,7 @@ async function handleLogout() {
         </svg>
       </div>
       <div class="hidden sm:flex items-baseline gap-2">
-        <span v-if="app.loaded" class="text-base font-bold tracking-wide text-white" style="font-variant: small-caps">{{ app.siteName }}</span>
+        <span class="text-base font-bold tracking-wide text-white" style="font-variant: small-caps">{{ app.siteName }}</span>
       </div>
     </router-link>
 
