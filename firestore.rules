@@ -35,6 +35,13 @@ service cloud.firestore {
     match /players/{playerId} {
       allow read: if isMember();
       allow write: if isAdmin();
+      // Member can update profile fields (whitelist) and status (except 'left')
+      allow update: if isMember()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['avatar', 'steamUrl', 'telegramUsername', 'telegramId',
+                       'discordId', 'discordUsername', 'wishes', 'skills', 'nicknameColor',
+                       'status', 'updatedAt'])
+        && (request.resource.data.status != 'left' || request.resource.data.status == resource.data.status);
     }
 
     // ─── Nickname index ───
