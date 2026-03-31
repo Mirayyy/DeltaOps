@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useArchiveStore } from '../stores/archive'
 import { useGamesStore } from '../stores/games'
 import { useAttendanceStore } from '../stores/attendance'
@@ -299,6 +299,7 @@ async function saveSkills() {
 const newEquipName = ref('')
 const newEquipColor = ref('bg-neutral-600')
 const savingEquipment = ref(false)
+const colorPickerOpen = ref(null) // index or 'new'
 
 function addEquipment() {
   const name = newEquipName.value.trim()
@@ -374,7 +375,9 @@ async function saveSiteConfig() {
 // INIT
 // ═══════════════════════════════════════
 
+function closeColorPicker() { colorPickerOpen.value = null }
 onMounted(async () => {
+  document.addEventListener('click', closeColorPicker)
   await Promise.all([
     archive.rotations.length ? null : archive.fetchArchives(),
     webContent.fetchContent(),
@@ -385,6 +388,10 @@ onMounted(async () => {
   initSquadForm()
   initSiteForm()
   pageReady.value = true
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeColorPicker)
 })
 
 // ═══════════════════════════════════════
@@ -671,19 +678,30 @@ function formatDate(ts) {
         <div v-if="squadConfig.config.equipmentItems?.length" class="space-y-1.5">
           <div v-for="(item, idx) in squadConfig.config.equipmentItems" :key="item.name"
             class="flex items-center gap-2 px-3 py-2 bg-neutral-800/50 rounded-lg group">
-            <span :class="[item.color, 'w-4 h-4 rounded-sm flex-shrink-0']"></span>
+            <!-- Color picker trigger -->
+            <div class="relative">
+              <button @click.stop="colorPickerOpen = colorPickerOpen === idx ? null : idx"
+                :class="[item.color, 'w-5 h-5 rounded-sm flex-shrink-0 ring-1 ring-white/20 hover:ring-white/50 transition-all']"></button>
+              <!-- Color grid dropdown -->
+              <div v-if="colorPickerOpen === idx"
+                class="absolute left-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2"
+                @click.stop>
+                <div class="grid grid-cols-5 gap-1.5">
+                  <button v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value"
+                    @click="setEquipmentColor(idx, c.value); colorPickerOpen = null"
+                    :class="[c.value, 'w-6 h-6 rounded-sm hover:scale-110 transition-transform ring-1',
+                      item.color === c.value ? 'ring-white ring-2' : 'ring-white/20']"
+                    :title="c.label"></button>
+                </div>
+              </div>
+            </div>
             <span class="text-sm flex-1">{{ item.name }}</span>
-            <!-- Color picker -->
-            <select :value="item.color" @change="setEquipmentColor(idx, $event.target.value)"
-              class="bg-neutral-700 border border-neutral-600 rounded px-1.5 py-0.5 text-xs text-neutral-300 focus:outline-none">
-              <option v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
-            </select>
             <button @click="moveEquipment(idx, -1)" :disabled="idx === 0"
-              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">▲</button>
+              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">&#9650;</button>
             <button @click="moveEquipment(idx, 1)" :disabled="idx === squadConfig.config.equipmentItems.length - 1"
-              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">▼</button>
+              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">&#9660;</button>
             <button @click="removeEquipment(item.name)"
-              class="text-neutral-600 hover:text-red-400 text-xs transition-colors opacity-0 group-hover:opacity-100">✕</button>
+              class="text-neutral-600 hover:text-red-400 text-xs transition-colors opacity-0 group-hover:opacity-100">&#10005;</button>
           </div>
         </div>
         <div v-else class="text-neutral-600 text-sm">Нет снаряжения</div>
@@ -693,10 +711,22 @@ function formatDate(ts) {
           <input v-model="newEquipName" type="text" placeholder="Название"
             @keydown.enter="addEquipment"
             class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
-          <select v-model="newEquipColor"
-            class="bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm text-neutral-300 focus:outline-none focus:border-delta-green">
-            <option v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
-          </select>
+          <!-- Color picker for new item -->
+          <div class="relative">
+            <button @click.stop="colorPickerOpen = colorPickerOpen === 'new' ? null : 'new'"
+              :class="[newEquipColor, 'w-9 h-9 rounded-lg ring-1 ring-white/20 hover:ring-white/50 transition-all flex-shrink-0']"></button>
+            <div v-if="colorPickerOpen === 'new'"
+              class="absolute right-0 bottom-full mb-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2"
+              @click.stop>
+              <div class="grid grid-cols-5 gap-1.5">
+                <button v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value"
+                  @click="newEquipColor = c.value; colorPickerOpen = null"
+                  :class="[c.value, 'w-6 h-6 rounded-sm hover:scale-110 transition-transform ring-1',
+                    newEquipColor === c.value ? 'ring-white ring-2' : 'ring-white/20']"
+                  :title="c.label"></button>
+              </div>
+            </div>
+          </div>
           <button @click="addEquipment" :disabled="!newEquipName.trim()"
             class="px-3 py-2 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
             + Добавить
