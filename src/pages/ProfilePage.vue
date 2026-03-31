@@ -341,8 +341,7 @@ async function saveTelegramId() {
         <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Уведомления о слотах и личных задачах Telegram</h3>
         <p class="text-sm text-neutral-300 mb-2">1. Инициируйте чат с ботом</p>
         <ol class="text-sm text-neutral-400 list-decimal list-inside space-y-1 mb-3">
-          <li v-if="telegramBotUrl">Откройте чат с ботом <a :href="telegramBotUrl" target="_blank" class="text-sky-400 hover:underline">@TSGDeltaOps_bot</a></li>
-          <li v-else>Откройте чат с ботом отряда в Telegram</li>
+          <li>Откройте чат с ботом <a :href="telegramBotUrl || 'https://t.me/TSGDeltaOps_bot'" target="_blank" class="text-sky-400 hover:underline">@TSGDeltaOps_bot</a></li>
           <li>Напишите <code class="text-sky-400">/start</code> или другое сообщение чтобы инициировать чат с ботом</li>
         </ol>
         <p class="text-sm text-neutral-300 mb-2">2. Получите свой Telegram ID</p>
