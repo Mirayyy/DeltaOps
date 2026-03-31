@@ -8,6 +8,7 @@ import {
 import { auth } from './config'
 
 const googleProvider = new GoogleAuthProvider()
+googleProvider.setCustomParameters({ prompt: 'select_account' })
 
 export async function signInWithGoogle() {
   try {
