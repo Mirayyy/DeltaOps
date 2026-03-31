@@ -390,13 +390,28 @@ function readinessDot(status) {
       <span class="font-medium text-white">{{ currentMission.title }}</span>
       <span class="text-neutral-500">{{ currentMission.map }}</span>
       <span class="text-neutral-600">|</span>
-      <span v-for="side in currentMission.sides" :key="side.name" class="flex items-center gap-1">
-        <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
-        <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
-        <span v-if="missionsStore.getSideTeam(currentMission, side.color, squadConfig.side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
-        <span v-else-if="missionsStore.getSideTeam(currentMission, side.color, squadConfig.side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
-        <span class="text-neutral-600 font-mono">{{ side.players }}</span>
-      </span>
+      <template v-if="missionsStore.getGroupedSides(currentMission, squadConfig.side)">
+        <span class="text-neutral-500">Союзники:</span>
+        <span v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).ally" :key="side.name" class="flex items-center gap-1">
+          <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
+          <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
+          <span class="text-neutral-600 font-mono">{{ side.players }}</span>
+        </span>
+        <span class="text-neutral-700">|</span>
+        <span class="text-neutral-500">Противники:</span>
+        <span v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).enemy" :key="side.name" class="flex items-center gap-1">
+          <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
+          <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
+          <span class="text-neutral-600 font-mono">{{ side.players }}</span>
+        </span>
+      </template>
+      <template v-else>
+        <span v-for="side in currentMission.sides" :key="side.name" class="flex items-center gap-1">
+          <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
+          <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
+          <span class="text-neutral-600 font-mono">{{ side.players }}</span>
+        </span>
+      </template>
       <div class="ml-auto flex items-center gap-3">
         <button v-if="allyGalleryImages.length"
           @click="openGallery(0, 'МЫ')"

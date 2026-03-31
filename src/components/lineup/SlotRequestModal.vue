@@ -111,8 +111,35 @@ function submit() {
 
 <template>
   <BaseModal title="Запросить слот" wide @close="emit('close')">
-    <!-- Side tabs -->
-    <div class="flex gap-1 mb-4 bg-neutral-800 rounded-lg p-1">
+    <!-- Side tabs: grouped when rotation data available -->
+    <template v-if="missionsStore.getGroupedSides(mission, squadConfig.side)">
+      <div class="mb-4 space-y-2">
+        <div v-for="group in [
+          { label: 'Союзники', sides: missionsStore.getGroupedSides(mission, squadConfig.side).ally },
+          { label: 'Противники', sides: missionsStore.getGroupedSides(mission, squadConfig.side).enemy }
+        ]" :key="group.label">
+          <template v-if="group.sides.length">
+            <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1 px-1">{{ group.label }}</div>
+            <div class="flex gap-1 bg-neutral-800 rounded-lg p-1">
+              <button v-for="side in group.sides" :key="side.name"
+                @click="activeSide = mission.sides.indexOf(side)"
+                :class="[
+                  'flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2',
+                  activeSide === mission.sides.indexOf(side)
+                    ? [SIDE_COLORS[side.color]?.bg || 'bg-neutral-700', SIDE_COLORS[side.color]?.text || 'text-neutral-200', 'border', SIDE_COLORS[side.color]?.border || 'border-neutral-600']
+                    : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700/50'
+                ]">
+                <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
+                {{ side.name }}
+                <span v-if="sideSelectedCount(side)" class="text-[10px] font-mono text-delta-green">{{ sideSelectedCount(side) }}</span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+    <!-- Fallback: flat tabs -->
+    <div v-else class="flex gap-1 mb-4 bg-neutral-800 rounded-lg p-1">
       <button v-for="(side, idx) in mission.sides" :key="side.name"
         @click="activeSide = idx"
         :class="[
@@ -123,8 +150,6 @@ function submit() {
         ]">
         <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
-        <span v-if="missionsStore.getSideTeam(mission, side.color, squadConfig.side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
-        <span v-else-if="missionsStore.getSideTeam(mission, side.color, squadConfig.side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
         <span v-if="sideSelectedCount(side)" class="text-[10px] font-mono text-delta-green">{{ sideSelectedCount(side) }}</span>
       </button>
     </div>

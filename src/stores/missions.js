@@ -159,6 +159,20 @@ export const useMissionsStore = defineStore('missions', () => {
     return null
   }
 
+  function getGroupedSides(mission, squadSide) {
+    if (!mission?.sides) return null
+    if (!mission.rotationSides || !squadSide) return null
+    const ally = []
+    const enemy = []
+    for (const side of mission.sides) {
+      const team = getSideTeam(mission, side.color, squadSide)
+      if (team === 'ally') ally.push(side)
+      else if (team === 'enemy') enemy.push(side)
+      else enemy.push(side)
+    }
+    return { ally, enemy }
+  }
+
   function getMissionStats(mission) {
     if (!mission) return null
     const totalPlayers = mission.sides.reduce((sum, s) => sum + (s.players || 0), 0)
@@ -233,7 +247,7 @@ export const useMissionsStore = defineStore('missions', () => {
 
   return {
     missions, loading, error,
-    getMission, availableMissions, getMissionStats, getSideTeam,
+    getMission, availableMissions, getMissionStats, getSideTeam, getGroupedSides,
     fetchMissions, refreshMissions, clearMission, clearMissions,
   }
 })

@@ -27,9 +27,7 @@ function sideColor(color) {
   return SIDE_COLORS[color] || SIDE_COLORS.blue
 }
 
-function sideTeam(side) {
-  return missionsStore.getSideTeam(props.mission, side.color, squadConfig.side)
-}
+const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission, squadConfig.side))
 </script>
 
 <template>
@@ -79,15 +77,40 @@ function sideTeam(side) {
         <span>{{ stats.totalPlayers }} игроков</span>
       </div>
 
-      <!-- Sides -->
-      <div class="space-y-1.5">
+      <!-- Sides: grouped by ally/enemy when rotation data available -->
+      <div v-if="groupedSides" class="space-y-2">
+        <div v-if="groupedSides.ally.length">
+          <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Союзники</div>
+          <div v-for="side in groupedSides.ally" :key="side.name"
+            class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5">
+              <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
+              <span :class="sideColor(side.color).text">{{ side.name }}</span>
+              <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
+            </div>
+            <span class="font-mono text-neutral-500">{{ side.players }}</span>
+          </div>
+        </div>
+        <div v-if="groupedSides.enemy.length">
+          <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Противники</div>
+          <div v-for="side in groupedSides.enemy" :key="side.name"
+            class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5">
+              <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
+              <span :class="sideColor(side.color).text">{{ side.name }}</span>
+              <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
+            </div>
+            <span class="font-mono text-neutral-500">{{ side.players }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- Fallback: flat list when no rotation data -->
+      <div v-else class="space-y-1.5">
         <div v-for="side in mission.sides" :key="side.name"
           class="flex items-center justify-between text-xs">
           <div class="flex items-center gap-1.5">
             <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
             <span :class="sideColor(side.color).text">{{ side.name }}</span>
-            <span v-if="sideTeam(side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
-            <span v-else-if="sideTeam(side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
             <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
           </div>
           <span class="font-mono text-neutral-500">{{ side.players }}</span>

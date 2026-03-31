@@ -37,9 +37,7 @@ function sideColor(color) {
   return SIDE_COLORS[color] || SIDE_COLORS.blue
 }
 
-function sideTeam(side) {
-  return missionsStore.getSideTeam(props.mission, side.color, squadConfig.side)
-}
+const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission, squadConfig.side))
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
@@ -96,8 +94,45 @@ function formatDate(dateStr) {
       <span>{{ mission.additionalConditions }}</span>
     </div>
 
-    <!-- Side tabs -->
-    <div class="flex gap-1 mb-4 bg-neutral-800/40 rounded-lg p-1">
+    <!-- Side tabs: grouped when rotation data available -->
+    <div v-if="groupedSides" class="mb-4 space-y-2">
+      <div v-if="groupedSides.ally.length">
+        <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1 px-1">Союзники</div>
+        <div class="flex gap-1 bg-neutral-800/40 rounded-lg p-1">
+          <button v-for="side in groupedSides.ally" :key="side.name"
+            @click="activeSide = mission.sides.indexOf(side)"
+            :class="[
+              'flex-1 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5',
+              activeSide === mission.sides.indexOf(side)
+                ? sideColor(side.color).bg + ' ' + sideColor(side.color).text + ' ' + sideColor(side.color).border + ' border'
+                : 'text-neutral-500 hover:text-neutral-300'
+            ]">
+            <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
+            {{ side.name }}
+            <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
+          </button>
+        </div>
+      </div>
+      <div v-if="groupedSides.enemy.length">
+        <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1 px-1">Противники</div>
+        <div class="flex gap-1 bg-neutral-800/40 rounded-lg p-1">
+          <button v-for="side in groupedSides.enemy" :key="side.name"
+            @click="activeSide = mission.sides.indexOf(side)"
+            :class="[
+              'flex-1 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5',
+              activeSide === mission.sides.indexOf(side)
+                ? sideColor(side.color).bg + ' ' + sideColor(side.color).text + ' ' + sideColor(side.color).border + ' border'
+                : 'text-neutral-500 hover:text-neutral-300'
+            ]">
+            <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
+            {{ side.name }}
+            <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Fallback: flat tabs -->
+    <div v-else class="flex gap-1 mb-4 bg-neutral-800/40 rounded-lg p-1">
       <button v-for="(side, idx) in mission.sides" :key="side.name"
         @click="activeSide = idx"
         :class="[
@@ -108,8 +143,6 @@ function formatDate(dateStr) {
         ]">
         <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full']"></span>
         {{ side.name }}
-        <span v-if="sideTeam(side) === 'ally'" class="text-[10px] font-medium uppercase text-emerald-400/70">МЫ</span>
-        <span v-else-if="sideTeam(side) === 'enemy'" class="text-[10px] font-medium uppercase text-red-400/70">Враг</span>
         <span class="font-mono text-[10px] opacity-60">{{ side.players }}</span>
       </button>
     </div>
