@@ -22,7 +22,7 @@ const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const missionsStore = useMissionsStore()
 const squadConfig = useSquadConfig()
-const { games, currentWeekId } = useGameWeek()
+const { games, gameDates, currentWeekId } = useGameWeek()
 
 const activeTab = ref('friday_1')
 const editingSlot = ref(null)
@@ -51,7 +51,12 @@ const telegram = useTelegram()
 const toast = useToast()
 
 async function sendLineupToTelegram() {
-  const msg = telegram.buildLineupSummaryMessage(gamesStore.games, roster.players)
+  const missionsData = {}
+  for (const g of games.value) {
+    const m = missionsStore.getMission(g.id)
+    if (m) missionsData[g.id] = m
+  }
+  const msg = telegram.buildLineupSummaryMessage(gamesStore.games, roster.players, missionsData, gameDates)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
     toast.success(result.demo ? 'Расстановка (демо)' : 'Расстановка отправлена в Telegram')

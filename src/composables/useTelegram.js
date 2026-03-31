@@ -191,10 +191,10 @@ export function useTelegram() {
   }
 
   /** Lineup published — group summary */
-  function buildLineupSummaryMessage(gamesData, rosterPlayers) {
-    const gameLabels = {
-      friday_1: 'Пятница 1', friday_2: 'Пятница 2',
-      saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
+  function buildLineupSummaryMessage(gamesData, rosterPlayers, missions, gameDates) {
+    const daySlots = {
+      friday: { label: 'Пятница', slots: ['friday_1', 'friday_2'] },
+      saturday: { label: 'Суббота', slots: ['saturday_1', 'saturday_2'] },
     }
 
     const resolveNick = (playerId) => {
@@ -203,22 +203,59 @@ export function useTelegram() {
     }
 
     const lines = [
-      `<b>${app.siteName} — Расстановка опубликована</b>`,
+      `<b>Расстановка опубликована</b>`,
       '',
     ]
 
-    for (const gameId of ['friday_1', 'friday_2', 'saturday_1', 'saturday_2']) {
-      const game = gamesData[gameId]
-      if (!game || !game.slots || !game.slots.length) continue
+    for (const [day, info] of Object.entries(daySlots)) {
+      const date = gameDates?.[day] || '—'
+      const dayHasSlots = info.slots.some(s => gamesData[s]?.slots?.some(sl => sl.playerId))
+      if (!dayHasSlots) continue
 
-      const assigned = game.slots.filter(s => s.playerId)
-      if (!assigned.length) continue
-
-      lines.push(`<b>${gameLabels[gameId]}:</b> ${assigned.length}/${game.slots.length} слотов`)
-      for (const slot of assigned) {
-        lines.push(`  ${slot.name} — ${resolveNick(slot.playerId)}`)
-      }
+      lines.push(`<b>${info.label} ${date}</b>`)
       lines.push('')
+
+      for (let i = 0; i < info.slots.length; i++) {
+        const gameId = info.slots[i]
+        const game = gamesData[gameId]
+        if (!game || !game.slots || !game.slots.some(s => s.playerId)) continue
+
+        const mission = missions?.[gameId]
+        const title = mission?.title || '—'
+        const map = mission?.map || ''
+
+        lines.push(`${i === 1 ? 'Вторая' : 'Первая'} миссия: <b>${title}</b>${map ? ' | ' + map : ''}`)
+        lines.push('')
+
+        // Group assigned slots by side → squad
+        const assigned = game.slots.filter(s => s.playerId)
+        const bySideSquad = {}
+        for (const slot of assigned) {
+          const key = `${slot.side}::${slot.squad}`
+          if (!bySideSquad[key]) bySideSquad[key] = { side: slot.side, squad: slot.squad, slots: [] }
+          bySideSquad[key].slots.push(slot)
+        }
+
+        for (const group of Object.values(bySideSquad)) {
+          lines.push(`<b>${group.side} — ${group.squad}</b>`)
+          let num = 1
+          for (const slot of group.slots) {
+            lines.push(`${num}  ${slot.name} — ${resolveNick(slot.playerId)}`)
+            num++
+          }
+          lines.push('')
+        }
+
+        // Task
+        if (game.task) {
+          lines.push('<b>Задача отряда</b>')
+          lines.push(game.task)
+          lines.push('')
+        }
+
+        lines.push(`<a href="${app.siteUrl}/lineup?game=${gameId}">Просмотр расстановки</a>`)
+        lines.push('')
+      }
     }
 
     return lines.join('\n')
