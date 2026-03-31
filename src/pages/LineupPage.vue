@@ -380,7 +380,11 @@ function getPlayerTelegramId(playerId) {
 
 async function sendSlotNotification(slot, slotIdx) {
   const telegramId = getPlayerTelegramId(slot.playerId)
-  if (!telegramId) return
+  const nickname = roster.resolveNickname(slot.playerId)
+  if (!telegramId) {
+    toast.error(`${nickname} не указал Telegram ID в профиле`)
+    return
+  }
 
   slotNotifSending.value[slotIdx] = true
   const game = games.value.find(g => g.id === activeTab.value)
@@ -402,9 +406,16 @@ async function sendSlotNotification(slot, slotIdx) {
   if (result.ok) {
     slotNotifSent.value[slotIdx] = true
     setTimeout(() => { slotNotifSent.value[slotIdx] = false }, 2000)
-    toast.success(result.demo ? 'Уведомление (демо)' : 'Уведомление отправлено')
+    toast.success(result.demo ? 'Уведомление (демо)' : `Уведомление отправлено — ${nickname}`)
   } else {
-    toast.error('Ошибка: ' + result.error)
+    const err = result.error || ''
+    if (err.includes('Forbidden') || err.includes('bot can\'t initiate')) {
+      toast.error(`${nickname} не начал чат с ботом. Пусть откроет @TSGDeltaOps_bot и нажмёт /start`)
+    } else if (err.includes('chat not found')) {
+      toast.error(`Telegram ID игрока ${nickname} неверный. Пусть обновит ID в профиле`)
+    } else {
+      toast.error(`Ошибка отправки для ${nickname}: ${err}`)
+    }
   }
 }
 </script>
