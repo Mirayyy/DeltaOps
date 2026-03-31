@@ -45,9 +45,9 @@ export const GAMES = [
 export const GAME_IDS = ['friday_1', 'friday_2', 'saturday_1', 'saturday_2']
 
 export const SIDE_COLORS = {
-  blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-400', dot: 'bg-blue-500' },
-  red: { bg: 'bg-red-500/20', border: 'border-red-500/40', text: 'text-red-400', dot: 'bg-red-500' },
-  green: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', dot: 'bg-emerald-500' },
+  blue: { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-400', dot: 'bg-blue-500', raw: '59,130,246' },
+  red: { bg: 'bg-red-500/20', border: 'border-red-500/40', text: 'text-red-400', dot: 'bg-red-500', raw: '239,68,68' },
+  green: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', dot: 'bg-emerald-500', raw: '16,185,129' },
 }
 
 export const SLOT_TYPES = {
