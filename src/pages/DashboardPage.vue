@@ -41,9 +41,12 @@ onMounted(async () => {
 const pageLoading = computed(() => roster.loading || attendance.loading)
 
 const summaryRows = computed(() => {
+  const totalActive = roster.activePlayers.length
   return games.value.map(game => {
     const counts = attendance.summary[game.id] || { confirmed: 0, tentative: 0, absent: 0, no_response: 0 }
-    return { ...game, ...counts, total: counts.confirmed + counts.tentative + counts.absent + counts.no_response }
+    const responded = counts.confirmed + counts.tentative + counts.absent
+    const no_response = totalActive - responded
+    return { ...game, ...counts, no_response, total: totalActive }
   })
 })
 
