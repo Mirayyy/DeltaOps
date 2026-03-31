@@ -158,7 +158,10 @@ const COLUMNS = [
     <!-- DELTA Squad Overview -->
     <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 mb-5">
       <div class="flex items-center gap-4 mb-4">
-        <img :src="squad.logo" :alt="squad.name" class="w-12 h-12 rounded-xl object-cover" />
+        <img v-if="squad.logo" :src="squad.logo" :alt="squad.name" class="w-12 h-12 rounded-xl object-cover" @error="$event.target.style.display='none'" />
+        <svg v-else class="w-12 h-12 text-neutral-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+        </svg>
         <div class="flex-1">
           <div class="flex items-center gap-3">
             <h2 class="text-lg font-bold">{{ squad.name }}</h2>
