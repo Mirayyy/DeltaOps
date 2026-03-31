@@ -5,7 +5,7 @@ import { useGamesStore } from '../stores/games'
 import { useAttendanceStore } from '../stores/attendance'
 import { useWebContentStore } from '../stores/webContent'
 import { useRosterStore } from '../stores/roster'
-import { GAME_IDS } from '../utils/constants'
+import { GAME_IDS, EQUIPMENT_COLOR_OPTIONS } from '../utils/constants'
 import { useSquadConfig } from '../stores/squadConfig'
 import { useAppConfig } from '../stores/appConfig'
 import { useToast } from '../composables/useToast'
@@ -290,6 +290,56 @@ async function saveSkills() {
     toast.error('Ошибка: ' + e.message)
   }
   savingSkills.value = false
+}
+
+// ═══════════════════════════════════════
+// EQUIPMENT
+// ═══════════════════════════════════════
+
+const newEquipName = ref('')
+const newEquipColor = ref('bg-neutral-600')
+const savingEquipment = ref(false)
+
+function addEquipment() {
+  const name = newEquipName.value.trim()
+  if (!name) return
+  const current = squadConfig.config.equipmentItems || []
+  if (current.some(e => e.name === name)) {
+    toast.error('Снаряжение уже существует')
+    return
+  }
+  squadConfig.config.equipmentItems = [...current, { name, color: newEquipColor.value }]
+  newEquipName.value = ''
+  newEquipColor.value = 'bg-neutral-600'
+}
+
+function removeEquipment(name) {
+  squadConfig.config.equipmentItems = (squadConfig.config.equipmentItems || []).filter(e => e.name !== name)
+}
+
+function moveEquipment(idx, dir) {
+  const arr = [...(squadConfig.config.equipmentItems || [])]
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= arr.length) return
+  ;[arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]]
+  squadConfig.config.equipmentItems = arr
+}
+
+function setEquipmentColor(idx, color) {
+  const arr = [...(squadConfig.config.equipmentItems || [])]
+  arr[idx] = { ...arr[idx], color }
+  squadConfig.config.equipmentItems = arr
+}
+
+async function saveEquipment() {
+  savingEquipment.value = true
+  try {
+    await squadConfig.save({ equipmentItems: squadConfig.config.equipmentItems })
+    toast.success('Снаряжение сохранено')
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message)
+  }
+  savingEquipment.value = false
 }
 
 // ═══════════════════════════════════════
@@ -599,6 +649,55 @@ function formatDate(ts) {
             @keydown.enter="addSkill"
             class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           <button @click="addSkill" :disabled="!newSkillName.trim()"
+            class="px-3 py-2 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
+            + Добавить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 3b. EQUIPMENT ═══ -->
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Снаряжение</h2>
+        <button @click="saveEquipment" :disabled="savingEquipment"
+          class="px-4 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-50">
+          {{ savingEquipment ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </div>
+
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-4">
+        <!-- List -->
+        <div v-if="squadConfig.config.equipmentItems?.length" class="space-y-1.5">
+          <div v-for="(item, idx) in squadConfig.config.equipmentItems" :key="item.name"
+            class="flex items-center gap-2 px-3 py-2 bg-neutral-800/50 rounded-lg group">
+            <span :class="[item.color, 'w-4 h-4 rounded-sm flex-shrink-0']"></span>
+            <span class="text-sm flex-1">{{ item.name }}</span>
+            <!-- Color picker -->
+            <select :value="item.color" @change="setEquipmentColor(idx, $event.target.value)"
+              class="bg-neutral-700 border border-neutral-600 rounded px-1.5 py-0.5 text-xs text-neutral-300 focus:outline-none">
+              <option v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
+            </select>
+            <button @click="moveEquipment(idx, -1)" :disabled="idx === 0"
+              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">▲</button>
+            <button @click="moveEquipment(idx, 1)" :disabled="idx === squadConfig.config.equipmentItems.length - 1"
+              class="text-neutral-600 hover:text-neutral-300 disabled:opacity-20 text-xs transition-colors">▼</button>
+            <button @click="removeEquipment(item.name)"
+              class="text-neutral-600 hover:text-red-400 text-xs transition-colors opacity-0 group-hover:opacity-100">✕</button>
+          </div>
+        </div>
+        <div v-else class="text-neutral-600 text-sm">Нет снаряжения</div>
+
+        <!-- Add -->
+        <div class="flex gap-2 pt-2 border-t border-neutral-800">
+          <input v-model="newEquipName" type="text" placeholder="Название"
+            @keydown.enter="addEquipment"
+            class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
+          <select v-model="newEquipColor"
+            class="bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-2 text-sm text-neutral-300 focus:outline-none focus:border-delta-green">
+            <option v-for="c in EQUIPMENT_COLOR_OPTIONS" :key="c.value" :value="c.value">{{ c.label }}</option>
+          </select>
+          <button @click="addEquipment" :disabled="!newEquipName.trim()"
             class="px-3 py-2 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
             + Добавить
           </button>

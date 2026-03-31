@@ -2,12 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useStructuresStore } from '../stores/structures'
 import { generateSlotIds } from '../stores/structures'
-import { EQUIPMENT_LIST } from '../utils/constants'
+import { useSquadConfig } from '../stores/squadConfig'
 import BaseModal from '../components/common/BaseModal.vue'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 
 const structures = useStructuresStore()
+const squadConfig = useSquadConfig()
 
 const showEditor = ref(false)
 const editingStructure = ref(null)
@@ -235,7 +236,7 @@ async function deleteStructure(id) {
                 </button>
                 <div v-if="equipmentMenuSlot === idx"
                   class="absolute right-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 min-w-36">
-                  <div v-for="eq in EQUIPMENT_LIST" :key="eq"
+                  <div v-for="eq in squadConfig.equipmentNames" :key="eq"
                     class="px-2 py-0.5 hover:bg-neutral-700 rounded">
                     <BaseCheckbox
                       :checked="(slot.equipment || []).includes(eq)"

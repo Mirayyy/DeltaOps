@@ -7,7 +7,7 @@ import { useGamesStore } from '../stores/games'
 import { useMissionsStore } from '../stores/missions'
 import { useSquadConfig } from '../stores/squadConfig'
 import { useGameWeek } from '../composables/useGameWeek'
-import { EQUIPMENT_LIST, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
+import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import SlotConfigurator from '../components/admin/SlotConfigurator.vue'
 import SlotRequestModal from '../components/lineup/SlotRequestModal.vue'
@@ -739,7 +739,7 @@ async function sendSlotNotification(slot, slotIdx) {
                       dropdownUp['eq-' + row.idx] ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
                     ]"
                     @click.stop>
-                    <div v-for="eq in EQUIPMENT_LIST" :key="eq"
+                    <div v-for="eq in squadConfig.equipmentNames" :key="eq"
                       class="px-2 py-1 hover:bg-neutral-700 rounded">
                       <BaseCheckbox
                         :checked="(row.slot.equipment || []).includes(eq)"

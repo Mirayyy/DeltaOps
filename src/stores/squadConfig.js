@@ -25,6 +25,7 @@ const DEFAULTS = {
   createdAt: '',
   contacts: [],  // array of player UIDs
   skillNames: [], // managed via Settings CRUD
+  equipmentItems: [], // [{ name, color }] — managed via Settings CRUD
 }
 
 export const useSquadConfig = defineStore('squadConfig', () => {
@@ -43,6 +44,13 @@ export const useSquadConfig = defineStore('squadConfig', () => {
   const createdAt = computed(() => config.value.createdAt)
   const contacts = computed(() => config.value.contacts)
   const skillNames = computed(() => config.value.skillNames)
+  const equipmentItems = computed(() => config.value.equipmentItems)
+  const equipmentNames = computed(() => (config.value.equipmentItems || []).map(e => e.name))
+  const equipmentColorMap = computed(() => {
+    const map = {}
+    for (const e of config.value.equipmentItems || []) map[e.name] = e.color
+    return map
+  })
 
   // Derived
   const tsgUrl = computed(() => {
@@ -77,6 +85,7 @@ export const useSquadConfig = defineStore('squadConfig', () => {
     config, loaded,
     name, logo, tag, status, server, side,
     recruitment, guaranteedSlots, createdAt, contacts, skillNames,
+    equipmentItems, equipmentNames, equipmentColorMap,
     tsgUrl,
     fetch, save,
   }

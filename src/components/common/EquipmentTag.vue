@@ -1,11 +1,13 @@
 <script setup>
-import { EQUIPMENT_COLORS } from '../../utils/constants'
+import { computed } from 'vue'
+import { useSquadConfig } from '../../stores/squadConfig'
 
 const props = defineProps({
   name: { type: String, required: true },
 })
 
-const colorClass = EQUIPMENT_COLORS[props.name] || 'bg-neutral-600'
+const squad = useSquadConfig()
+const colorClass = computed(() => squad.equipmentColorMap[props.name] || 'bg-neutral-600')
 </script>
 
 <template>

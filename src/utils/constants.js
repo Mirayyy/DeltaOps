@@ -57,21 +57,25 @@ export const SLOT_TYPES = {
   sideCommander: { label: 'Командир стороны' },
 }
 
-export const EQUIPMENT_LIST = [
-  'Оптика', 'Бинокль', 'GPS', 'ДВ', 'Глушитель',
-  'Тепляк', 'Дальномер', 'Минка',
-]
+// EQUIPMENT_LIST / EQUIPMENT_COLORS moved to config/squad.equipmentItems — managed via Settings CRUD
 
-export const EQUIPMENT_COLORS = {
-  'Оптика': 'bg-red-500',
-  'Бинокль': 'bg-blue-500',
-  'GPS': 'bg-emerald-500',
-  'ДВ': 'bg-amber-500',
-  'Глушитель': 'bg-purple-500',
-  'Тепляк': 'bg-orange-500',
-  'Дальномер': 'bg-cyan-500',
-  'Минка': 'bg-pink-500',
-}
+/** Available color options for equipment items in Settings */
+export const EQUIPMENT_COLOR_OPTIONS = [
+  { value: 'bg-red-500', label: 'Красный' },
+  { value: 'bg-blue-500', label: 'Синий' },
+  { value: 'bg-emerald-500', label: 'Зелёный' },
+  { value: 'bg-amber-500', label: 'Жёлтый' },
+  { value: 'bg-purple-500', label: 'Фиолетовый' },
+  { value: 'bg-orange-500', label: 'Оранжевый' },
+  { value: 'bg-cyan-500', label: 'Голубой' },
+  { value: 'bg-pink-500', label: 'Розовый' },
+  { value: 'bg-teal-500', label: 'Бирюзовый' },
+  { value: 'bg-indigo-500', label: 'Индиго' },
+  { value: 'bg-lime-500', label: 'Лайм' },
+  { value: 'bg-rose-500', label: 'Роза' },
+  { value: 'bg-sky-500', label: 'Небесный' },
+  { value: 'bg-violet-500', label: 'Сиреневый' },
+]
 
 // TSG profile URL builder (no need to store in DB)
 export function getTsgUrl(nickname) {
