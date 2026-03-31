@@ -281,33 +281,6 @@ export function useTelegram() {
     ].join('\n')
   }
 
-  /** New week announcement */
-  function buildNewWeekMessage(weekId, fridayDate, saturdayDate) {
-    return [
-      `<b>${app.siteName} — Новая неделя ${weekId}</b>`,
-      '',
-      `Пятница: ${fridayDate || '—'}`,
-      `Суббота: ${saturdayDate || '—'}`,
-      '',
-      `<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`,
-    ].join('\n')
-  }
-
-  /** Week finalized summary */
-  function buildWeekSummaryMessage(weekId, stats) {
-    const lines = [
-      `<b>${app.siteName} — Неделя ${weekId} завершена</b>`,
-      '',
-    ]
-    if (stats && stats.length) {
-      for (const g of stats) {
-        lines.push(`${g.label}: ${g.confirmed} пришли, ${g.absent} нет, ${g.noResponse} без ответа`)
-      }
-    }
-    lines.push('')
-    lines.push(`<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`)
-    return lines.join('\n')
-  }
 
   return {
     isConfigured, sending, lastError,
@@ -316,7 +289,5 @@ export function useTelegram() {
     buildLineupMessage,
     buildLineupSummaryMessage,
     buildReminderMessage,
-    buildNewWeekMessage,
-    buildWeekSummaryMessage,
   }
 }

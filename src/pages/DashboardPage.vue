@@ -129,12 +129,6 @@ async function sendMissionsToTelegram() {
 async function onWeekFinalized() {
   showFinalizer.value = false
   toast.success('Неделя завершена, архивы созданы')
-
-  // Send Telegram notification about week finalization
-  if (telegram.isConfigured) {
-    const msg = telegram.buildWeekSummaryMessage(currentWeekId.value)
-    await telegram.sendMessage(msg)
-  }
 }
 </script>
 
