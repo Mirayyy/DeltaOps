@@ -9,7 +9,7 @@ import { isFirebaseConfigured, firebaseProjectId } from '../firebase/config'
  */
 
 const DEFAULTS = {
-  siteName: 'DeltaOps',
+  siteName: 'DELTAops',
   siteUrl: '',
   githubUrl: '',
   firestoreUrl: '',
