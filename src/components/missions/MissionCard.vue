@@ -86,6 +86,7 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
             <div class="flex items-center gap-1.5">
               <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
               <span :class="sideColor(side.color).text">{{ side.name }}</span>
+              <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
               <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
             </div>
             <span class="font-mono text-neutral-500">{{ side.players }}</span>
@@ -98,6 +99,7 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
             <div class="flex items-center gap-1.5">
               <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
               <span :class="sideColor(side.color).text">{{ side.name }}</span>
+              <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
               <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
             </div>
             <span class="font-mono text-neutral-500">{{ side.players }}</span>
@@ -111,6 +113,7 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
           <div class="flex items-center gap-1.5">
             <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
             <span :class="sideColor(side.color).text">{{ side.name }}</span>
+            <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
             <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
           </div>
           <span class="font-mono text-neutral-500">{{ side.players }}</span>
