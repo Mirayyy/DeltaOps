@@ -13,6 +13,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import WeekFinalizer from '../components/admin/WeekFinalizer.vue'
 import MissionCard from '../components/missions/MissionCard.vue'
 import MissionDetail from '../components/missions/MissionDetail.vue'
+import { useSquadConfig } from '../stores/squadConfig'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
 
@@ -25,6 +26,7 @@ const { games, gameDates, currentWeekId } = useGameWeek()
 
 const showFinalizer = ref(false)
 const selectedMission = ref(null)
+const squadConfig = useSquadConfig()
 const telegram = useTelegram()
 const toast = useToast()
 
@@ -115,7 +117,7 @@ async function sendMissionsToTelegram() {
     toast.error('Нет загруженных миссий')
     return
   }
-  const msg = telegram.buildMissionsMessage(missionsData, gameDates.value)
+  const msg = telegram.buildMissionsMessage(missionsData, gameDates.value, squadConfig.side)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
     toast.success(result.demo ? 'Миссии (демо) — см. консоль' : 'Миссии отправлены в Telegram')

@@ -66,42 +66,97 @@ export function useTelegram() {
   // ─── Message builders ────────────────────────────────
 
   /** Missions loaded — sent to group */
-  function buildMissionsMessage(missions, gameDates) {
-    const gameLabels = {
-      friday_1: 'Пятница 1', friday_2: 'Пятница 2',
-      saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
+  function buildMissionsMessage(missions, gameDates, squadSide) {
+    const daySlots = {
+      friday: { label: 'Пятница', slots: ['friday_1', 'friday_2'] },
+      saturday: { label: 'Суббота', slots: ['saturday_1', 'saturday_2'] },
     }
 
     const lines = [
-      `<b>${app.siteName} — Миссии на неделю</b>`,
+      `<b>Опубликованы миссии на этой неделе</b>`,
       '',
     ]
 
-    if (gameDates) {
-      lines.push(`Пт: ${gameDates.friday || '—'}  |  Сб: ${gameDates.saturday || '—'}`)
+    for (const [day, info] of Object.entries(daySlots)) {
+      const date = gameDates?.[day] || '—'
+      const dayMissions = info.slots.map(s => missions[s]).filter(Boolean)
+      if (!dayMissions.length) continue
+
+      lines.push(`<b>${info.label} ${date}</b>`)
       lines.push('')
+
+      for (let i = 0; i < dayMissions.length; i++) {
+        const mission = dayMissions[i]
+        const title = mission.missionTitle || mission.title || '—'
+        const map = mission.map || ''
+        const slot = info.slots[i]
+
+        lines.push(`${i === 1 ? 'Вторая' : 'Первая'} миссия: <b>${title}</b> | ${map}`)
+        lines.push('')
+
+        // Group sides by ally/enemy
+        const sides = mission.sides || []
+        const allySides = []
+        const enemySides = []
+
+        if (squadSide && mission.rotationSides) {
+          for (const side of sides) {
+            let team = null
+            for (const rot of mission.rotationSides) {
+              if (rot.gameSides.some(gs => gs.color === side.color)) {
+                team = rot.color === squadSide ? 'ally' : 'enemy'
+                break
+              }
+            }
+            if (team === 'ally') allySides.push(side)
+            else enemySides.push(side)
+          }
+        }
+
+        function formatSide(s, rotSides) {
+          const gameSide = s.name || ''
+          const role = s.role || ''
+          const count = s.playerCount || s.players || 0
+          // Find faction name from rotationSides
+          let faction = ''
+          if (rotSides) {
+            for (const rot of rotSides) {
+              const gs = rot.gameSides.find(g => g.color === s.color)
+              if (gs) { faction = gs.name; break }
+            }
+          }
+          const parts = [gameSide]
+          if (faction) parts.push(faction)
+          if (role) parts.push(`(${role})`)
+          parts.push(`${count} чел.`)
+          lines.push(`  ${parts.join(' — ')}`)
+          if (s.vehicles) lines.push(`  Техника: ${s.vehicles}`)
+        }
+
+        const rotSides = mission.rotationSides || null
+
+        if (allySides.length || enemySides.length) {
+          if (allySides.length) {
+            lines.push('<b>Союзники:</b>')
+            allySides.forEach(s => formatSide(s, rotSides))
+          }
+          if (enemySides.length) {
+            lines.push('<b>Противники:</b>')
+            enemySides.forEach(s => formatSide(s, rotSides))
+          }
+        } else {
+          sides.forEach(s => formatSide(s, rotSides))
+        }
+
+        lines.push('')
+        const links = []
+        if (mission.sourceUrl) links.push(`<a href="${mission.sourceUrl}">TSG</a>`)
+        links.push(`<a href="${app.siteUrl}/lineup?game=${slot}">Запросить слоты</a>`)
+        lines.push(links.join(' | '))
+        lines.push('')
+      }
     }
 
-    for (const [slot, mission] of Object.entries(missions)) {
-      if (!mission) continue
-      const label = gameLabels[slot] || slot
-      const title = mission.missionTitle || mission.title || '—'
-      const map = mission.map || ''
-      const sides = (mission.sides || []).map(s => {
-        const name = s.name || ''
-        const count = s.playerCount || s.players || 0
-        const role = s.role || ''
-        return `${name} (${count}, ${role})`
-      }).join(' vs ')
-
-      lines.push(`<b>${label}:</b> ${title}`)
-      if (map) lines.push(`  Карта: ${map}`)
-      if (sides) lines.push(`  ${sides}`)
-      if (mission.sourceUrl) lines.push(`  <a href="${mission.sourceUrl}">TSG</a>`)
-      lines.push('')
-    }
-
-    lines.push(`<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`)
     return lines.join('\n')
   }
 
