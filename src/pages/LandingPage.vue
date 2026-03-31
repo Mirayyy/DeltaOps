@@ -24,6 +24,24 @@ const rosterCount = computed(() =>
   roster.activePlayers.length + roster.reservePlayers.length + roster.bannedPlayers.length
 )
 
+// Detect in-app browsers (Telegram, Instagram, Facebook, etc.)
+const isInAppBrowser = computed(() => {
+  const ua = navigator.userAgent || ''
+  return /Telegram|TelegramBot|Instagram|FBAN|FBAV|Line\//i.test(ua)
+})
+
+function openInExternalBrowser() {
+  const url = window.location.href
+  // Android: intent scheme opens default browser
+  const isAndroid = /Android/i.test(navigator.userAgent)
+  if (isAndroid) {
+    window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;end`
+    return
+  }
+  // iOS / fallback: open in new window (may prompt Safari)
+  window.open(url, '_blank')
+}
+
 const currentServer = computed(() => squad.server || '')
 const currentSide = computed(() => squad.side || '')
 
@@ -222,6 +240,17 @@ const aboutHtml = computed(() => {
             >
               Мой профиль
             </router-link>
+          </div>
+
+          <div v-else-if="isInAppBrowser" class="space-y-3">
+            <button
+              @click="openInExternalBrowser"
+              class="group relative px-10 py-3 bg-orange-600/90 hover:bg-orange-500 text-white font-semibold rounded transition-all duration-300 tracking-wider text-xs uppercase overflow-hidden"
+            >
+              <div class="absolute inset-0 bg-gradient-to-r from-orange-500/0 via-orange-400/20 to-orange-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <span class="relative">Открыть в браузере</span>
+            </button>
+            <p class="text-xs text-neutral-500">Авторизация Google не работает внутри Telegram.<br>Откройте сайт в обычном браузере.</p>
           </div>
 
           <div v-else>
