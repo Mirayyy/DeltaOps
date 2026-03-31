@@ -288,7 +288,7 @@ export function useTelegram() {
       `Не отметили посещаемость (${unrespondedPlayers.length}):`,
       ...mentions,
       '',
-      `<a href="${app.siteUrl}/#/">Отметиться</a>`,
+      `<a href="${app.siteUrl}/#/profile">Отметиться</a>`,
     ].join('\n')
   }
 
