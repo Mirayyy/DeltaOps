@@ -102,7 +102,10 @@ function galleryBtnStyle(sides) {
   }
 }
 
-function openGallery(index = 0, label = '') {
+const activeGalleryImages = ref([])
+
+function openGallery(images, index = 0, label = '') {
+  activeGalleryImages.value = images
   galleryStartIndex.value = index
   galleryLabel.value = label
   showGallery.value = true
@@ -477,7 +480,7 @@ async function sendSlotNotification(slot, slotIdx) {
       </template>
       <div class="ml-auto flex items-center gap-3">
         <button v-if="allyGalleryImages.length"
-          @click="openGallery(0, 'Союзники')"
+          @click="openGallery(allyGalleryImages, 0, 'Союзники')"
           :style="galleryBtnStyle(allySides)"
           class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -487,7 +490,7 @@ async function sendSlotNotification(slot, slotIdx) {
           <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
         </button>
         <button v-if="enemyGalleryImages.length"
-          @click="openGallery(allyGalleryImages.length, 'Противники')"
+          @click="openGallery(enemyGalleryImages, 0, 'Противники')"
           :style="galleryBtnStyle(enemySides)"
           class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -497,7 +500,7 @@ async function sendSlotNotification(slot, slotIdx) {
           <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
         </button>
         <button v-if="galleryImages.length && !allySides.length"
-          @click="openGallery()"
+          @click="openGallery(galleryImages)"
           class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-delta-green/15 text-delta-green hover:bg-delta-green/25 border border-delta-green/30 transition-colors">
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1048,8 +1051,8 @@ async function sendSlotNotification(slot, slotIdx) {
 
     <!-- Gallery lightbox -->
     <ImageLightbox
-      v-if="showGallery && galleryImages.length"
-      :images="galleryImages"
+      v-if="showGallery && activeGalleryImages.length"
+      :images="activeGalleryImages"
       :start-index="galleryStartIndex"
       @close="showGallery = false"
     />
