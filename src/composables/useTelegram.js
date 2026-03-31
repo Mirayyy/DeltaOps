@@ -262,16 +262,22 @@ export function useTelegram() {
   }
 
   /** Reminder for unresponded players */
-  function buildReminderMessage(unrespondedPlayers, weekId) {
+  function buildReminderMessage(unrespondedPlayers, gameDates) {
     const mentions = unrespondedPlayers.map(p => `  - ${mention(p)} (${p.nickname})`)
 
+    const dates = []
+    if (gameDates?.friday) dates.push(`Пятница ${gameDates.friday}`)
+    if (gameDates?.saturday) dates.push(`Суббота ${gameDates.saturday}`)
+
     return [
-      `<b>${app.siteName} — Неделя ${weekId}</b>`,
+      `<b>Обновление посещаемости</b>`,
+      '',
+      dates.join(' | '),
       '',
       `Не отметили посещаемость (${unrespondedPlayers.length}):`,
       ...mentions,
       '',
-      `<a href="${app.siteUrl}">Открыть ${app.siteName}</a>`,
+      `<a href="${app.siteUrl}">Отметиться</a>`,
     ].join('\n')
   }
 

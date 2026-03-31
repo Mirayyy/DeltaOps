@@ -98,7 +98,7 @@ function cycleReadiness(gameId, playerId, currentStatus) {
 }
 
 async function sendReminder() {
-  const msg = telegram.buildReminderMessage(allUnresponded.value, currentWeekId.value)
+  const msg = telegram.buildReminderMessage(allUnresponded.value, gameDates.value)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
     toast.success(result.demo ? 'Напоминание (демо) — см. консоль' : 'Напоминание отправлено')
