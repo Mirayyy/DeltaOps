@@ -52,7 +52,7 @@ service cloud.firestore {
 
     // ─── Config (app + squad) ───
     match /config/{docId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 
