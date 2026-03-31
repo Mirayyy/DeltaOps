@@ -196,7 +196,7 @@ export function useTelegram() {
     }
 
     lines.push('')
-    lines.push(`<a href="${app.siteUrl}/#/lineup?game=${slot.gameId || ''}">Посмотреть расстановку</a>`)
+    lines.push(`<a href="${app.siteUrl}/#/lineup">Посмотреть расстановку</a>`)
 
     return lines.join('\n')
   }
