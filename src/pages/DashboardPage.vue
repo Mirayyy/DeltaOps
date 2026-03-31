@@ -41,11 +41,18 @@ onMounted(async () => {
 const pageLoading = computed(() => roster.loading || attendance.loading)
 
 const summaryRows = computed(() => {
-  const totalActive = roster.activePlayers.length
+  const activeIds = new Set(roster.activePlayers.map(p => p.uid))
+  const totalActive = activeIds.size
   return games.value.map(game => {
-    const counts = attendance.summary[game.id] || { confirmed: 0, tentative: 0, absent: 0, no_response: 0 }
-    const responded = counts.confirmed + counts.tentative + counts.absent
-    const no_response = totalActive - responded
+    const records = attendance.getGameAttendance(game.id).records || []
+    const counts = { confirmed: 0, tentative: 0, absent: 0 }
+    for (const r of records) {
+      if (!activeIds.has(r.playerId)) continue
+      if (r.attendance === 'confirmed') counts.confirmed++
+      else if (r.attendance === 'tentative') counts.tentative++
+      else if (r.attendance === 'absent') counts.absent++
+    }
+    const no_response = totalActive - counts.confirmed - counts.tentative - counts.absent
     return { ...game, ...counts, no_response, total: totalActive }
   })
 })
