@@ -1,88 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { isFirebaseConfigured } from '../firebase/config'
 import { POSITIONS } from '../utils/constants'
-
-const DEMO_PLAYERS = [
-  {
-    uid: 'p-demo-1', nickname: 'HardKil', email: 'hardkil@example.com',
-    position: 'Командир отряда', status: 'active', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [{ skillName: 'Снайпер', level: 'experienced' }, { skillName: 'БПЛА', level: 'intermediate' }],
-    wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-2', nickname: 'Mirrox', email: 'mirrox@example.com',
-    position: 'Заместитель Командира отряда', status: 'active', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [{ skillName: 'Снайпер', level: 'experienced' }, { skillName: 'БПЛА', level: 'experienced' }],
-    wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-3', nickname: 'Asriel', email: 'asriel@example.com',
-    position: 'Штабист', status: 'active', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [
-      { skillName: 'ПТРК', level: 'experienced' }, { skillName: 'ПЗРК', level: 'intermediate' },
-      { skillName: 'СПГ / АГС / МК', level: 'experienced' }, { skillName: 'Сапер (Многоразовый)', level: 'intermediate' },
-      { skillName: 'БПЛА', level: 'beginner' }, { skillName: 'БМП', level: 'beginner' },
-      { skillName: 'Танк', level: 'beginner' }, { skillName: 'Вертолёт [Б]', level: 'beginner' },
-    ],
-    wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-4', nickname: 'Priest', email: 'priest@example.com',
-    position: 'Боец отряда', status: 'active', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [], wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-5', nickname: 'BORDO', email: 'bordo@example.com',
-    position: 'Боец отряда', status: 'active', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [
-      { skillName: 'Самолет', level: 'experienced' }, { skillName: 'ПТРК', level: 'intermediate' },
-      { skillName: 'Снайпер', level: 'intermediate' }, { skillName: 'БПЛА', level: 'intermediate' },
-      { skillName: 'Вертолёт [Б]', level: 'beginner' },
-    ],
-    wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-6', nickname: 'Koreec', email: 'koreec@example.com',
-    position: 'Боец отряда', status: 'active', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [
-      { skillName: 'Танк', level: 'experienced' }, { skillName: 'БМП', level: 'experienced' },
-      { skillName: 'ПВО', level: 'intermediate' },
-    ],
-    wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-7', nickname: 'Desmond', email: 'desmond@example.com',
-    position: 'Боец запаса', status: 'reserve', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [
-      { skillName: 'БМП', level: 'intermediate' }, { skillName: 'Танк', level: 'beginner' },
-      { skillName: 'ПВО', level: 'beginner' }, { skillName: 'Вертолёт [Т]', level: 'beginner' },
-      { skillName: 'Вертолёт [Б]', level: 'beginner' }, { skillName: 'Самолет', level: 'beginner' },
-    ],
-    wishes: '', nicknameHistory: [],
-  },
-  {
-    uid: 'p-demo-8', nickname: 'hron', email: 'hron@example.com',
-    position: 'Боец запаса', status: 'reserve', avatar: '',
-    steamUrl: '', telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [], wishes: '', nicknameHistory: [],
-  },
-]
 
 export const useRosterStore = defineStore('roster', () => {
   const players = ref([])
@@ -142,16 +60,6 @@ export const useRosterStore = defineStore('roster', () => {
     return playerMap.value[uid]?.nicknameColor || ''
   }
 
-  // --- Demo/localStorage mode ---
-  function loadDemo() {
-    const saved = localStorage.getItem('deltaops_players')
-    players.value = sortByPositionThenName(saved ? JSON.parse(saved) : [...DEMO_PLAYERS])
-  }
-
-  function saveDemo() {
-    localStorage.setItem('deltaops_players', JSON.stringify(players.value))
-  }
-
   // --- Firestore mode ---
   const PLAYER_DEFAULTS = {
     nickname: '', email: '', position: 'Боец отряда', status: 'active',
@@ -199,13 +107,13 @@ export const useRosterStore = defineStore('roster', () => {
 
   // --- Nickname index ---
   async function setNicknameIndex(nickname, playerId) {
-    if (!isFirebaseConfigured || !nickname) return
+    if (!nickname) return
     const { doc, setDoc, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'nicknameIndex', nickname), { playerId })
   }
 
   async function deleteNicknameIndex(nickname) {
-    if (!isFirebaseConfigured || !nickname) return
+    if (!nickname) return
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
     await deleteDoc(doc(db, 'nicknameIndex', nickname))
   }
@@ -214,7 +122,7 @@ export const useRosterStore = defineStore('roster', () => {
 
   /** Downgrade linked user to 'guest' when player leaves (skip admins) */
   async function downgradeLinkedUser(email) {
-    if (!email || !isFirebaseConfigured) return
+    if (!email) return
     try {
       const { query, where, getDocs, doc, setDoc, db } = await import('../firebase/firestore')
       const { collection } = await import('firebase/firestore')
@@ -235,7 +143,7 @@ export const useRosterStore = defineStore('roster', () => {
 
   /** Upgrade linked user from 'guest' to 'member' when player returns */
   async function upgradeLinkedUser(email) {
-    if (!email || !isFirebaseConfigured) return
+    if (!email) return
     try {
       const { query, where, getDocs, doc, setDoc, db } = await import('../firebase/firestore')
       const { collection } = await import('firebase/firestore')
@@ -257,11 +165,7 @@ export const useRosterStore = defineStore('roster', () => {
   async function fetchPlayers() {
     loading.value = true
     try {
-      if (isFirebaseConfigured) {
-        await loadFirestore()
-      } else {
-        loadDemo()
-      }
+      await loadFirestore()
     } finally {
       loading.value = false
     }
@@ -276,12 +180,9 @@ export const useRosterStore = defineStore('roster', () => {
       status: playerData.status || 'active',
     }
 
-    if (isFirebaseConfigured) {
-      await savePlayerFirestore(newPlayer)
-      await setNicknameIndex(newPlayer.nickname, uid)
-    }
+    await savePlayerFirestore(newPlayer)
+    await setNicknameIndex(newPlayer.nickname, uid)
     players.value.push(newPlayer)
-    if (!isFirebaseConfigured) saveDemo()
     return newPlayer
   }
 
@@ -303,33 +204,27 @@ export const useRosterStore = defineStore('roster', () => {
 
     const updated = { ...currentPlayer, ...updates }
 
-    if (isFirebaseConfigured) {
-      await savePlayerFirestore(updated)
-      // If nickname changed, atomic swap in nicknameIndex
-      if (updates.nickname && updates.nickname !== oldNickname) {
-        const { doc, writeBatch, db } = await import('../firebase/firestore')
-        const batch = writeBatch(db)
-        if (oldNickname) batch.delete(doc(db, 'nicknameIndex', oldNickname))
-        batch.set(doc(db, 'nicknameIndex', updates.nickname), { playerId: uid })
-        await batch.commit()
-      }
+    await savePlayerFirestore(updated)
+    // If nickname changed, atomic swap in nicknameIndex
+    if (updates.nickname && updates.nickname !== oldNickname) {
+      const { doc, writeBatch, db } = await import('../firebase/firestore')
+      const batch = writeBatch(db)
+      if (oldNickname) batch.delete(doc(db, 'nicknameIndex', oldNickname))
+      batch.set(doc(db, 'nicknameIndex', updates.nickname), { playerId: uid })
+      await batch.commit()
     }
     players.value[idx] = updated
-    if (!isFirebaseConfigured) saveDemo()
   }
 
   async function removePlayer(uid) {
     const player = getPlayer(uid)
-    if (isFirebaseConfigured) {
-      // Atomic batch: delete player + nicknameIndex together
-      const { doc, writeBatch, db } = await import('../firebase/firestore')
-      const batch = writeBatch(db)
-      batch.delete(doc(db, 'players', uid))
-      if (player?.nickname) batch.delete(doc(db, 'nicknameIndex', player.nickname))
-      await batch.commit()
-    }
+    // Atomic batch: delete player + nicknameIndex together
+    const { doc, writeBatch, db } = await import('../firebase/firestore')
+    const batch = writeBatch(db)
+    batch.delete(doc(db, 'players', uid))
+    if (player?.nickname) batch.delete(doc(db, 'nicknameIndex', player.nickname))
+    await batch.commit()
     players.value = players.value.filter(p => p.uid !== uid)
-    if (!isFirebaseConfigured) saveDemo()
   }
 
   /** Mark player as left + downgrade linked user to guest */

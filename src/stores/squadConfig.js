@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getDoc, setDoc, squadConfigRef } from '../firebase/firestore'
-import { isFirebaseConfigured } from '../firebase/config'
 
 /**
  * Squad identity config — stored in Firestore `config/squad`.
@@ -53,10 +52,6 @@ export const useSquadConfig = defineStore('squadConfig', () => {
 
   async function fetch() {
     if (loaded.value) return
-    if (!isFirebaseConfigured) {
-      loaded.value = true
-      return
-    }
     try {
       const snap = await getDoc(squadConfigRef)
       if (snap.exists()) {
@@ -75,9 +70,7 @@ export const useSquadConfig = defineStore('squadConfig', () => {
 
   async function save(data) {
     config.value = { ...config.value, ...data }
-    if (isFirebaseConfigured) {
-      await setDoc(squadConfigRef, config.value, { merge: true })
-    }
+    await setDoc(squadConfigRef, config.value, { merge: true })
   }
 
   return {

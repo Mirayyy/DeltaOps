@@ -42,7 +42,7 @@ const telegramBotUrl = import.meta.env.VITE_TELEGRAM_BOT_URL || ''
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
-    attendance.fetchAttendance(roster.activePlayers),
+    attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     statsStore.fetchStats(),
     archiveStore.fetchArchives(),

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth, isFirebaseConfigured } from '../firebase/config'
+import { auth } from '../firebase/config'
 import { isAdmin, isMember } from '../utils/permissions'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -27,7 +27,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Fetch or create user document ---
   async function fetchOrCreateUser(fbUser) {
-    if (!isFirebaseConfigured) return null
     try {
       const { doc, getDoc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
       const userDocRef = doc(db, 'users', fbUser.uid)
@@ -60,7 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Find player by email ---
   async function fetchPlayerByEmail(email) {
-    if (!isFirebaseConfigured || !email) return null
+    if (!email) return null
     try {
       const { playersRef, query, where, getDocs } = await import('../firebase/firestore')
       const q = query(playersRef, where('email', '==', email))
@@ -76,7 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Auto-link: found player → upgrade to member ---
   async function tryAutoLink(userData, foundPlayer) {
-    if (!isFirebaseConfigured || !userData || !foundPlayer) return userData
+    if (!userData || !foundPlayer) return userData
     if (userData.role !== 'guest') return userData
     try {
       const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
@@ -110,7 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
   function init() {
     if (initPromise) return initPromise
 
-    if (!isFirebaseConfigured || !auth) {
+    if (!auth) {
       loading.value = false
       initPromise = Promise.resolve()
       return initPromise
@@ -153,10 +152,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Login ---
   async function login() {
-    if (!isFirebaseConfigured) {
-      loginDemo()
-      return
-    }
     const { signInWithGoogle } = await import('../firebase/auth')
     const fbUser = await signInWithGoogle()
     if (!fbUser) return // redirect flow — page will reload
@@ -164,27 +159,10 @@ export const useAuthStore = defineStore('auth', () => {
     await resolveAuth(fbUser)
   }
 
-  function loginDemo() {
-    firebaseUser.value = { uid: 'demo-1', email: 'hardkil@example.com', displayName: 'HardKil' }
-    user.value = {
-      uid: 'demo-1', email: 'hardkil@example.com', displayName: 'HardKil',
-      photoURL: '', role: 'admin',
-      createdAt: null, lastLoginAt: null,
-    }
-    player.value = {
-      uid: 'p-demo-1', nickname: 'HardKil', position: 'Командир отряда',
-      status: 'active', telegramId: null,
-      skills: [{ skillName: 'Снайпер', level: 'experienced' }, { skillName: 'БПЛА', level: 'intermediate' }],
-      wishes: '',
-    }
-  }
-
   // --- Logout ---
   async function logout() {
-    if (isFirebaseConfigured) {
-      const { signOut } = await import('../firebase/auth')
-      await signOut()
-    }
+    const { signOut } = await import('../firebase/auth')
+    await signOut()
     firebaseUser.value = null
     user.value = null
     player.value = null
@@ -192,7 +170,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Admin: update user role ---
   async function updateUserRole(userId, role) {
-    if (!isFirebaseConfigured) return
     const { doc, setDoc, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'users', userId), { role }, { merge: true })
   }

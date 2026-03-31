@@ -33,7 +33,7 @@ const toast = useToast()
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
-    attendance.fetchAttendance(roster.activePlayers),
+    attendance.fetchAttendance(),
     missionsStore.fetchMissions(),
   ])
 })
@@ -111,7 +111,7 @@ async function sendReminder() {
   const msg = telegram.buildReminderMessage(allUnresponded.value, gameDates.value)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
-    toast.success(result.demo ? 'Напоминание (демо) — см. консоль' : 'Напоминание отправлено')
+    toast.success('Напоминание отправлено')
   } else {
     toast.error('Ошибка: ' + result.error)
   }
@@ -130,7 +130,7 @@ async function sendMissionsToTelegram() {
   const msg = telegram.buildMissionsMessage(missionsData, gameDates.value, squadConfig.side)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
-    toast.success(result.demo ? 'Миссии (демо) — см. консоль' : 'Миссии отправлены в Telegram')
+    toast.success('Миссии отправлены в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
   }

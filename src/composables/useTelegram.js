@@ -25,9 +25,8 @@ export function useTelegram() {
     lastError.value = null
 
     if (!isConfigured) {
-      console.log('[Telegram Demo]', text)
       sending.value = false
-      return { ok: true, demo: true }
+      return { ok: false, error: 'Telegram не настроен (VITE_TELEGRAM_BOT_TOKEN / VITE_TELEGRAM_CHAT_ID)' }
     }
 
     try {

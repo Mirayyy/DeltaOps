@@ -1,45 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { isFirebaseConfigured } from '../firebase/config'
-
-/**
- * Web content (awards + aboutMarkdown) — stored inside `config/squad`.
- * This store manages the content locally, but persists via squadConfig.
- */
-
-const DEMO_CONTENT = {
-  awards: [
-    {
-      icon: 'https://stats.tsgames.ru/icons/d_mad.svg',
-      title: 'Operation AR',
-      description: 'За успешное проведение операции Абсолютная решимость',
-      type: 'squad',
-      playerUid: null,
-      showOnLanding: true,
-    },
-    {
-      icon: 'https://stats.tsgames.ru/icons/sqd-gold.svg',
-      title: '1 место',
-      description: '1 место в статистике Отрядов по результатам ротации Лето 25 — Зима 25',
-      type: 'squad',
-      playerUid: null,
-      showOnLanding: true,
-    },
-    {
-      icon: 'https://stats.tsgames.ru/icons/sqd-silver.svg',
-      title: '2 место',
-      description: '2 место в статистике Отрядов по результатам ротации Зима 24 — Лето 25',
-      type: 'squad',
-      playerUid: null,
-      showOnLanding: true,
-    },
-  ],
-  aboutMarkdown: `**DELTA** — отряд на проекте **TSG (Tushino Serious Games)**, платформа Arma 3.
-
-Создан **17.12.2024**, участник проекта с **07.12.2025**.
-
-Специализируемся на выполнении сложных боевых задач: СПН, БПЛА, спецрасчёты, бронетехника. Действуем автономно от основных сил стороны, что позволяет вносить максимальный вклад в победу. Каждая миссия разбирается заранее — готовимся к играм серьёзно.`,
-}
 
 let _awardIdCounter = 0
 function ensureAwardId(award) {
@@ -68,26 +28,6 @@ export const useWebContentStore = defineStore('webContent', () => {
     awards.value.filter(a => a.type === 'squad')
   )
 
-  // --- Demo ---
-  function loadDemo() {
-    const saved = localStorage.getItem('deltaops_webContent')
-    if (saved) {
-      const data = JSON.parse(saved)
-      awards.value = (data.awards || []).map(ensureAwardId)
-      aboutMarkdown.value = data.aboutMarkdown || ''
-    } else {
-      awards.value = DEMO_CONTENT.awards.map(a => ensureAwardId({ ...a }))
-      aboutMarkdown.value = DEMO_CONTENT.aboutMarkdown
-    }
-  }
-
-  function saveDemo() {
-    localStorage.setItem('deltaops_webContent', JSON.stringify({
-      awards: cleanAwards(),
-      aboutMarkdown: aboutMarkdown.value,
-    }))
-  }
-
   function cleanAwards() {
     return awards.value.map(({ _id, ...rest }) => rest)
   }
@@ -100,9 +40,6 @@ export const useWebContentStore = defineStore('webContent', () => {
       const data = snap.data()
       awards.value = (data.awards || []).map(ensureAwardId)
       aboutMarkdown.value = data.aboutMarkdown || ''
-    } else {
-      awards.value = DEMO_CONTENT.awards.map(a => ensureAwardId({ ...a }))
-      aboutMarkdown.value = DEMO_CONTENT.aboutMarkdown
     }
   }
 
@@ -118,25 +55,16 @@ export const useWebContentStore = defineStore('webContent', () => {
   async function fetchContent() {
     loading.value = true
     try {
-      if (isFirebaseConfigured) {
-        await loadFirestore()
-      } else {
-        loadDemo()
-      }
+      await loadFirestore()
     } catch (e) {
       console.warn('webContent fetch error:', e)
-      loadDemo()
     } finally {
       loading.value = false
     }
   }
 
   async function saveContent() {
-    if (isFirebaseConfigured) {
-      await saveFirestore()
-    } else {
-      saveDemo()
-    }
+    await saveFirestore()
   }
 
   // --- Award CRUD ---

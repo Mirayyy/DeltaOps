@@ -1,27 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { isFirebaseConfigured } from '../firebase/config'
 
 export const useArchiveStore = defineStore('archive', () => {
   const archives = ref([])  // [{ id, rotation, server, side, date, schedule, slots, records, ... }]
   const rotations = ref([]) // [{ id, name, startDate, endDate }]
   const loading = ref(false)
-
-  // --- Demo / localStorage ---
-  function loadDemo() {
-    const savedArchives = localStorage.getItem('deltaops_archive')
-    archives.value = savedArchives ? JSON.parse(savedArchives) : []
-
-    const savedRotations = localStorage.getItem('deltaops_rotations')
-    rotations.value = savedRotations ? JSON.parse(savedRotations) : [
-      { id: 'rotation-demo', name: 'Ротация 1', startDate: '2026-01-01', endDate: null },
-    ]
-  }
-
-  function saveDemo() {
-    localStorage.setItem('deltaops_archive', JSON.stringify(archives.value))
-    localStorage.setItem('deltaops_rotations', JSON.stringify(rotations.value))
-  }
 
   // --- Firestore ---
   async function loadFirestore() {
@@ -38,11 +21,7 @@ export const useArchiveStore = defineStore('archive', () => {
   async function fetchArchives() {
     loading.value = true
     try {
-      if (isFirebaseConfigured) {
-        await loadFirestore()
-      } else {
-        loadDemo()
-      }
+      await loadFirestore()
     } finally {
       loading.value = false
     }
@@ -78,12 +57,8 @@ export const useArchiveStore = defineStore('archive', () => {
     const rotation = { id, name, startDate, endDate }
     rotations.value.push(rotation)
 
-    if (isFirebaseConfigured) {
-      const { doc, setDoc, db } = await import('../firebase/firestore')
-      await setDoc(doc(db, 'rotations', id), rotation)
-    } else {
-      saveDemo()
-    }
+    const { doc, setDoc, db } = await import('../firebase/firestore')
+    await setDoc(doc(db, 'rotations', id), rotation)
     return rotation
   }
 
@@ -92,21 +67,14 @@ export const useArchiveStore = defineStore('archive', () => {
     if (!rotation) return
     Object.assign(rotation, updates)
 
-    if (isFirebaseConfigured) {
-      const { doc, updateDoc, db } = await import('../firebase/firestore')
-      await updateDoc(doc(db, 'rotations', rotationId), updates)
-    } else {
-      saveDemo()
-    }
+    const { doc, updateDoc, db } = await import('../firebase/firestore')
+    await updateDoc(doc(db, 'rotations', rotationId), updates)
   }
 
   async function deleteRotation(rotationId) {
-    if (isFirebaseConfigured) {
-      const { doc, deleteDoc, db } = await import('../firebase/firestore')
-      await deleteDoc(doc(db, 'rotations', rotationId))
-    }
+    const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    await deleteDoc(doc(db, 'rotations', rotationId))
     rotations.value = rotations.value.filter(r => r.id !== rotationId)
-    if (!isFirebaseConfigured) saveDemo()
   }
 
   // --- Archiving ---
@@ -141,13 +109,10 @@ export const useArchiveStore = defineStore('archive', () => {
       archivedBy: adminUid,
     }
 
-    if (isFirebaseConfigured) {
-      const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
-      await setDoc(doc(db, 'archive', id), { ...entry, archivedAt: serverTimestamp() })
-    }
+    const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
+    await setDoc(doc(db, 'archive', id), { ...entry, archivedAt: serverTimestamp() })
 
     archives.value.push(entry)
-    if (!isFirebaseConfigured) saveDemo()
     return entry
   }
 

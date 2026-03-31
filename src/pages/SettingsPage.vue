@@ -6,7 +6,6 @@ import { useAttendanceStore } from '../stores/attendance'
 import { useWebContentStore } from '../stores/webContent'
 import { useRosterStore } from '../stores/roster'
 import { GAME_IDS } from '../utils/constants'
-import { isFirebaseConfigured } from '../firebase/config'
 import { useSquadConfig } from '../stores/squadConfig'
 import { useAppConfig } from '../stores/appConfig'
 import { useToast } from '../composables/useToast'
@@ -786,10 +785,8 @@ function formatDate(ts) {
         <!-- Quick links -->
         <div class="pt-4 border-t border-neutral-800">
           <div class="flex items-center gap-2 mb-2">
-            <span :class="['w-2 h-2 rounded-full', isFirebaseConfigured ? 'bg-green-400' : 'bg-yellow-400']"></span>
-            <span class="text-xs text-neutral-500">
-              {{ isFirebaseConfigured ? 'Firebase подключён' : 'Демо-режим' }}
-            </span>
+            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+            <span class="text-xs text-neutral-500">Firebase подключён</span>
           </div>
           <div class="flex flex-wrap gap-3 mt-2">
             <a v-if="appConfig.firestoreUrl" :href="appConfig.firestoreUrl" target="_blank"

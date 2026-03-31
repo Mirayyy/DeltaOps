@@ -1,13 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { isFirebaseConfigured } from '../firebase/config'
 
 export const useUsersStore = defineStore('users', () => {
   const users = ref([])
   const loading = ref(false)
 
   async function fetchUsers() {
-    if (!isFirebaseConfigured) return
     loading.value = true
     try {
       const { usersRef, getDocs } = await import('../firebase/firestore')
@@ -30,7 +28,6 @@ export const useUsersStore = defineStore('users', () => {
   }
 
   async function setRole(userId, role) {
-    if (!isFirebaseConfigured) return
     const { doc, setDoc, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'users', userId), { role }, { merge: true })
     const idx = users.value.findIndex(u => u.uid === userId)

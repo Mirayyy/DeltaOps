@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { isFirebaseConfigured } from '../firebase/config'
 import { GAME_IDS } from '../utils/constants'
 
 export const useGamesStore = defineStore('games', () => {
@@ -30,16 +29,6 @@ export const useGamesStore = defineStore('games', () => {
       result[gameId] = getPlayerSlot(gameId, playerId)
     }
     return result
-  }
-
-  // --- Demo / localStorage ---
-  function loadDemo() {
-    const saved = localStorage.getItem('deltaops_games')
-    games.value = saved ? JSON.parse(saved) : {}
-  }
-
-  function saveDemo() {
-    localStorage.setItem('deltaops_games', JSON.stringify(games.value))
   }
 
   // --- Firestore ---
@@ -203,22 +192,14 @@ export const useGamesStore = defineStore('games', () => {
 
   // --- Persist helper ---
   function persist(gameId) {
-    if (isFirebaseConfigured) {
-      saveGameFirestore(gameId, games.value[gameId])
-    } else {
-      saveDemo()
-    }
+    saveGameFirestore(gameId, games.value[gameId])
   }
 
   // --- Public API ---
   async function fetchGames() {
     loading.value = true
     try {
-      if (isFirebaseConfigured) {
-        await loadFirestore()
-      } else {
-        loadDemo()
-      }
+      await loadFirestore()
     } finally {
       loading.value = false
     }
@@ -226,24 +207,18 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Clear a single game */
   async function clearGame(gameId) {
-    if (isFirebaseConfigured) {
-      const { doc, deleteDoc, db } = await import('../firebase/firestore')
-      await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
-    }
+    const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
     delete games.value[gameId]
     delete slotMemory.value[gameId]
-    if (!isFirebaseConfigured) saveDemo()
   }
 
   /** Clear all games (new week reset) */
   async function clearGames() {
-    if (isFirebaseConfigured) {
-      const { doc, deleteDoc, db } = await import('../firebase/firestore')
-      await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
-    }
+    const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
     games.value = {}
     slotMemory.value = {}
-    if (!isFirebaseConfigured) saveDemo()
   }
 
   function cleanup() {

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getDoc, setDoc, configRef } from '../firebase/firestore'
-import { isFirebaseConfigured, firebaseProjectId } from '../firebase/config'
+import { firebaseProjectId } from '../firebase/config'
 
 /**
  * App/site config — stored in Firestore `config/app`.
@@ -33,10 +33,6 @@ export const useAppConfig = defineStore('appConfig', () => {
 
   async function fetch() {
     if (loaded.value) return
-    if (!isFirebaseConfigured) {
-      loaded.value = true
-      return
-    }
     try {
       const snap = await getDoc(configRef)
       if (snap.exists()) {
@@ -50,9 +46,7 @@ export const useAppConfig = defineStore('appConfig', () => {
 
   async function save(data) {
     config.value = { ...config.value, ...data }
-    if (isFirebaseConfigured) {
-      await setDoc(configRef, config.value, { merge: true })
-    }
+    await setDoc(configRef, config.value, { merge: true })
   }
 
   return {

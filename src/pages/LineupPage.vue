@@ -37,7 +37,7 @@ const personalTaskDraft = ref('')
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
-    attendance.fetchAttendance(roster.activePlayers),
+    attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
   ])
@@ -59,7 +59,7 @@ async function sendLineupToTelegram() {
   const msg = telegram.buildLineupSummaryMessage(gamesStore.games, roster.players, missionsData, gameDates)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
-    toast.success(result.demo ? 'Расстановка (демо)' : 'Расстановка отправлена в Telegram')
+    toast.success('Расстановка отправлена в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
   }
@@ -406,7 +406,7 @@ async function sendSlotNotification(slot, slotIdx) {
   if (result.ok) {
     slotNotifSent.value[slotIdx] = true
     setTimeout(() => { slotNotifSent.value[slotIdx] = false }, 2000)
-    toast.success(result.demo ? 'Уведомление (демо)' : `Уведомление отправлено — ${nickname}`)
+    toast.success(`Уведомление отправлено — ${nickname}`)
   } else {
     const err = result.error || ''
     if (err.includes('Forbidden') || err.includes('bot can\'t initiate')) {

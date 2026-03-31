@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { isFirebaseConfigured } from '../firebase/config'
 import { GAME_IDS } from '../utils/constants'
 
 export const useAttendanceStore = defineStore('attendance', () => {
@@ -46,29 +45,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     return allPlayers.filter(p => !respondedIds.has(p.uid))
   }
 
-  // --- Demo / localStorage ---
-  function loadDemo(activePlayers) {
-    const saved = localStorage.getItem('deltaops_attendance')
-    if (saved) {
-      attendance.value = JSON.parse(saved)
-    } else {
-      // Initialize all games with all active players as no_response
-      const init = {}
-      for (const gameId of GAME_IDS) {
-        init[gameId] = {
-          schedule: gameId,
-          date: '',
-          records: activePlayers.map(p => ({ playerId: p.uid, attendance: 'no_response' })),
-        }
-      }
-      attendance.value = init
-    }
-  }
-
-  function saveDemo() {
-    localStorage.setItem('deltaops_attendance', JSON.stringify(attendance.value))
-  }
-
   // --- Firestore ---
   let unsubscribes = []
 
@@ -89,14 +65,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   // --- Public API ---
-  async function fetchAttendance(activePlayers) {
+  async function fetchAttendance() {
     loading.value = true
     try {
-      if (isFirebaseConfigured) {
-        await loadFirestore()
-      } else {
-        loadDemo(activePlayers)
-      }
+      await loadFirestore()
     } finally {
       loading.value = false
     }
@@ -122,11 +94,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       gamesStore.unassignPlayerFromGame(gameId, playerId)
     }
 
-    if (isFirebaseConfigured) {
-      await saveAttendanceFirestore(gameId, attendance.value[gameId])
-    } else {
-      saveDemo()
-    }
+    await saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
   function setDate(gameId, date) {
@@ -134,21 +102,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
       attendance.value[gameId] = { schedule: gameId, date: '', records: [] }
     }
     attendance.value[gameId].date = date
-    if (isFirebaseConfigured) {
-      saveAttendanceFirestore(gameId, attendance.value[gameId])
-    } else {
-      saveDemo()
-    }
+    saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
   /** Clear all attendance (new week reset) */
   async function clearAttendance() {
-    if (isFirebaseConfigured) {
-      const { doc, deleteDoc, db } = await import('../firebase/firestore')
-      await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'attendance', id)).catch(() => {})))
-    }
+    const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'attendance', id)).catch(() => {})))
     attendance.value = {}
-    if (!isFirebaseConfigured) saveDemo()
   }
 
   function cleanup() {
