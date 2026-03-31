@@ -151,7 +151,7 @@ export function useTelegram() {
         lines.push('')
         const links = []
         if (mission.sourceUrl) links.push(`<a href="${mission.sourceUrl}">TSG</a>`)
-        links.push(`<a href="${app.siteUrl}/#/lineup">Запросить слоты</a>`)
+        links.push(`<a href="${app.siteUrl}lineup">Запросить слоты</a>`)
         lines.push(links.join(' | '))
         lines.push('')
       }
@@ -196,7 +196,7 @@ export function useTelegram() {
     }
 
     lines.push('')
-    lines.push(`<a href="${app.siteUrl}/#/lineup">Посмотреть расстановку</a>`)
+    lines.push(`<a href="${app.siteUrl}lineup">Посмотреть расстановку</a>`)
 
     return lines.join('\n')
   }
@@ -264,7 +264,7 @@ export function useTelegram() {
           lines.push('')
         }
 
-        lines.push(`<a href="${app.siteUrl}/#/lineup">Просмотр расстановки</a>`)
+        lines.push(`<a href="${app.siteUrl}lineup">Просмотр расстановки</a>`)
         lines.push('')
       }
     }
@@ -288,7 +288,7 @@ export function useTelegram() {
       `Не отметили посещаемость (${unrespondedPlayers.length}):`,
       ...mentions,
       '',
-      `<a href="${app.siteUrl}/#/profile">Отметиться</a>`,
+      `<a href="${app.siteUrl}profile">Отметиться</a>`,
     ].join('\n')
   }
 
