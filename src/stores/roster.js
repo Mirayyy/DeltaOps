@@ -210,6 +210,49 @@ export const useRosterStore = defineStore('roster', () => {
     await deleteDoc(doc(db, 'nicknameIndex', nickname))
   }
 
+  // --- User role management on status transitions ---
+
+  /** Downgrade linked user to 'guest' when player leaves (skip admins) */
+  async function downgradeLinkedUser(email) {
+    if (!email || !isFirebaseConfigured) return
+    try {
+      const { query, where, getDocs, doc, setDoc, db } = await import('../firebase/firestore')
+      const { collection } = await import('firebase/firestore')
+      const usersRef = collection(db, 'users')
+      const q = query(usersRef, where('email', '==', email))
+      const snap = await getDocs(q)
+      for (const userDoc of snap.docs) {
+        const data = userDoc.data()
+        if (data.role === 'admin') continue // never downgrade admins
+        if (data.role !== 'guest') {
+          await setDoc(doc(db, 'users', userDoc.id), { role: 'guest' }, { merge: true })
+        }
+      }
+    } catch (e) {
+      console.warn('downgradeLinkedUser failed:', e.message)
+    }
+  }
+
+  /** Upgrade linked user from 'guest' to 'member' when player returns */
+  async function upgradeLinkedUser(email) {
+    if (!email || !isFirebaseConfigured) return
+    try {
+      const { query, where, getDocs, doc, setDoc, db } = await import('../firebase/firestore')
+      const { collection } = await import('firebase/firestore')
+      const usersRef = collection(db, 'users')
+      const q = query(usersRef, where('email', '==', email))
+      const snap = await getDocs(q)
+      for (const userDoc of snap.docs) {
+        const data = userDoc.data()
+        if (data.role === 'guest') {
+          await setDoc(doc(db, 'users', userDoc.id), { role: 'member' }, { merge: true })
+        }
+      }
+    } catch (e) {
+      console.warn('upgradeLinkedUser failed:', e.message)
+    }
+  }
+
   // --- Public API ---
   async function fetchPlayers() {
     loading.value = true
@@ -246,8 +289,19 @@ export const useRosterStore = defineStore('roster', () => {
     const idx = players.value.findIndex(p => p.uid === uid)
     if (idx === -1) return
 
-    const oldNickname = players.value[idx].nickname
-    const updated = { ...players.value[idx], ...updates }
+    const currentPlayer = players.value[idx]
+    const oldNickname = currentPlayer.nickname
+
+    // --- Role management on status transition ---
+    if (updates.status && currentPlayer.status !== updates.status) {
+      if (currentPlayer.status !== 'left' && updates.status === 'left') {
+        await downgradeLinkedUser(currentPlayer.email)
+      } else if (currentPlayer.status === 'left' && updates.status !== 'left') {
+        await upgradeLinkedUser(currentPlayer.email)
+      }
+    }
+
+    const updated = { ...currentPlayer, ...updates }
 
     if (isFirebaseConfigured) {
       await savePlayerFirestore(updated)
