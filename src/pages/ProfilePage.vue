@@ -35,6 +35,9 @@ const showEditor = ref(false)
 const showSlotHistory = ref(false)
 const editingAvatar = ref(false)
 const avatarUrl = ref('')
+const telegramIdInput = ref('')
+const savingTelegramId = ref(false)
+const telegramBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || ''
 
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
@@ -234,6 +237,24 @@ async function handleSave(data) {
   }
   showEditor.value = false
 }
+
+async function saveTelegramId() {
+  if (!player.value || !telegramIdInput.value.trim()) return
+  savingTelegramId.value = true
+  const id = Number(telegramIdInput.value.trim())
+  if (!id || isNaN(id)) {
+    toast.error('Неверный Telegram ID')
+    savingTelegramId.value = false
+    return
+  }
+  await roster.updatePlayer(player.value.uid, { telegramId: id })
+  if (isOwnProfile.value && auth.player) {
+    auth.player.telegramId = id
+  }
+  savingTelegramId.value = false
+  telegramIdInput.value = ''
+  toast.success('Telegram ID сохранён')
+}
 </script>
 
 <template>
@@ -270,6 +291,8 @@ async function handleSave(data) {
                 class="text-xs text-delta-green hover:underline">TSG</a>
               <a v-if="player.steamUrl" :href="player.steamUrl" target="_blank"
                 class="text-xs text-blue-400 hover:underline">Steam</a>
+              <a v-if="player.telegramUsername" :href="`https://t.me/${player.telegramUsername.replace(/^@/, '')}`" target="_blank"
+                class="text-xs text-sky-400 hover:underline">Telegram</a>
               <span v-if="player.email" class="text-xs text-neutral-600">{{ player.email }}</span>
             </div>
           </div>
@@ -304,6 +327,36 @@ async function handleSave(data) {
         </div>
         <span class="text-[10px] text-neutral-600 truncate">{{ avatarUrl }}</span>
       </div>
+    </div>
+
+    <!-- Telegram notifications -->
+    <div v-if="isOwnProfile" class="bg-neutral-900 rounded-xl border border-neutral-800 p-4 mb-4">
+      <div v-if="player.telegramId" class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+        </svg>
+        <span class="text-xs text-emerald-500">Уведомления в Telegram подключены</span>
+      </div>
+      <template v-else>
+        <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Уведомления в Telegram</h3>
+        <p class="text-sm text-neutral-400 mb-2">Чтобы получать личные уведомления о слотах и задачах:</p>
+        <ol class="text-sm text-neutral-400 list-decimal list-inside space-y-1 mb-3">
+          <li v-if="telegramBotUsername">Найдите бота <code class="text-sky-400">@{{ telegramBotUsername }}</code> в Telegram</li>
+          <li v-else>Найдите бота отряда в Telegram</li>
+          <li>Отправьте ему команду <code class="text-sky-400">/start</code></li>
+          <li>Бот ответит вашим Telegram ID</li>
+          <li>Вставьте ID в поле ниже (или попросите админа)</li>
+        </ol>
+        <div class="flex gap-2">
+          <input v-model="telegramIdInput" type="text" placeholder="Telegram ID"
+            class="bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:border-delta-green"
+            @keydown.enter="saveTelegramId" />
+          <button @click="saveTelegramId" :disabled="savingTelegramId"
+            class="px-3 py-2 text-sm bg-delta-green hover:bg-delta-green/80 text-white rounded-lg transition-colors disabled:opacity-50">
+            Сохранить
+          </button>
+        </div>
+      </template>
     </div>
 
     <!-- Player awards -->

@@ -360,6 +360,39 @@ function readinessDot(status) {
   }
   return map[status] || map.no_response
 }
+
+// Slot notifications
+const slotNotifSending = ref({})
+const slotNotifSent = ref({})
+
+function getPlayerTelegramId(playerId) {
+  const p = roster.players.find(r => r.uid === playerId)
+  return p?.telegramId || null
+}
+
+async function sendSlotNotification(slot, slotIdx) {
+  const telegramId = getPlayerTelegramId(slot.playerId)
+  if (!telegramId) return
+
+  slotNotifSending.value[slotIdx] = true
+  const nickname = roster.resolveNickname(slot.playerId)
+  const game = games.value.find(g => g.id === activeTab.value)
+  const gameDate = game ? gameDates[game.day] : ''
+  const squadTask = gamesStore.getGame(activeTab.value)?.task || ''
+  const slotWithGameId = { ...slot, gameId: activeTab.value }
+
+  const msg = telegram.buildSlotNotification(nickname, slotWithGameId, game?.label || '', gameDate, squadTask)
+  const result = await telegram.sendMessage(msg, { chatId: telegramId })
+
+  slotNotifSending.value[slotIdx] = false
+  if (result.ok) {
+    slotNotifSent.value[slotIdx] = true
+    setTimeout(() => { slotNotifSent.value[slotIdx] = false }, 2000)
+    toast.success(result.demo ? 'Уведомление (демо)' : 'Уведомление отправлено')
+  } else {
+    toast.error('Ошибка: ' + result.error)
+  }
+}
 </script>
 
 <template>
@@ -721,6 +754,25 @@ function readinessDot(status) {
                       <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </span>
+
+                  <!-- Telegram notify -->
+                  <button v-if="isAdmin && row.slot.playerId && getPlayerTelegramId(row.slot.playerId)"
+                    @click.stop="sendSlotNotification(row.slot, row.idx)"
+                    :disabled="slotNotifSending[row.idx]"
+                    :class="[
+                      'w-6 h-6 rounded flex items-center justify-center transition-colors ml-0.5',
+                      slotNotifSent[row.idx]
+                        ? 'text-emerald-400'
+                        : 'text-sky-500/40 hover:text-sky-400 hover:bg-sky-500/10'
+                    ]"
+                    :title="slotNotifSent[row.idx] ? 'Отправлено' : 'Уведомить в Telegram'">
+                    <svg v-if="slotNotifSent[row.idx]" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                    </svg>
+                  </button>
                 </td>
               </tr>
             </template>
@@ -806,7 +858,7 @@ function readinessDot(status) {
             <div v-if="row.slot.notes" class="mt-1 text-[10px] text-neutral-500">{{ row.slot.notes }}</div>
 
             <!-- Personal task indicator (mobile) -->
-            <div v-if="canEditPersonalTask(row.slot) || row.slot.personalTask" class="mt-1.5 flex items-center gap-1.5">
+            <div v-if="canEditPersonalTask(row.slot) || row.slot.personalTask || (isAdmin && row.slot.playerId && getPlayerTelegramId(row.slot.playerId))" class="mt-1.5 flex items-center gap-1.5">
               <button v-if="canEditPersonalTask(row.slot)"
                 @click="startEditPersonalTask(row.idx)"
                 :class="[
@@ -819,6 +871,24 @@ function readinessDot(status) {
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
                 {{ row.slot.personalTask ? 'Личная задача' : 'Добавить задачу' }}
+              </button>
+
+              <!-- Telegram notify (mobile) -->
+              <button v-if="isAdmin && row.slot.playerId && getPlayerTelegramId(row.slot.playerId)"
+                @click.stop="sendSlotNotification(row.slot, row.idx)"
+                :disabled="slotNotifSending[row.idx]"
+                :class="[
+                  'flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                  slotNotifSent[row.idx]
+                    ? 'text-emerald-400'
+                    : 'text-sky-500/50 hover:text-sky-400'
+                ]">
+                <svg v-if="slotNotifSent[row.idx]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <svg v-else class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
               </button>
             </div>
           </div>

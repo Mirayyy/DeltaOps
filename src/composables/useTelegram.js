@@ -160,32 +160,35 @@ export function useTelegram() {
     return lines.join('\n')
   }
 
-  /** Lineup notification — sent to individual player DM or group */
-  function buildLineupMessage(playerNickname, playerSlots, gameDates) {
-    const gameLabels = {
-      friday_1: 'Пятница 1', friday_2: 'Пятница 2',
-      saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
-    }
-
+  /** Personal slot notification — sent to player DM */
+  function buildSlotNotification(playerNickname, slot, gameLabel, gameDate, squadTask) {
     const lines = [
-      `<b>${app.siteName} — Расстановка</b>`,
-      `Игрок: <b>${playerNickname}</b>`,
+      `<b>${app.siteName} — Уведомление о слоте</b>`,
       '',
+      `Игрок: <b>${playerNickname}</b>`,
+      `Игра: <b>${gameLabel}</b> (${gameDate})`,
+      '',
+      `<b>Слот:</b> ${slot.side} — ${slot.squad} — ${slot.name}`,
     ]
 
-    let hasSlot = false
-    for (const [gameId, slot] of Object.entries(playerSlots)) {
-      if (!slot) continue
-      hasSlot = true
-      const label = gameLabels[gameId] || gameId
-      const equipment = (slot.equipment || []).join(', ')
-      lines.push(`<b>${label}:</b> ${slot.name} (${slot.squad})`)
-      if (equipment) lines.push(`  Снаряжение: ${equipment}`)
+    if (slot.equipment?.length) {
+      lines.push(`<b>Снаряжение:</b> ${slot.equipment.join(', ')}`)
     }
 
-    if (!hasSlot) {
-      lines.push('Ты не в расстановке на эту неделю.')
+    if (slot.personalTask) {
+      lines.push('')
+      lines.push(`<b>Личная задача:</b>`)
+      lines.push(slot.personalTask)
     }
+
+    if (squadTask) {
+      lines.push('')
+      lines.push(`<b>Задача отряда:</b>`)
+      lines.push(squadTask)
+    }
+
+    lines.push('')
+    lines.push(`<a href="${app.siteUrl}/lineup?game=${slot.gameId || ''}">Посмотреть расстановку</a>`)
 
     return lines.join('\n')
   }
@@ -286,7 +289,7 @@ export function useTelegram() {
     isConfigured, sending, lastError,
     sendMessage, mention,
     buildMissionsMessage,
-    buildLineupMessage,
+    buildSlotNotification,
     buildLineupSummaryMessage,
     buildReminderMessage,
   }
