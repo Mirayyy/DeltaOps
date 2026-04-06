@@ -105,6 +105,11 @@ function callsignColor(callsign) {
   return p?.nicknameColor || ''
 }
 
+function playerProfileUrl(callsign) {
+  const p = roster.getPlayerByNickname(callsign)
+  return p?.uid ? `/profile/${p.uid}` : null
+}
+
 async function refresh() {
   await statsStore.fetchFromApi()
 }
@@ -234,9 +239,8 @@ const COLUMNS = [
 
     <!-- Player Stats Table -->
     <div class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden">
-      <!-- Desktop table -->
-      <div class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm" style="min-width:40rem">
           <thead>
             <tr class="border-b border-neutral-800">
               <th v-for="col in COLUMNS" :key="col.key"
@@ -270,7 +274,17 @@ const COLUMNS = [
               </td>
 
               <!-- Callsign -->
-              <td class="px-3 py-2.5 text-left font-medium" :style="callsignColor(player.callsign) ? { color: callsignColor(player.callsign) } : {}">{{ player.callsign }}</td>
+              <td class="px-3 py-2.5 text-left font-medium">
+                <router-link v-if="playerProfileUrl(player.callsign)"
+                  :to="playerProfileUrl(player.callsign)"
+                  class="hover:underline transition-colors"
+                  :style="callsignColor(player.callsign) ? { color: callsignColor(player.callsign) } : {}">
+                  {{ player.callsign }}
+                </router-link>
+                <span v-else :style="callsignColor(player.callsign) ? { color: callsignColor(player.callsign) } : {}">
+                  {{ player.callsign }}
+                </span>
+              </td>
 
               <!-- Attendance -->
               <td class="px-3 py-2.5 text-center font-mono text-neutral-300">{{ player.attendance }}</td>
@@ -299,32 +313,6 @@ const COLUMNS = [
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <!-- Mobile cards -->
-      <div class="md:hidden divide-y divide-neutral-800/50">
-        <div v-for="player in currentPlayers" :key="player.callsign"
-          class="px-4 py-3">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-neutral-600 font-mono w-6">{{ player.rank }}</span>
-              <span class="text-sm font-medium" :style="callsignColor(player.callsign) ? { color: callsignColor(player.callsign) } : {}">{{ player.callsign }}</span>
-              <template v-if="deltaIcon(player.delta)">
-                <span :class="['text-[10px]', deltaIcon(player.delta).cls]">{{ deltaIcon(player.delta).text }}</span>
-              </template>
-            </div>
-            <span :class="['font-mono font-bold text-sm', kpdColor(player.efficiency)]">
-              {{ fmt(player.efficiency, 3) }}
-            </span>
-          </div>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
-            <span>Посещ: <span class="text-neutral-300 font-mono">{{ player.attendance }}</span></span>
-            <span>Фраги: <span class="text-neutral-300 font-mono">{{ player.frags }}</span></span>
-            <span>ТК: <span :class="['font-mono', player.tk > 5 ? 'text-red-400' : 'text-neutral-400']">{{ player.tk }}</span></span>
-            <span>Выж: <span class="text-neutral-300 font-mono">{{ player.survival }}</span></span>
-            <span>ЧСВ: <span class="text-neutral-400 font-mono">{{ fmt(player.ego, 3) }}</span></span>
-          </div>
-        </div>
       </div>
 
       <div v-if="!currentPlayers.length" class="px-4 py-8 text-center text-neutral-600 text-sm">
