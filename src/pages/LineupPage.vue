@@ -864,15 +864,16 @@ async function sendSlotNotification(slot, slotIdx) {
 
                 <!-- Notes -->
                 <td class="px-3 py-2.5">
-                  <input v-if="isAdmin"
+                  <textarea v-if="isAdmin"
                     :value="row.slot.notes || ''"
                     @focus="editingNotes = row.slot.notes || ''"
-                    @input="editingNotes = $event.target.value"
+                    @input="editingNotes = $event.target.value; $event.target.style.height = 'auto'; $event.target.style.height = $event.target.scrollHeight + 'px'"
                     @blur="saveNotes(row.idx)"
-                    @keydown.enter="$event.target.blur()"
+                    @keydown.enter.exact="$event.target.blur()"
+                    rows="1"
                     placeholder="—"
-                    class="w-full bg-transparent border-b border-transparent hover:border-neutral-700 focus:border-delta-green text-sm text-neutral-400 focus:text-neutral-200 outline-none py-0.5 transition-colors">
-                  <span v-else class="text-neutral-500 text-xs">{{ row.slot.notes || '—' }}</span>
+                    class="w-full bg-transparent border-b border-transparent hover:border-neutral-700 focus:border-delta-green text-sm text-neutral-400 focus:text-neutral-200 outline-none py-0.5 transition-colors resize-none overflow-hidden"></textarea>
+                  <span v-else class="text-neutral-500 text-xs break-words">{{ row.slot.notes || '—' }}</span>
                 </td>
 
                 <!-- Personal task indicator -->
