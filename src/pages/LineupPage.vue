@@ -671,17 +671,17 @@ async function sendSlotNotification(slot, slotIdx) {
       <div v-if="editingSlot !== null || showEquipmentMenu !== null || showTypeMenu !== null"
         class="fixed inset-0 z-20" @click="closeAllPopups"></div>
 
-      <!-- Desktop table -->
-      <div class="hidden md:block">
-        <table class="w-full text-sm table-fixed">
+      <!-- Desktop/Tablet table -->
+      <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm" style="min-width:56rem">
           <thead>
             <tr class="border-b border-neutral-800 text-neutral-500 text-xs">
               <th class="text-left px-4 py-2.5 font-medium w-10">#</th>
-              <th class="text-left px-3 py-2.5 font-medium" style="width:18rem">Слот</th>
-              <th class="text-left px-3 py-2.5 font-medium" style="width:9rem">Тип</th>
+              <th class="text-left px-3 py-2.5 font-medium">Слот</th>
+              <th class="text-left px-3 py-2.5 font-medium w-28">Тип</th>
               <th class="text-left px-3 py-2.5 font-medium w-14">ФТ</th>
-              <th class="text-left px-3 py-2.5 font-medium" style="width:11rem">Позывной</th>
-              <th class="text-left px-3 py-2.5 font-medium" style="min-width:14rem">Снаряжение</th>
+              <th class="text-left px-3 py-2.5 font-medium w-44">Позывной</th>
+              <th class="text-left px-3 py-2.5 font-medium w-52">Снаряжение</th>
               <th class="text-left px-3 py-2.5 font-medium">Заметки</th>
               <th class="text-center px-2 py-2.5 font-medium w-10">
                 <svg class="w-3.5 h-3.5 mx-auto text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -943,45 +943,31 @@ async function sendSlotNotification(slot, slotIdx) {
           </div>
 
           <!-- Slot card (mobile) -->
-          <div v-else class="px-4 py-3">
-            <div class="flex items-center justify-between mb-1.5">
+          <div v-else class="px-4 py-3 space-y-2">
+            <!-- Row 1: Number + Name (left) | Player (right) -->
+            <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-[10px] font-mono text-neutral-600 shrink-0">{{ row.slot.number }}</span>
-                <span class="text-sm truncate">{{ row.slot.name }}</span>
-                <span v-if="row.slot.type"
-                  :class="[
-                    'px-1.5 py-0.5 rounded text-[10px] font-medium border shrink-0',
-                    SLOT_TYPE_STYLES[row.slot.type] || 'bg-neutral-700 text-neutral-400 border-neutral-600'
-                  ]">
-                  {{ SLOT_TYPES[row.slot.type]?.label }}
-                </span>
-                <span v-if="row.slot.fireteam"
-                  :class="['px-1.5 py-0.5 rounded text-[10px] font-mono border shrink-0', ftColor(row.slot.fireteam)]">
-                  {{ row.slot.fireteam }}
-                </span>
+                <span class="text-sm font-medium truncate">{{ row.slot.name }}</span>
               </div>
-            </div>
-
-            <div class="flex items-center justify-between">
               <button v-if="isAdmin" @click="startAssign(row.idx)"
-                :class="['text-sm px-2 py-0.5 rounded transition-all',
-                  resolveSlotPlayer(row.slot) ? 'text-neutral-200 bg-neutral-800' : 'text-neutral-500 bg-neutral-800/50']"
+                :class="['text-sm px-2.5 py-1 rounded-lg transition-all shrink-0 max-w-[45%] truncate border',
+                  resolveSlotPlayer(row.slot)
+                    ? 'border-neutral-700 hover:border-neutral-500 text-neutral-200'
+                    : 'border-dashed border-neutral-700 hover:border-neutral-500 text-neutral-500']"
                 :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                 {{ resolveSlotPlayer(row.slot) || '— свободно —' }}
               </button>
-              <span v-else :class="resolveSlotPlayer(row.slot) ? 'text-sm text-neutral-200' : 'text-sm text-neutral-600'"
+              <span v-else
+                :class="['text-sm shrink-0', resolveSlotPlayer(row.slot) ? 'text-neutral-200' : 'text-neutral-600']"
                 :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                 {{ resolveSlotPlayer(row.slot) || '—' }}
               </span>
-
-              <div class="flex gap-1">
-                <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
-              </div>
             </div>
 
             <!-- Mobile player dropdown -->
             <div v-if="editingSlot === row.idx"
-              class="relative z-30 mt-2 bg-neutral-800 border border-neutral-700 rounded-lg max-h-48 overflow-y-auto">
+              class="relative z-30 bg-neutral-800 border border-neutral-700 rounded-lg max-h-48 overflow-y-auto">
               <button v-if="row.slot.playerId" @click="unassign(row.idx)"
                 class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-neutral-700 border-b border-neutral-700">
                 Убрать
@@ -994,17 +980,103 @@ async function sendSlotNotification(slot, slotIdx) {
               </button>
             </div>
 
-            <div v-if="row.slot.notes" class="mt-1 text-[10px] text-neutral-500">{{ row.slot.notes }}</div>
+            <!-- Row 2: Type + FT -->
+            <div v-if="isAdmin || row.slot.type || row.slot.fireteam" class="flex items-center gap-2">
+              <button v-if="isAdmin"
+                @click.stop="openDropdown(row.idx, 'type')"
+                :class="[
+                  'px-2 py-1 rounded text-[10px] font-medium border transition-colors',
+                  row.slot.type
+                    ? SLOT_TYPE_STYLES[row.slot.type] || 'bg-neutral-700 text-neutral-400 border-neutral-600'
+                    : 'bg-transparent text-neutral-600 border-neutral-700/50 hover:border-neutral-600'
+                ]">
+                {{ SLOT_TYPES[row.slot.type]?.label || 'Тип' }}
+              </button>
+              <span v-else-if="row.slot.type"
+                :class="['px-2 py-1 rounded text-[10px] font-medium border', SLOT_TYPE_STYLES[row.slot.type] || 'bg-neutral-700 text-neutral-400 border-neutral-600']">
+                {{ SLOT_TYPES[row.slot.type]?.label }}
+              </span>
 
-            <!-- Personal task indicator (mobile) -->
-            <div v-if="canEditPersonalTask(row.slot) || row.slot.personalTask || (isAdmin && row.slot.playerId && getPlayerTelegramId(row.slot.playerId))" class="mt-1.5 flex items-center gap-1.5">
+              <!-- Mobile type dropdown -->
+              <div v-if="showTypeMenu === row.idx"
+                class="relative z-30 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl py-1">
+                <button @click="setSlotType(row.idx, null)"
+                  :class="['w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-700 transition-colors',
+                    !row.slot.type ? 'text-white' : 'text-neutral-400']">
+                  — нет —
+                </button>
+                <button v-for="(cfg, key) in SLOT_TYPES" :key="key"
+                  @click="setSlotType(row.idx, key)"
+                  :class="['w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-700 transition-colors',
+                    row.slot.type === key ? 'text-white' : 'text-neutral-400']">
+                  <span :class="[SLOT_TYPE_STYLES[key]?.split(' ')[1] || '', 'font-medium']">{{ cfg.label }}</span>
+                </button>
+              </div>
+
+              <input v-if="isAdmin"
+                :value="row.slot.fireteam || ''"
+                @blur="saveFireteam(row.idx, $event.target.value)"
+                @keydown.enter="$event.target.blur()"
+                placeholder="ФТ"
+                :class="[
+                  'w-12 text-center text-[10px] font-mono outline-none py-1 px-1.5 rounded border transition-colors',
+                  row.slot.fireteam
+                    ? ftColor(row.slot.fireteam) + ' focus:border-delta-green'
+                    : 'bg-transparent border-neutral-700/50 text-neutral-600 hover:border-neutral-600 focus:border-delta-green focus:text-neutral-200'
+                ]">
+              <span v-else-if="row.slot.fireteam"
+                :class="['px-1.5 py-0.5 rounded text-[10px] font-mono border', ftColor(row.slot.fireteam)]">
+                {{ row.slot.fireteam }}
+              </span>
+            </div>
+
+            <!-- Row 3: Equipment -->
+            <div v-if="isAdmin || (row.slot.equipment && row.slot.equipment.length)" class="flex flex-wrap items-center gap-1">
+              <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
+              <button v-if="isAdmin"
+                @click.stop="openDropdown(row.idx, 'eq')"
+                class="w-5 h-5 rounded text-[10px] bg-neutral-800 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors flex items-center justify-center">
+                +
+              </button>
+              <!-- Mobile equipment dropdown -->
+              <div v-if="showEquipmentMenu === row.idx"
+                class="relative z-30 w-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl p-2">
+                <div v-for="eq in squadConfig.equipmentNames" :key="eq"
+                  class="px-2 py-1 hover:bg-neutral-700 rounded">
+                  <BaseCheckbox
+                    :checked="(row.slot.equipment || []).includes(eq)"
+                    @change="toggleEquipment(row.idx, eq)"
+                    size="sm"
+                  >
+                    <span class="text-xs text-neutral-300">{{ eq }}</span>
+                  </BaseCheckbox>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 4: Notes -->
+            <div v-if="isAdmin || row.slot.notes">
+              <input v-if="isAdmin"
+                :value="row.slot.notes || ''"
+                @focus="editingNotes = row.slot.notes || ''"
+                @input="editingNotes = $event.target.value"
+                @blur="saveNotes(row.idx)"
+                @keydown.enter="$event.target.blur()"
+                placeholder="Заметки..."
+                class="w-full bg-neutral-800/50 border border-neutral-700/50 focus:border-delta-green rounded-lg text-xs text-neutral-400 focus:text-neutral-200 outline-none px-2.5 py-1.5 transition-colors">
+              <div v-else-if="row.slot.notes" class="text-[10px] text-neutral-500">{{ row.slot.notes }}</div>
+            </div>
+
+            <!-- Row 5: Action buttons -->
+            <div v-if="canEditPersonalTask(row.slot) || row.slot.personalTask || (isAdmin && row.slot.playerId && getPlayerTelegramId(row.slot.playerId))"
+              class="flex items-center gap-2 pt-0.5">
               <button v-if="canEditPersonalTask(row.slot)"
                 @click="startEditPersonalTask(row.idx)"
                 :class="[
-                  'flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                  'flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg transition-colors',
                   row.slot.personalTask
-                    ? 'bg-amber-500/15 text-amber-400'
-                    : 'text-neutral-600 hover:text-neutral-400'
+                    ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                    : 'text-neutral-600 hover:text-neutral-400 border border-neutral-700/50 hover:border-neutral-600'
                 ]">
                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1017,10 +1089,10 @@ async function sendSlotNotification(slot, slotIdx) {
                 @click.stop="sendSlotNotification(row.slot, row.idx)"
                 :disabled="slotNotifSending[row.idx]"
                 :class="[
-                  'flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded transition-colors',
+                  'flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg transition-colors border',
                   slotNotifSent[row.idx]
-                    ? 'text-emerald-400'
-                    : 'text-sky-500/50 hover:text-sky-400'
+                    ? 'text-emerald-400 border-emerald-500/20'
+                    : 'text-sky-500/50 hover:text-sky-400 border-neutral-700/50 hover:border-sky-500/30'
                 ]">
                 <svg v-if="slotNotifSent[row.idx]" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -1028,6 +1100,7 @@ async function sendSlotNotification(slot, slotIdx) {
                 <svg v-else class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
                 </svg>
+                Telegram
               </button>
             </div>
           </div>
