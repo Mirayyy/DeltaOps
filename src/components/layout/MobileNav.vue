@@ -1,13 +1,9 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
-const scrollEl = ref(null)
-const showLeft = ref(false)
-const showRight = ref(false)
 
 const navItems = [
   { name: 'profile', label: 'Профиль', icon: 'user', roles: ['member', 'admin'] },
@@ -24,38 +20,6 @@ function visibleItems() {
   return navItems.filter(item => item.roles.includes(auth.userRole))
 }
 
-function updateFades() {
-  const el = scrollEl.value
-  if (!el) return
-  showLeft.value = el.scrollLeft > 4
-  showRight.value = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
-}
-
-// Scroll active item into view on mount & route change
-function scrollToActive() {
-  nextTick(() => {
-    const el = scrollEl.value
-    if (!el) return
-    const active = el.querySelector('.nav-active')
-    if (active) {
-      active.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
-    }
-    setTimeout(updateFades, 100)
-  })
-}
-
-watch(() => route.name, scrollToActive)
-
-onMounted(() => {
-  updateFades()
-  scrollToActive()
-  scrollEl.value?.addEventListener('scroll', updateFades, { passive: true })
-})
-
-onBeforeUnmount(() => {
-  scrollEl.value?.removeEventListener('scroll', updateFades)
-})
-
 const ICON_PATHS = {
   user: ['M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'],
   grid: ['M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z'],
@@ -70,19 +34,16 @@ const ICON_PATHS = {
 
 <template>
   <nav class="fixed bottom-0 left-0 right-0 mobile-nav-glass border-t border-neutral-800/60 z-50">
-    <!-- Fade edges -->
-    <div v-if="showLeft" class="fade-left"></div>
-    <div v-if="showRight" class="fade-right"></div>
-
-    <div ref="scrollEl" class="nav-scroll flex justify-center px-1 py-1.5">
+    <div class="flex justify-around py-1.5">
       <router-link
         v-for="item in visibleItems()"
         :key="item.name"
         :to="{ name: item.name }"
         :class="[
-          'nav-item flex flex-col items-center gap-0.5 px-4 py-1 transition-colors relative shrink-0',
+          'nav-item flex items-center justify-center py-1 transition-colors relative',
           route.name === item.name ? 'text-orange-400 nav-active' : 'text-neutral-500',
         ]"
+        style="flex: 1 1 0%"
       >
         <!-- Active dot -->
         <div v-if="route.name === item.name" class="absolute -top-1.5 w-4 h-0.5 rounded-full bg-orange-500"></div>
@@ -102,35 +63,4 @@ const ICON_PATHS = {
   -webkit-backdrop-filter: blur(12px);
 }
 
-.nav-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.nav-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-/* Fade indicators showing more items beyond visible area */
-.fade-left,
-.fade-right {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 24px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.fade-left {
-  left: 0;
-  background: linear-gradient(to right, rgba(18, 18, 18, 0.9), transparent);
-}
-
-.fade-right {
-  right: 0;
-  background: linear-gradient(to left, rgba(18, 18, 18, 0.9), transparent);
-}
 </style>
