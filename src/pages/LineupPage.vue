@@ -289,10 +289,10 @@ function closeAllPopups() {
   dropdownPos.value = {}
 }
 
-function onScrollClosePopups() {
-  if (editingSlot.value !== null || showEquipmentMenu.value !== null || showTypeMenu.value !== null) {
-    closeAllPopups()
-  }
+function onScrollClosePopups(e) {
+  if (editingSlot.value === null && showEquipmentMenu.value === null && showTypeMenu.value === null) return
+  if (e.target?.closest?.('[data-dropdown]')) return
+  closeAllPopups()
 }
 
 onMounted(() => {
