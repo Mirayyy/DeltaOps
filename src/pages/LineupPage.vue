@@ -247,6 +247,8 @@ const dropdownUp = ref({}) // { [key]: true/false }
 
 const dropdownRefs = { player: editingSlot, type: showTypeMenu, eq: showEquipmentMenu }
 
+const dropdownPos = ref({})
+
 async function openDropdown(key, refName) {
   const toggleRef = dropdownRefs[refName]
   const wasOpen = toggleRef.value === key
@@ -260,13 +262,23 @@ async function openDropdown(key, refName) {
   if (wasOpen) return
   toggleRef.value = key
 
-  // After render, check if dropdown fits below
+  // After render, position the dropdown with fixed coords
   await nextTick()
   const el = document.querySelector(`[data-dropdown="${refName}-${key}"]`)
   if (!el) return
-  const rect = el.getBoundingClientRect()
-  const spaceBelow = window.innerHeight - rect.bottom
-  dropdownUp.value[`${refName}-${key}`] = spaceBelow < 20
+  const trigger = el.parentElement?.querySelector('button, input')
+  if (!trigger) return
+  const triggerRect = trigger.getBoundingClientRect()
+  const elRect = el.getBoundingClientRect()
+  const spaceBelow = window.innerHeight - triggerRect.bottom - 8
+  const goUp = elRect.height > spaceBelow && triggerRect.top > spaceBelow
+  const posKey = `${refName}-${key}`
+  dropdownUp.value[posKey] = goUp
+  dropdownPos.value[posKey] = {
+    left: `${triggerRect.left}px`,
+    top: goUp ? 'auto' : `${triggerRect.bottom + 4}px`,
+    bottom: goUp ? `${window.innerHeight - triggerRect.top + 4}px` : 'auto',
+  }
 }
 
 function closeAllPopups() {
@@ -729,7 +741,7 @@ async function sendSlotNotification(slot, slotIdx) {
                 <td class="px-3 py-2.5 truncate" :title="row.slot.name">{{ row.slot.name }}</td>
 
                 <!-- Type (selector) -->
-                <td class="px-3 py-2.5 relative">
+                <td class="px-3 py-2.5">
                   <button v-if="isAdmin"
                     @click.stop="openDropdown(row.idx, 'type')"
                     :class="[
@@ -752,10 +764,8 @@ async function sendSlotNotification(slot, slotIdx) {
                   <!-- Type dropdown -->
                   <div v-if="showTypeMenu === row.idx"
                     :data-dropdown="'type-' + row.idx"
-                    :class="[
-                      'absolute left-3 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-44 py-1',
-                      dropdownUp['type-' + row.idx] ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
-                    ]"
+                    class="fixed bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-44 py-1"
+                    :style="dropdownPos['type-' + row.idx]"
                     @click.stop>
                     <button @click="setSlotType(row.idx, null)"
                       :class="['w-full text-left px-3 py-1.5 text-xs hover:bg-neutral-700 transition-colors',
@@ -792,7 +802,7 @@ async function sendSlotNotification(slot, slotIdx) {
                 </td>
 
                 <!-- Assigned player -->
-                <td class="px-3 py-2.5 relative">
+                <td class="px-3 py-2.5">
                   <button v-if="isAdmin"
                     @click.stop="openDropdown(row.idx, 'player')"
                     :class="[
@@ -812,10 +822,8 @@ async function sendSlotNotification(slot, slotIdx) {
                   <!-- Player dropdown -->
                   <div v-if="editingSlot === row.idx"
                     :data-dropdown="'player-' + row.idx"
-                    :class="[
-                      'absolute left-3 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-56 max-h-64 overflow-y-auto',
-                      dropdownUp['player-' + row.idx] ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
-                    ]"
+                    class="fixed bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-56 max-h-64 overflow-y-auto"
+                    :style="dropdownPos['player-' + row.idx]"
                     @click.stop>
                     <button v-if="row.slot.playerId" @click="unassign(row.idx)"
                       class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-neutral-700 border-b border-neutral-700">
@@ -831,7 +839,7 @@ async function sendSlotNotification(slot, slotIdx) {
                 </td>
 
                 <!-- Equipment -->
-                <td class="px-3 py-2.5 relative">
+                <td class="px-3 py-2.5">
                   <div class="flex flex-wrap gap-1 items-center">
                     <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
                     <button v-if="isAdmin"
@@ -844,10 +852,8 @@ async function sendSlotNotification(slot, slotIdx) {
                   <!-- Equipment dropdown -->
                   <div v-if="showEquipmentMenu === row.idx"
                     :data-dropdown="'eq-' + row.idx"
-                    :class="[
-                      'absolute left-3 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 min-w-40',
-                      dropdownUp['eq-' + row.idx] ? 'bottom-full mb-0.5' : 'top-full mt-0.5'
-                    ]"
+                    class="fixed bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 min-w-40"
+                    :style="dropdownPos['eq-' + row.idx]"
                     @click.stop>
                     <div v-for="eq in squadConfig.equipmentNames" :key="eq"
                       class="px-2 py-1 hover:bg-neutral-700 rounded">
