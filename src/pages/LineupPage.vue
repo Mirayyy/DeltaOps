@@ -1056,15 +1056,17 @@ async function sendSlotNotification(slot, slotIdx) {
 
             <!-- Row 4: Notes -->
             <div v-if="isAdmin || row.slot.notes">
-              <input v-if="isAdmin"
+              <textarea v-if="isAdmin"
                 :value="row.slot.notes || ''"
                 @focus="editingNotes = row.slot.notes || ''"
-                @input="editingNotes = $event.target.value"
+                @input="editingNotes = $event.target.value; $event.target.style.height = 'auto'; $event.target.style.height = $event.target.scrollHeight + 'px'"
                 @blur="saveNotes(row.idx)"
-                @keydown.enter="$event.target.blur()"
+                @keydown.enter.exact="$event.target.blur()"
+                @mounted="$el?.style && ($el.style.height = $el.scrollHeight + 'px')"
+                rows="1"
                 placeholder="Заметки..."
-                class="w-full bg-neutral-800/50 border border-neutral-700/50 focus:border-delta-green rounded-lg text-xs text-neutral-400 focus:text-neutral-200 outline-none px-2.5 py-1.5 transition-colors">
-              <div v-else-if="row.slot.notes" class="text-[10px] text-neutral-500">{{ row.slot.notes }}</div>
+                class="w-full bg-neutral-800/50 border border-neutral-700/50 focus:border-delta-green rounded-lg text-xs text-neutral-400 focus:text-neutral-200 outline-none px-2.5 py-1.5 transition-colors resize-none overflow-hidden"></textarea>
+              <div v-else-if="row.slot.notes" class="text-[10px] text-neutral-500 break-words">{{ row.slot.notes }}</div>
             </div>
 
             <!-- Row 5: Action buttons -->
