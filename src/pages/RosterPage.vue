@@ -279,7 +279,7 @@ function goToProfile(uid) {
         class="bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-delta-green sm:w-48" />
 
       <!-- Column config toggle -->
-      <div class="relative ml-auto">
+      <div class="ml-auto">
         <button @click="showColumnConfig = !showColumnConfig"
           class="p-2 bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-600 transition-colors"
           title="Настройка колонок">
@@ -289,33 +289,33 @@ function goToProfile(uid) {
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
-
-        <!-- Column config dropdown -->
-        <div v-if="showColumnConfig"
-          class="absolute right-0 top-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-56 py-2 max-h-80 overflow-y-auto">
-          <div class="px-3 py-1.5 text-[10px] text-neutral-500 uppercase tracking-wider">Колонки</div>
-          <div v-for="col in ALL_COLUMNS" :key="col.key"
-            :class="['px-3 py-1 hover:bg-neutral-700 transition-colors',
-              col.key === 'nickname' ? 'opacity-50' : '']">
-            <BaseCheckbox
-              :checked="visibleKeys.includes(col.key)"
-              :disabled="col.key === 'nickname'"
-              @change="toggleColumn(col.key)"
-              size="sm"
-            >
-              <span :class="['text-xs', visibleKeys.includes(col.key) ? 'text-neutral-200' : 'text-neutral-500']">{{ col.label }}</span>
-            </BaseCheckbox>
-          </div>
-        </div>
       </div>
     </div>
 
     <!-- Backdrop for column config -->
     <div v-if="showColumnConfig" class="fixed inset-0 z-20" @click="showColumnConfig = false"></div>
+    <!-- Column config dropdown (fixed for mobile compatibility) -->
+    <div v-if="showColumnConfig"
+      class="fixed right-4 top-20 sm:right-auto sm:top-auto sm:absolute bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-56 py-2 max-h-[70vh] overflow-y-auto"
+      style="right: 1rem;">
+      <div class="px-3 py-1.5 text-[10px] text-neutral-500 uppercase tracking-wider">Колонки</div>
+      <div v-for="col in ALL_COLUMNS" :key="col.key"
+        :class="['px-3 py-1.5 hover:bg-neutral-700 transition-colors',
+          col.key === 'nickname' ? 'opacity-50' : '']">
+        <BaseCheckbox
+          :checked="visibleKeys.includes(col.key)"
+          :disabled="col.key === 'nickname'"
+          @change="toggleColumn(col.key)"
+          size="sm"
+        >
+          <span :class="['text-xs', visibleKeys.includes(col.key) ? 'text-neutral-200' : 'text-neutral-500']">{{ col.label }}</span>
+        </BaseCheckbox>
+      </div>
+    </div>
 
-    <!-- Table (desktop) -->
-    <div class="hidden md:block bg-neutral-900 rounded-xl border border-neutral-800 overflow-x-auto">
-      <table class="w-full text-sm">
+    <!-- Table -->
+    <div class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-x-auto">
+      <table class="w-full text-sm" style="min-width:48rem">
         <thead>
           <tr class="border-b border-neutral-800">
             <th v-for="col in visibleColumns" :key="col.key"
@@ -474,47 +474,6 @@ function goToProfile(uid) {
       </div>
     </div>
 
-    <!-- Cards (mobile) -->
-    <div class="md:hidden space-y-2">
-      <div v-for="player in filteredPlayers" :key="player.uid"
-        @click="goToProfile(player.uid)"
-        class="bg-neutral-900 border border-neutral-800 rounded-xl p-4 cursor-pointer hover:bg-neutral-800/50 transition-colors">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <div class="w-9 h-9 rounded-full bg-delta-green/20 flex items-center justify-center overflow-hidden">
-              <img v-if="player.avatar" :src="player.avatar" :alt="player.nickname" class="w-full h-full object-cover" />
-              <span v-else class="text-sm font-bold text-delta-green">{{ (player.nickname || '?')[0] }}</span>
-            </div>
-            <div>
-              <div class="font-medium text-sm" :style="player.nicknameColor ? { color: player.nicknameColor } : {}">{{ player.nickname }}</div>
-              <div class="text-xs text-neutral-500">{{ player.position }}</div>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <StatusBadge :status="player.status" />
-            <button v-if="isAdmin" @click.stop="openEdit(player)"
-              class="text-neutral-500 hover:text-delta-green text-xs">
-              Ред.
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between text-xs">
-          <div class="flex flex-wrap gap-1">
-            <SkillBadge v-for="skill in (player.skills || [])" :key="skill.skillName" :role="skill.skillName" :level="skill.level" />
-            <span v-if="!(player.skills || []).length" class="text-neutral-600">—</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <span :class="['font-mono', rateColor(player.attRotation)]">{{ formatPercent(player.attRotation) }}</span>
-            <span :class="['font-mono font-bold', kpdColor(player.kpd)]">{{ player.kpd != null ? player.kpd.toFixed(2) : '—' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="!filteredPlayers.length" class="text-center py-8 text-neutral-500">
-        Нет игроков
-      </div>
-    </div>
 
     <!-- Editor modal -->
     <PlayerEditor
