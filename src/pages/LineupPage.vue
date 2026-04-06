@@ -673,16 +673,16 @@ async function sendSlotNotification(slot, slotIdx) {
 
       <!-- Desktop/Tablet table -->
       <div class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm" style="min-width:56rem">
+        <table class="w-full text-sm" style="min-width:60rem">
           <thead>
             <tr class="border-b border-neutral-800 text-neutral-500 text-xs">
               <th class="text-left px-4 py-2.5 font-medium w-10">#</th>
-              <th class="text-left px-3 py-2.5 font-medium">Слот</th>
+              <th class="text-left px-3 py-2.5 font-medium w-48">Слот</th>
               <th class="text-left px-3 py-2.5 font-medium w-28">Тип</th>
               <th class="text-left px-3 py-2.5 font-medium w-14">ФТ</th>
-              <th class="text-left px-3 py-2.5 font-medium w-44">Позывной</th>
-              <th class="text-left px-3 py-2.5 font-medium w-52">Снаряжение</th>
-              <th class="text-left px-3 py-2.5 font-medium">Заметки</th>
+              <th class="text-left px-3 py-2.5 font-medium w-40">Позывной</th>
+              <th class="text-left px-3 py-2.5 font-medium" style="min-width:14rem">Снаряжение</th>
+              <th class="text-left px-3 py-2.5 font-medium" style="min-width:12rem">Заметки</th>
               <th class="text-center px-2 py-2.5 font-medium w-10">
                 <svg class="w-3.5 h-3.5 mx-auto text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
