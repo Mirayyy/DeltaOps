@@ -436,7 +436,7 @@ async function sendSlotNotification(slot, slotIdx) {
         Действия
       </button>
       <!-- Actions: wrap on tablet, collapse on mobile -->
-      <div :class="['flex-wrap items-center gap-1.5', actionsExpanded ? 'flex' : 'hidden sm:flex']">
+      <div :class="['flex-wrap items-center justify-end gap-1.5', actionsExpanded ? 'flex' : 'hidden sm:flex']">
         <button v-if="isAdmin && slots.length"
           @click="sendLineupToTelegram" :disabled="telegram.sending.value"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-sky-500/30 hover:border-sky-500/60 text-sky-400 hover:text-sky-300 rounded-lg transition-colors inline-flex items-center gap-1.5 disabled:opacity-50">
