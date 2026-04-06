@@ -74,13 +74,13 @@ const ICON_PATHS = {
     <div v-if="showLeft" class="fade-left"></div>
     <div v-if="showRight" class="fade-right"></div>
 
-    <div ref="scrollEl" class="nav-scroll flex px-1 py-1.5">
+    <div ref="scrollEl" class="nav-scroll flex justify-center px-1 py-1.5">
       <router-link
         v-for="item in visibleItems()"
         :key="item.name"
         :to="{ name: item.name }"
         :class="[
-          'nav-item flex flex-col items-center gap-0.5 px-3 py-1 transition-colors relative shrink-0',
+          'nav-item flex flex-col items-center gap-0.5 px-4 py-1 transition-colors relative shrink-0',
           route.name === item.name ? 'text-orange-400 nav-active' : 'text-neutral-500',
         ]"
       >
