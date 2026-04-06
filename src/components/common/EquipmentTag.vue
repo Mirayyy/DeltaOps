@@ -11,7 +11,7 @@ const colorClass = computed(() => squad.equipmentColorMap[props.name] || 'bg-neu
 </script>
 
 <template>
-  <span :class="[colorClass, 'text-xs px-2 py-0.5 rounded text-white font-medium']">
+  <span :class="[colorClass, 'text-xs px-2 py-0.5 rounded text-white font-medium break-all']">
     {{ name }}
   </span>
 </template>
