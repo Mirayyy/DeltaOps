@@ -31,6 +31,7 @@ const showEquipmentMenu = ref(null)
 const showSlotConfigurator = ref(false)
 const showSlotRequestModal = ref(false)
 const requestsCollapsed = ref(false)
+const actionsExpanded = ref(false)
 const editingPersonalTask = ref(null) // slotIndex being edited
 const personalTaskDraft = ref('')
 
@@ -428,7 +429,14 @@ async function sendSlotNotification(slot, slotIdx) {
         <h1 class="text-2xl font-bold">Расстановка</h1>
         <p class="text-sm text-neutral-500">Неделя {{ currentWeekId }}</p>
       </div>
-      <div class="flex items-center gap-1.5">
+      <!-- Mobile: collapsible actions toggle -->
+      <button @click="actionsExpanded = !actionsExpanded"
+        class="sm:hidden px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-neutral-600/30 text-neutral-300 rounded-lg transition-colors inline-flex items-center gap-1.5">
+        <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': actionsExpanded }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+        Действия
+      </button>
+      <!-- Actions: wrap on tablet, collapse on mobile -->
+      <div :class="['flex-wrap items-center gap-1.5', actionsExpanded ? 'flex' : 'hidden sm:flex']">
         <button v-if="isAdmin && slots.length"
           @click="sendLineupToTelegram" :disabled="telegram.sending.value"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-sky-500/30 hover:border-sky-500/60 text-sky-400 hover:text-sky-300 rounded-lg transition-colors inline-flex items-center gap-1.5 disabled:opacity-50">
