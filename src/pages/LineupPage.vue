@@ -32,6 +32,8 @@ const showSlotConfigurator = ref(false)
 const showSlotRequestModal = ref(false)
 const requestsCollapsed = ref(false)
 const actionsExpanded = ref(false)
+const alliesExpanded = ref(false)
+const enemiesExpanded = ref(false)
 const editingPersonalTask = ref(null) // slotIndex being edited
 const personalTaskDraft = ref('')
 
@@ -490,140 +492,159 @@ async function sendSlotNotification(slot, slotIdx) {
         </div>
       </div>
 
-      <div class="p-4">
-        <!-- Desktop: single row layout -->
-        <!-- Tablet: 2-column grid -->
-        <!-- Mobile: stacked card -->
-        <div class="flex flex-col sm:grid sm:grid-cols-[1fr_auto] sm:gap-x-6 sm:gap-y-2 lg:flex lg:flex-row lg:items-center lg:gap-6">
-
-          <!-- Title + meta -->
-          <div class="flex items-start justify-between gap-2 sm:col-span-2 lg:contents">
-            <div class="min-w-0 lg:flex lg:items-center lg:gap-3 lg:shrink-0">
-              <h3 class="text-sm font-bold text-white truncate">{{ currentMission.title }}</h3>
-              <div class="flex items-center gap-2 mt-1 lg:mt-0 text-xs text-neutral-400">
-                <span class="flex items-center gap-1">
-                  <svg class="w-3 h-3 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                  </svg>
-                  {{ currentMission.map }}
-                </span>
-                <span class="text-neutral-700">|</span>
-                <span>{{ currentMission.sides.reduce((s, side) => s + (side.players || 0), 0) }} игроков</span>
-              </div>
-            </div>
-            <div v-if="currentMission.version" class="shrink-0 text-[10px] px-1.5 py-0.5 bg-neutral-800 rounded text-neutral-500 font-mono lg:order-last">
-              v{{ currentMission.version }}
-            </div>
-          </div>
-
-          <!-- Divider: visible on desktop only -->
-          <div class="hidden lg:block w-px h-8 bg-neutral-800"></div>
-
-          <!-- Sides -->
-          <div class="mt-3 sm:mt-0">
-            <template v-if="missionsStore.getGroupedSides(currentMission, squadConfig.side)">
-              <div class="space-y-2 sm:space-y-1.5 lg:flex lg:items-center lg:gap-5 lg:space-y-0">
-                <!-- Allies -->
-                <div v-if="missionsStore.getGroupedSides(currentMission, squadConfig.side).ally.length">
-                  <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1 lg:hidden">Союзники</div>
-                  <div class="space-y-0.5 lg:flex lg:items-center lg:gap-3 lg:space-y-0">
-                    <span class="hidden lg:inline text-[10px] uppercase tracking-wider text-neutral-500">Союзники</span>
-                    <div v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).ally" :key="side.name"
-                      class="flex items-center justify-between text-xs lg:gap-1.5">
-                      <div class="flex items-center gap-1.5">
-                        <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
-                        <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
-                        <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
-                        <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
-                      </div>
-                      <span class="font-mono text-neutral-500 ml-2">{{ side.players }}</span>
-                    </div>
-                  </div>
-                </div>
-                <!-- Enemies -->
-                <div v-if="missionsStore.getGroupedSides(currentMission, squadConfig.side).enemy.length">
-                  <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1 lg:hidden">Противники</div>
-                  <div class="space-y-0.5 lg:flex lg:items-center lg:gap-3 lg:space-y-0">
-                    <span class="hidden lg:inline text-[10px] uppercase tracking-wider text-neutral-500">Противники</span>
-                    <div v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).enemy" :key="side.name"
-                      class="flex items-center justify-between text-xs lg:gap-1.5">
-                      <div class="flex items-center gap-1.5">
-                        <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
-                        <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
-                        <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
-                        <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
-                      </div>
-                      <span class="font-mono text-neutral-500 ml-2">{{ side.players }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="space-y-0.5 lg:flex lg:items-center lg:gap-3 lg:space-y-0">
-                <div v-for="side in currentMission.sides" :key="side.name"
-                  class="flex items-center justify-between text-xs lg:gap-1.5">
-                  <div class="flex items-center gap-1.5">
-                    <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
-                    <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'">{{ side.name }}</span>
-                    <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
-                  </div>
-                  <span class="font-mono text-neutral-500 ml-2">{{ side.players }}</span>
-                </div>
-              </div>
-            </template>
-          </div>
-
-          <!-- Gallery + link -->
-          <div class="mt-3 sm:mt-0 sm:col-start-2 sm:row-start-1 sm:row-span-2 flex items-center gap-2 lg:ml-auto lg:shrink-0">
-            <button v-if="allyGalleryImages.length"
-              @click="openGallery(allyGalleryImages, 0, 'Союзники')"
-              :style="galleryBtnStyle(allySides)"
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span class="text-xs font-medium">Союзники</span>
-              <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
-            </button>
-            <button v-if="enemyGalleryImages.length"
-              @click="openGallery(enemyGalleryImages, 0, 'Противники')"
-              :style="galleryBtnStyle(enemySides)"
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span class="text-xs font-medium">Противники</span>
-              <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
-            </button>
-            <button v-if="galleryImages.length && !allySides.length"
-              @click="openGallery(galleryImages)"
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-delta-green/15 text-delta-green hover:bg-delta-green/25 border border-delta-green/30 transition-colors">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span class="text-xs font-medium">Галерея</span>
-              <span class="text-[10px] font-mono opacity-70">{{ galleryImages.length }}</span>
-            </button>
-            <a v-if="currentMission.sourceUrl" :href="currentMission.sourceUrl" target="_blank" rel="noopener"
-              class="text-neutral-600 hover:text-neutral-400 transition-colors text-xs">
-              tsgames.ru →
-            </a>
-          </div>
-        </div>
-
-        <!-- Vehicles + description -->
-        <div v-if="currentMission.sides.some(s => s.vehicles)" class="mt-3 pt-3 border-t border-neutral-800/50">
-          <div class="flex items-center gap-1 text-[10px] text-neutral-600">
-            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      <!-- Row 1: General mission info -->
+      <div class="px-4 pt-3 pb-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-neutral-800/50">
+        <h3 class="text-sm font-bold text-white">{{ currentMission.title }}</h3>
+        <div class="flex items-center gap-2 text-xs text-neutral-400">
+          <span class="flex items-center gap-1">
+            <svg class="w-3 h-3 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
             </svg>
-            <span>Техника задействована</span>
-          </div>
+            {{ currentMission.map }}
+          </span>
+          <span class="text-neutral-700">|</span>
+          <span>{{ currentMission.sides.reduce((s, side) => s + (side.players || 0), 0) }} слотов</span>
         </div>
-        <div v-if="currentMission.description" class="mt-2 text-[11px] text-neutral-500 line-clamp-2 leading-relaxed">
+        <div v-if="currentMission.version" class="text-[10px] px-1.5 py-0.5 bg-neutral-800 rounded text-neutral-500 font-mono">
+          v{{ currentMission.version }}
+        </div>
+        <a v-if="currentMission.sourceUrl" :href="currentMission.sourceUrl" target="_blank" rel="noopener"
+          class="ml-auto text-neutral-600 hover:text-neutral-400 transition-colors text-xs">
+          tsgames.ru →
+        </a>
+        <div v-if="currentMission.description" class="w-full text-[11px] text-neutral-500 line-clamp-2 leading-relaxed mt-1">
           {{ currentMission.description }}
         </div>
+      </div>
+
+      <!-- Row 2: Sides — two columns on sm+, stacked collapsible on mobile -->
+      <div class="grid grid-cols-1 sm:grid-cols-2">
+        <!-- Helper: side panel macro via v-for over grouped teams -->
+        <template v-if="missionsStore.getGroupedSides(currentMission, squadConfig.side)">
+          <!-- Allies panel -->
+          <div class="p-3 sm:border-r border-neutral-800/50"
+            :style="{ borderTopColor: `rgba(${(SIDE_COLORS[allySides[0]?.color] || {}).raw || '163,163,163'}, 0.15)` }">
+            <button @click="alliesExpanded = !alliesExpanded"
+              class="sm:pointer-events-none flex items-center justify-between w-full group/hdr">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] uppercase tracking-wider font-medium"
+                  :class="SIDE_COLORS[allySides[0]?.color]?.text || 'text-neutral-500'">Союзники</span>
+                <span class="text-[10px] font-mono text-neutral-600">
+                  {{ missionsStore.getGroupedSides(currentMission, squadConfig.side).ally.reduce((s, side) => s + (side.players || 0), 0) }}
+                </span>
+              </div>
+              <svg class="w-3.5 h-3.5 text-neutral-600 transition-transform sm:hidden"
+                :class="{ 'rotate-180': alliesExpanded }" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <div :class="[alliesExpanded ? 'block' : 'hidden sm:block', 'mt-2 space-y-1.5']">
+              <div v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).ally" :key="side.name"
+                class="text-xs">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
+                    <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'" class="font-medium">{{ side.name }}</span>
+                    <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
+                  </div>
+                  <span class="font-mono text-neutral-500">{{ side.players }}</span>
+                </div>
+                <div v-if="side.role && side.role !== 'Неопределено'" class="ml-3.5 text-[11px] text-neutral-600">{{ side.role }}</div>
+                <div v-if="side.vehicles" class="ml-3.5 mt-0.5 flex items-center gap-1 text-[10px] text-neutral-600">
+                  <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span>{{ side.vehicles }}</span>
+                </div>
+              </div>
+              <button v-if="allyGalleryImages.length"
+                @click="openGallery(allyGalleryImages, 0, 'Союзники')"
+                :style="galleryBtnStyle(allySides)"
+                class="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80 text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="font-medium">Галерея</span>
+                <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Enemies panel -->
+          <div class="p-3 border-t sm:border-t-0 border-neutral-800/50">
+            <button @click="enemiesExpanded = !enemiesExpanded"
+              class="sm:pointer-events-none flex items-center justify-between w-full group/hdr">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] uppercase tracking-wider font-medium"
+                  :class="SIDE_COLORS[enemySides[0]?.color]?.text || 'text-neutral-500'">Противники</span>
+                <span class="text-[10px] font-mono text-neutral-600">
+                  {{ missionsStore.getGroupedSides(currentMission, squadConfig.side).enemy.reduce((s, side) => s + (side.players || 0), 0) }}
+                </span>
+              </div>
+              <svg class="w-3.5 h-3.5 text-neutral-600 transition-transform sm:hidden"
+                :class="{ 'rotate-180': enemiesExpanded }" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <div :class="[enemiesExpanded ? 'block' : 'hidden sm:block', 'mt-2 space-y-1.5']">
+              <div v-for="side in missionsStore.getGroupedSides(currentMission, squadConfig.side).enemy" :key="side.name"
+                class="text-xs">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
+                    <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'" class="font-medium">{{ side.name }}</span>
+                    <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
+                  </div>
+                  <span class="font-mono text-neutral-500">{{ side.players }}</span>
+                </div>
+                <div v-if="side.role && side.role !== 'Неопределено'" class="ml-3.5 text-[11px] text-neutral-600">{{ side.role }}</div>
+                <div v-if="side.vehicles" class="ml-3.5 mt-0.5 flex items-center gap-1 text-[10px] text-neutral-600">
+                  <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                  <span>{{ side.vehicles }}</span>
+                </div>
+              </div>
+              <button v-if="enemyGalleryImages.length"
+                @click="openGallery(enemyGalleryImages, 0, 'Противники')"
+                :style="galleryBtnStyle(enemySides)"
+                class="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80 text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="font-medium">Галерея</span>
+                <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Fallback: no grouped sides — single flat panel -->
+        <template v-else>
+          <div class="p-3 sm:col-span-2">
+            <div class="space-y-1.5">
+              <div v-for="side in currentMission.sides" :key="side.name" class="text-xs">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-1.5">
+                    <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
+                    <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'" class="font-medium">{{ side.name }}</span>
+                    <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
+                  </div>
+                  <span class="font-mono text-neutral-500">{{ side.players }}</span>
+                </div>
+              </div>
+            </div>
+            <button v-if="galleryImages.length"
+              @click="openGallery(galleryImages)"
+              class="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-delta-green/15 text-delta-green hover:bg-delta-green/25 border border-delta-green/30 transition-colors text-xs">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span class="font-medium">Галерея</span>
+              <span class="text-[10px] font-mono opacity-70">{{ galleryImages.length }}</span>
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
