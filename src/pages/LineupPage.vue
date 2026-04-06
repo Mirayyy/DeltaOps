@@ -981,7 +981,7 @@ async function sendSlotNotification(slot, slotIdx) {
 
             <!-- Mobile player dropdown -->
             <div v-if="editingSlot === row.idx"
-              class="mt-2 bg-neutral-800 border border-neutral-700 rounded-lg max-h-48 overflow-y-auto">
+              class="relative z-30 mt-2 bg-neutral-800 border border-neutral-700 rounded-lg max-h-48 overflow-y-auto">
               <button v-if="row.slot.playerId" @click="unassign(row.idx)"
                 class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-neutral-700 border-b border-neutral-700">
                 Убрать
