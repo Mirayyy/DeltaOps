@@ -1137,10 +1137,11 @@ async function sendSlotNotification(slot, slotIdx) {
       <textarea v-if="isAdmin"
         :value="gamesStore.getGame(activeTab)?.task || ''"
         @blur="gamesStore.setTask(activeTab, $event.target.value)"
+        @input="$event.target.style.height = 'auto'; $event.target.style.height = $event.target.scrollHeight + 'px'"
         @keydown.ctrl.enter="$event.target.blur()"
-        rows="2"
+        rows="1"
         placeholder="Опишите задачу для расстановки..."
-        class="w-full bg-transparent border border-neutral-800 hover:border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none transition-colors"></textarea>
+        class="w-full bg-transparent border border-neutral-800 hover:border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none overflow-hidden transition-colors"></textarea>
       <p v-else class="text-sm text-neutral-300">{{ gamesStore.getGame(activeTab).task }}</p>
     </div>
 
@@ -1159,9 +1160,10 @@ async function sendSlotNotification(slot, slotIdx) {
         </div>
         <textarea
           v-model="personalTaskDraft"
-          rows="2"
+          rows="1"
           placeholder="Опишите личную задачу..."
-          class="w-full bg-neutral-900 border border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none transition-colors"
+          class="w-full bg-neutral-900 border border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none overflow-hidden transition-colors"
+          @input="$event.target.style.height = 'auto'; $event.target.style.height = $event.target.scrollHeight + 'px'"
           @keydown.ctrl.enter="savePersonalTask(editingPersonalTask)"
         ></textarea>
         <div class="flex justify-end gap-2 mt-2">
