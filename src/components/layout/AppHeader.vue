@@ -16,7 +16,7 @@ async function handleLogout() {
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 header-glass border-b border-neutral-800/60 px-4 py-2.5 flex items-center justify-between">
+  <header class="sticky top-0 z-40 h-12 header-glass border-b border-neutral-800/60 px-4 flex items-center justify-between">
     <router-link to="/" class="flex items-center gap-3 group">
       <div class="relative">
         <div class="absolute inset-0 bg-orange-500/20 rounded-full blur-md scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

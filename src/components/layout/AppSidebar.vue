@@ -68,16 +68,11 @@ const ICON_PATHS = {
     @mouseenter="hovered = true"
     @mouseleave="hovered = false"
     :class="[
-      'sticky top-[49px] h-[calc(100vh-49px)] sidebar-bg border-r border-neutral-800/60 flex flex-col shrink-0 transition-[width] duration-200 overflow-x-hidden overflow-y-auto',
+      'sticky top-12 h-[calc(100vh-3rem)] sidebar-bg border-r border-neutral-800/60 flex flex-col shrink-0 transition-[width] duration-200 overflow-x-hidden overflow-y-auto',
       expanded ? 'w-56 p-3' : 'w-[68px] p-3',
     ]"
   >
-    <!-- Main nav label -->
-    <div v-if="expanded" class="px-3 mb-2 mt-1">
-      <span class="text-[9px] font-semibold tracking-[0.2em] uppercase text-neutral-600">Меню</span>
-    </div>
-
-    <div class="flex flex-col gap-0.5">
+    <div class="flex flex-col gap-0.5 mt-1">
       <router-link
         v-for="item in mainItems"
         :key="item.name"
