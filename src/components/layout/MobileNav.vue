@@ -100,7 +100,6 @@ const ICON_PATHS = {
   background: rgba(18, 18, 18, 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  position: relative;
 }
 
 .nav-scroll {
