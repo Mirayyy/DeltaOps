@@ -546,10 +546,10 @@ async function sendSlotNotification(slot, slotIdx) {
                     <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
                     <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'" class="font-medium">{{ side.name }}</span>
                     <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
+                    <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
                   </div>
                   <span class="font-mono text-neutral-500">{{ side.players }}</span>
                 </div>
-                <div v-if="side.role && side.role !== 'Неопределено'" class="ml-3.5 text-[11px] text-neutral-600">{{ side.role }}</div>
                 <div v-if="side.vehicles" class="ml-3.5 mt-0.5 flex items-center gap-1 text-[10px] text-neutral-600">
                   <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -594,10 +594,10 @@ async function sendSlotNotification(slot, slotIdx) {
                     <span :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full shrink-0']"></span>
                     <span :class="SIDE_COLORS[side.color]?.text || 'text-neutral-400'" class="font-medium">{{ side.name }}</span>
                     <span v-if="missionsStore.getSideFaction(currentMission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(currentMission, side.color) }}</span>
+                    <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
                   </div>
                   <span class="font-mono text-neutral-500">{{ side.players }}</span>
                 </div>
-                <div v-if="side.role && side.role !== 'Неопределено'" class="ml-3.5 text-[11px] text-neutral-600">{{ side.role }}</div>
                 <div v-if="side.vehicles" class="ml-3.5 mt-0.5 flex items-center gap-1 text-[10px] text-neutral-600">
                   <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
