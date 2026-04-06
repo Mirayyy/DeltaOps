@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
@@ -286,7 +286,21 @@ function closeAllPopups() {
   showEquipmentMenu.value = null
   showTypeMenu.value = null
   dropdownUp.value = {}
+  dropdownPos.value = {}
 }
+
+function onScrollClosePopups() {
+  if (editingSlot.value !== null || showEquipmentMenu.value !== null || showTypeMenu.value !== null) {
+    closeAllPopups()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('scroll', onScrollClosePopups, true)
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', onScrollClosePopups, true)
+})
 
 // Personal tasks
 function startEditPersonalTask(slotIndex) {
@@ -852,7 +866,7 @@ async function sendSlotNotification(slot, slotIdx) {
                   <!-- Equipment dropdown -->
                   <div v-if="showEquipmentMenu === row.idx"
                     :data-dropdown="'eq-' + row.idx"
-                    class="fixed bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 min-w-40"
+                    class="fixed bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 p-2 min-w-40 max-h-64 overflow-y-auto"
                     :style="dropdownPos['eq-' + row.idx]"
                     @click.stop>
                     <div v-for="eq in squadConfig.equipmentNames" :key="eq"
@@ -1047,7 +1061,7 @@ async function sendSlotNotification(slot, slotIdx) {
               </button>
               <!-- Mobile equipment dropdown -->
               <div v-if="showEquipmentMenu === row.idx"
-                class="relative z-30 w-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl p-2">
+                class="relative z-30 w-full mt-1 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl p-2 max-h-48 overflow-y-auto">
                 <div v-for="eq in squadConfig.equipmentNames" :key="eq"
                   class="px-2 py-1 hover:bg-neutral-700 rounded">
                   <BaseCheckbox
