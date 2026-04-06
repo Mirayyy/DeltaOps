@@ -1,12 +1,31 @@
 <script setup>
-import { ref, computed, h } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
-const collapsed = ref(false)
+const collapsed = ref(true)
+const manualToggle = ref(false)
 const hovered = ref(false)
+
+// Responsive: lg+ → expanded, md–lg → collapsed
+const lgQuery = window.matchMedia('(min-width: 1024px)')
+
+function onBreakpointChange(e) {
+  if (!manualToggle.value) {
+    collapsed.value = !e.matches
+  }
+}
+
+onMounted(() => {
+  collapsed.value = !lgQuery.matches
+  lgQuery.addEventListener('change', onBreakpointChange)
+})
+
+onBeforeUnmount(() => {
+  lgQuery.removeEventListener('change', onBreakpointChange)
+})
 
 const navItems = [
   { name: 'profile', label: 'Профиль', icon: 'user', roles: ['member', 'admin'] },
@@ -49,7 +68,7 @@ const ICON_PATHS = {
     @mouseenter="hovered = true"
     @mouseleave="hovered = false"
     :class="[
-      'sticky top-[49px] h-[calc(100vh-49px)] sidebar-bg border-r border-neutral-800/60 flex flex-col shrink-0 transition-all duration-200 overflow-x-hidden overflow-y-auto',
+      'sticky top-[49px] h-[calc(100vh-49px)] sidebar-bg border-r border-neutral-800/60 flex flex-col shrink-0 transition-[width] duration-200 overflow-x-hidden overflow-y-auto',
       expanded ? 'w-56 p-3' : 'w-[68px] p-3',
     ]"
   >
@@ -124,7 +143,7 @@ const ICON_PATHS = {
 
     <!-- Collapse toggle -->
     <button
-      @click="collapsed = !collapsed"
+      @click="collapsed = !collapsed; manualToggle = true"
       :class="[
         'mt-auto flex items-center rounded-lg text-sm text-neutral-600 hover:text-neutral-400 transition-colors whitespace-nowrap',
         expanded ? 'gap-3 px-3 py-2' : 'justify-center px-2 py-2',

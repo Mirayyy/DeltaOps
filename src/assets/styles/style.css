@@ -1,0 +1,362 @@
+/* ════════════════════════════════════════════════════════════════
+   DeltaOps — Design Tokens & Component Reference
+   ════════════════════════════════════════════════════════════════
+
+   Справочный файл дизайн-системы.
+   НЕ импортируется в приложение — служит референсом для разработки.
+   Все рабочие стили находятся в main.css.
+
+   Структура:
+   1. CSS Variables (токены)
+   2. Surfaces & Backgrounds
+   3. Typography Scale
+   4. Component Recipes (copy-paste ready)
+   5. Layout Patterns
+   6. Responsive Patterns
+   ════════════════════════════════════════════════════════════════ */
+
+
+/* ─── 1. CSS VARIABLES (Design Tokens) ─── */
+
+:root {
+  /* === Core Palette === */
+  --bg-app:             #0f0f0f;
+  --bg-surface:         #1a1a1a;
+  --bg-surface-alt:     #191919;
+  --bg-elevated:        #171717;   /* header/sidebar base (before opacity) */
+
+  --border-default:     #2e2e2e;
+  --border-hover:       #444444;
+  --border-subtle:      rgba(38, 38, 38, 0.6);  /* neutral-800/60 */
+  --border-faint:       rgba(38, 38, 38, 0.5);  /* neutral-800/50 (table rows) */
+
+  --text-primary:       #e5e5e5;
+  --text-secondary:     #d4d4d4;
+  --text-muted:         #a3a3a3;   /* neutral-400 */
+  --text-dim:           #525252;   /* neutral-600 — placeholders */
+  --text-faint:         #404040;   /* neutral-700 — hints */
+
+  /* === Accent === */
+  --accent:             #f97316;   /* orange-500 — primary interactive color */
+  --accent-hover:       #fb923c;   /* orange-400 */
+  --accent-subtle:      rgba(249, 115, 22, 0.1);
+  --accent-bg:          rgba(249, 115, 22, 0.03);  /* ambient glow */
+  --accent-focus-ring:  rgba(249, 115, 22, 0.5);
+  --accent-focus-shadow: rgba(249, 115, 22, 0.15);
+
+  /* === Semantic: Status === */
+  --status-confirmed:   #22c55e;   /* green — Буду */
+  --status-tentative:   #eab308;   /* yellow — Возможно */
+  --status-absent:      #ef4444;   /* red — Не буду */
+  --status-no-response: #6b7280;   /* gray — Не ответил */
+
+  /* === Semantic: Skill Levels === */
+  --skill-experienced:  #22c55e;
+  --skill-intermediate: #eab308;
+  --skill-beginner:     #6b7280;
+
+  /* === Semantic: Game Sides === */
+  --side-blue:          #3b82f6;   /* blue-500 */
+  --side-blue-text:     #60a5fa;   /* blue-400 */
+  --side-red:           #ef4444;   /* red-500 */
+  --side-red-text:      #f87171;   /* red-400 */
+  --side-green:         #10b981;   /* emerald-500 */
+  --side-green-text:    #34d399;   /* emerald-400 */
+
+  /* === Brand: Olive (military) === */
+  --olive-400:          #a3b763;
+  --olive-500:          #8a9a4e;
+  --olive-600:          #6b7a3a;
+  --olive-900:          #2d3518;
+
+  /* === Supplementary === */
+  --amber-500:          #f59e0b;
+  --amber-600:          #d97706;
+  --telegram-blue:      #38bdf8;
+
+  /* === Glassmorphism === */
+  --glass-header:       rgba(23, 23, 23, 0.85);
+  --glass-sidebar-top:  rgba(23, 23, 23, 0.95);
+  --glass-sidebar-bottom: rgba(18, 18, 18, 0.98);
+  --glass-mobile-nav:   rgba(18, 18, 18, 0.9);
+  --glass-blur:         12px;
+
+  /* === Spacing (reference) === */
+  --sidebar-width:      14rem;     /* w-56 = 224px */
+  --sidebar-collapsed:  68px;      /* w-[68px] */
+  --header-height:      49px;      /* implicit from py-2.5 + content */
+  --content-padding:    1rem;      /* p-4 mobile */
+  --content-padding-md: 1.5rem;    /* p-6 desktop */
+
+  /* === Z-Index Scale === */
+  --z-content:          10;
+  --z-header:           40;
+  --z-mobile-nav:       50;
+  --z-modal:            50;
+  --z-toast:            100;
+  --z-lightbox:         100;
+  --z-dropdown:         9999;
+
+  /* === Border Radius === */
+  --radius-sm:          0.25rem;   /* rounded */
+  --radius-md:          0.5rem;    /* rounded-lg */
+  --radius-lg:          0.75rem;   /* rounded-xl */
+  --radius-full:        9999px;    /* rounded-full */
+
+  /* === Transitions === */
+  --transition-fast:    0.1s ease;
+  --transition-default: 0.15s ease;
+  --transition-medium:  0.2s ease;
+  --transition-slow:    0.3s ease;
+}
+
+
+/* ─── 2. SURFACES & BACKGROUNDS ─── */
+
+/* App background with subtle radial gradients */
+/*
+.app-bg {
+  background: var(--bg-app);
+  background-image:
+    radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(138, 154, 78, 0.02) 0%, transparent 50%);
+}
+*/
+
+/* Glassmorphism surfaces */
+/*
+.glass-header {
+  background: var(--glass-header);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.glass-sidebar {
+  background: linear-gradient(180deg, var(--glass-sidebar-top), var(--glass-sidebar-bottom));
+}
+
+.glass-mobile-nav {
+  background: var(--glass-mobile-nav);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+*/
+
+/* Ambient glow (decorative, fixed positioned) */
+/*
+.ambient-glow {
+  pointer-events: none;
+  position: fixed;
+  top: 0; right: 0;
+  width: 500px; height: 500px;
+  background: rgba(249, 115, 22, 0.02);
+  border-radius: 50%;
+  filter: blur(150px);
+}
+*/
+
+
+/* ─── 3. TYPOGRAPHY SCALE ─── */
+
+/*
+  Size Scale (Tailwind classes → px):
+  ─────────────────────────────────
+  text-[10px]  → 10px   Mobile nav labels, tiny badges
+  text-xs      → 12px   Badges, meta, section labels
+  text-[13px]  → 13px   Sidebar nav text
+  text-sm      → 14px   Default UI text, inputs, buttons
+  text-base    → 16px   Section headers
+  text-lg      → 18px   Modal titles
+  text-xl      → 20px   Page titles
+  text-2xl     → 24px   Large titles
+  text-3xl     → 30px   Hero sub
+  text-5xl     → 48px   Hero medium
+  text-7xl     → 72px   Hero large
+
+  Weight Scale:
+  ─────────────
+  font-normal    → 400   Body text
+  font-medium    → 500   Badges, labels
+  font-semibold  → 600   Buttons, nav, subheadings
+  font-bold      → 700   Headings, header name
+  font-black     → 900   Hero title only
+
+  Letter Spacing:
+  ───────────────
+  tracking-wide        → 0.025em   Header name
+  tracking-wider       → 0.05em    Labels
+  tracking-[0.15em]    → Custom    Hero title
+  tracking-[0.2em]     → Custom    Sidebar section labels
+  tracking-[0.35em]    → Custom    Landing subtitle
+*/
+
+
+/* ─── 4. COMPONENT RECIPES ─── */
+
+/* --- Card --- */
+/*
+  Base:    bg-neutral-900 border border-neutral-800 rounded-xl p-4
+  Hover:   + hover:border-neutral-700 transition-all card-hover
+  Active:  + border-orange-500/30 bg-orange-500/[0.03]
+*/
+
+/* --- Button: Primary --- */
+/*
+  bg-orange-600/90 hover:bg-orange-500 text-white
+  px-8 py-3 rounded-lg font-semibold transition-colors
+  disabled:opacity-50 disabled:cursor-not-allowed
+*/
+
+/* --- Button: Secondary --- */
+/*
+  bg-transparent border border-neutral-600/40
+  hover:border-neutral-500/60 text-neutral-300 hover:text-white
+  px-6 py-3 rounded-lg transition-colors
+*/
+
+/* --- Button: Tertiary / Ghost --- */
+/*
+  text-neutral-500 hover:text-neutral-300
+  text-xs px-2 py-1.5 rounded
+  hover:bg-neutral-800/50 transition-colors
+*/
+
+/* --- Input (all types) --- */
+/*
+  bg-[#1a1a1a] border border-[#2e2e2e] rounded-lg
+  px-3 py-2 text-sm text-neutral-200
+  placeholder:text-neutral-600
+  hover:border-[#444]
+  focus:border-orange-500 focus:ring-1 focus:ring-orange-500/15
+  focus:outline-none
+*/
+
+/* --- Modal Overlay --- */
+/*
+  Overlay: fixed inset-0 z-50 bg-black/60
+  Box:     bg-neutral-900 border border-neutral-700 rounded-xl
+           shadow-2xl max-w-md (or max-w-2xl)
+           max-h-[calc(100vh-2rem)] overflow-y-auto
+  Header:  px-5 py-4 border-b border-neutral-800
+  Body:    p-5
+*/
+
+/* --- Badge: Status --- */
+/*
+  rounded-full text-white font-medium inline-block
+  text-xs px-2 py-0.5 (sm) | text-sm px-3 py-1 (md)
+  + color class from PLAYER_STATUSES
+*/
+
+/* --- Badge: Equipment --- */
+/*
+  rounded text-xs px-2 py-0.5 text-white font-medium
+  + dynamic bg color from config store
+*/
+
+/* --- Toast Notification --- */
+/*
+  fixed top-4 right-4 z-[100]
+  px-4 py-2.5 rounded-lg border text-sm text-white
+  shadow-xl backdrop-blur max-w-sm
+  Types: success → bg-green-600/90 border-green-500
+         error   → bg-red-600/90 border-red-500
+         warning → bg-amber-600/90 border-amber-500
+         info    → bg-neutral-700/90 border-neutral-600
+*/
+
+/* --- Table Row --- */
+/*
+  Header: text-xs text-neutral-500 font-medium px-4 py-2
+  Body:   border-b border-neutral-800/50
+          hover:bg-neutral-800/30 transition-colors
+          px-4 py-2.5
+*/
+
+/* --- Sidebar Nav Item --- */
+/*
+  Default: text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50
+  Active:  bg-orange-500/10 text-orange-400
+           + left indicator: w-[3px] h-4 bg-orange-500 rounded-r
+  Icon:    w-7 h-7 rounded-md bg-neutral-800/60
+           Active icon: bg-orange-500/15 text-orange-400
+*/
+
+/* --- Loading Spinner --- */
+/*
+  w-8 h-8 border-2 border-neutral-700 border-t-[#f97316]
+  rounded-full animate-spin
+*/
+
+
+/* ─── 5. LAYOUT PATTERNS ─── */
+
+/* --- Page Layout (authenticated) ---
+  <div class="min-h-screen flex flex-col app-bg">
+    <AppHeader />                                    sticky top-0 z-40
+    <div class="flex flex-1">
+      <AppSidebar class="hidden md:flex" />          sticky, sidebar
+      <main class="flex-1 p-4 md:p-6 overflow-auto">
+        <router-view />
+      </main>
+    </div>
+    <MobileNav class="md:hidden" />                  fixed bottom-0 z-50
+  </div>
+*/
+
+/* --- Page Content Template ---
+  <div class="max-w-4xl mx-auto">                   or max-w-6xl, or full width
+    <h1 class="text-2xl font-bold mb-6">Title</h1>
+    <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-5">
+      ...
+    </div>
+  </div>
+*/
+
+/* --- Section with Header ---
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-lg font-semibold">Section</h2>
+    <button class="text-xs text-orange-400 hover:text-orange-300">Action</button>
+  </div>
+*/
+
+
+/* ─── 6. RESPONSIVE PATTERNS ─── */
+
+/*
+  === Grid Responsive ===
+  grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4
+  grid grid-cols-2 md:grid-cols-4 gap-3
+
+  === Flex Responsive ===
+  flex flex-col sm:flex-row items-center justify-between gap-3
+
+  === Visibility ===
+  hidden md:flex       — desktop only
+  md:hidden            — mobile only
+  hidden sm:block      — hide on very small screens
+
+  === Padding ===
+  p-4 md:p-6           — tighter on mobile
+  px-3 md:px-5         — horizontal padding
+
+  === Text ===
+  text-sm md:text-base — scale up on desktop
+  text-xs sm:text-sm   — tiny → small
+
+  === Width ===
+  w-full md:w-auto     — full on mobile, auto on desktop
+  max-w-sm md:max-w-md — constrained widths
+*/
+
+
+/* ════════════════════════════════════════════════════════════════
+   КОНЕЦ СПРАВОЧНИКА
+
+   При создании нового компонента:
+   1. Используй Tailwind utility classes
+   2. Следуй цветовой палитре из этого файла
+   3. Кастомный CSS — только в <style scoped> для уникальных эффектов
+   4. Проверяй на mobile (< md) и desktop (md+)
+   5. Z-index — по шкале выше
+   ════════════════════════════════════════════════════════════════ */

@@ -367,16 +367,16 @@ async function saveTelegramId() {
     <!-- Player awards -->
     <div v-if="playerAwards.length" class="bg-neutral-900 rounded-xl border border-neutral-800 p-6 mb-4">
       <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-4">Достижения</h3>
-      <div class="flex flex-wrap gap-3">
+      <div class="flex flex-col gap-3">
         <div v-for="award in playerAwards" :key="award._id"
-          class="flex items-center gap-3 bg-neutral-800/50 rounded-lg px-4 py-3 border border-neutral-700/40">
+          class="flex items-start gap-3 bg-neutral-800/50 rounded-lg px-4 py-3 border border-neutral-700/40 min-w-0">
           <div class="w-10 h-10 shrink-0 flex items-center justify-center">
             <img v-if="award.icon" :src="award.icon" :alt="award.title" class="w-8 h-8 object-contain" />
             <span v-else class="text-neutral-600 text-lg">★</span>
           </div>
           <div class="min-w-0">
             <div class="text-sm font-medium text-white">{{ award.title }}</div>
-            <div class="text-xs text-neutral-400 truncate">{{ award.description }}</div>
+            <div class="text-xs text-neutral-400 break-words">{{ award.description }}</div>
           </div>
         </div>
       </div>
@@ -394,7 +394,6 @@ async function saveTelegramId() {
           :game-date="game.date"
           :current-status="playerReadiness[game.id] || 'no_response'"
           :disabled="!canEditReadiness"
-          :slot-info="getSlotInfo(game.id)"
           @change="handleReadinessChange"
         />
       </div>
@@ -566,10 +565,7 @@ async function saveTelegramId() {
                 <th class="text-left px-3 py-2.5 font-medium" style="width:9rem">Отделение</th>
                 <th class="text-left px-3 py-2.5 font-medium w-8">#</th>
                 <th class="text-left px-3 py-2.5 font-medium" style="width:12rem">Название</th>
-                <th class="text-left px-3 py-2.5 font-medium" style="width:7rem">Тип</th>
-                <th class="text-left px-3 py-2.5 font-medium w-14">ФТ</th>
                 <th class="text-left px-3 py-2.5 font-medium" style="min-width:8rem">Снаряжение</th>
-                <th class="text-left px-3 py-2.5 font-medium">Заметки</th>
               </tr>
             </thead>
             <tbody>
@@ -594,35 +590,12 @@ async function saveTelegramId() {
                 <td class="px-3 py-2.5 font-mono text-xs text-neutral-500">{{ row.slot.number }}</td>
                 <!-- Slot name -->
                 <td class="px-3 py-2.5 truncate text-neutral-200" :title="row.slot.name">{{ row.slot.name }}</td>
-                <!-- Type -->
-                <td class="px-3 py-2.5">
-                  <span v-if="row.slot.type"
-                    :class="[
-                      'px-2 py-0.5 rounded text-xs border inline-block',
-                      SLOT_TYPE_STYLES[row.slot.type] || 'bg-neutral-700 text-neutral-400 border-neutral-600'
-                    ]">
-                    {{ SLOT_TYPES[row.slot.type]?.label || '—' }}
-                  </span>
-                  <span v-else class="text-neutral-600 text-xs">—</span>
-                </td>
-                <!-- Fireteam -->
-                <td class="px-3 py-2.5">
-                  <span v-if="row.slot.fireteam"
-                    :class="['px-1.5 py-0.5 rounded text-xs font-mono border inline-block', ftColor(row.slot.fireteam)]">
-                    {{ row.slot.fireteam }}
-                  </span>
-                  <span v-else class="text-neutral-600 text-xs">—</span>
-                </td>
                 <!-- Equipment -->
                 <td class="px-3 py-2.5">
                   <div class="flex flex-wrap gap-1">
                     <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
                     <span v-if="!(row.slot.equipment || []).length" class="text-neutral-600 text-xs">—</span>
                   </div>
-                </td>
-                <!-- Notes -->
-                <td class="px-3 py-2.5 text-xs text-neutral-500 truncate" :title="row.slot.notes">
-                  {{ row.slot.notes || '—' }}
                 </td>
               </tr>
             </tbody>
@@ -632,39 +605,23 @@ async function saveTelegramId() {
         <!-- Mobile cards -->
         <div v-if="slotHistoryRows.length" class="md:hidden divide-y divide-neutral-800/50">
           <div v-for="row in slotHistoryRows" :key="row.entry.id" class="px-4 py-3">
-            <!-- Date + schedule -->
-            <div class="flex items-center justify-between mb-2">
+            <!-- Row 1: Date (left) + Game (right, visible) -->
+            <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-mono text-neutral-400">{{ row.entry.date }}</span>
-              <span class="text-[10px] text-neutral-600">{{ scheduleLabel(row.entry.schedule) }}</span>
+              <span class="text-xs text-neutral-300 font-medium">{{ scheduleLabel(row.entry.schedule) }}</span>
             </div>
-            <!-- Side › Squad -->
-            <div class="flex items-center gap-1.5 mb-1.5">
-              <span :class="[SIDE_COLORS[guessSideColor(row.slot.side)]?.dot || 'bg-neutral-500', 'w-1.5 h-1.5 rounded-full']"></span>
-              <span :class="[SIDE_COLORS[guessSideColor(row.slot.side)]?.text || 'text-neutral-400', 'text-[10px] font-bold uppercase']">
-                {{ row.slot.side }}
-              </span>
-              <span class="text-neutral-600 text-[10px]">›</span>
-              <span class="text-xs text-neutral-300">{{ row.slot.squad }}</span>
+            <!-- Row 2: Side › Squad › Slot number -->
+            <div class="flex items-center gap-1 text-[11px] text-neutral-500 mb-0.5">
+              <span :class="[SIDE_COLORS[guessSideColor(row.slot.side)]?.text || 'text-neutral-400', 'font-medium']">{{ row.slot.side }}</span>
+              <span>›</span>
+              <span class="text-neutral-400">{{ row.slot.squad }}</span>
+              <span>›</span>
+              <span class="text-neutral-400">{{ row.slot.number }}</span>
             </div>
-            <!-- Slot name + details -->
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-mono text-neutral-500">{{ row.slot.number }}</span>
-                <span class="text-sm text-neutral-200">{{ row.slot.name }}</span>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <span v-if="row.slot.fireteam"
-                  :class="['px-1 py-0.5 rounded text-[10px] font-mono border', ftColor(row.slot.fireteam)]">
-                  {{ row.slot.fireteam }}
-                </span>
-                <span v-if="row.slot.type"
-                  :class="['px-1.5 py-0.5 rounded text-[10px] border', SLOT_TYPE_STYLES[row.slot.type] || 'bg-neutral-700 text-neutral-400 border-neutral-600']">
-                  {{ SLOT_TYPES[row.slot.type]?.label }}
-                </span>
-              </div>
-            </div>
-            <!-- Equipment row -->
-            <div v-if="(row.slot.equipment || []).length" class="flex flex-wrap gap-1 mt-2">
+            <!-- Row 3: Slot name -->
+            <div class="text-sm text-neutral-200">{{ row.slot.name }}</div>
+            <!-- Row 4: Equipment -->
+            <div v-if="(row.slot.equipment || []).length" class="flex flex-wrap gap-1 mt-1.5">
               <EquipmentTag v-for="eq in row.slot.equipment" :key="eq" :name="eq" />
             </div>
           </div>

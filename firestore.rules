@@ -68,10 +68,10 @@ service cloud.firestore {
       allow write: if isMember();
     }
 
-    // ─── Missions (Extension writes via REST API) ───
+    // ─── Missions (Extension writes via REST API, no auth) ───
     match /missions/{slot} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if true;
     }
 
     // ─── Rotations ───
