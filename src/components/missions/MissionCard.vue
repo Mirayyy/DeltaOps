@@ -8,6 +8,7 @@ const props = defineProps({
   mission: { type: Object, default: null },
   gameLabel: { type: String, default: '' },
   compact: { type: Boolean, default: false },
+  lineupStatus: { type: Object, default: null },
 })
 
 const emit = defineEmits(['click'])
@@ -133,6 +134,26 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
       <!-- Description (compact omits) -->
       <div v-if="!compact && mission.description" class="mt-2 text-[11px] text-neutral-500 line-clamp-2 leading-relaxed">
         {{ mission.description }}
+      </div>
+
+      <div v-if="!compact && lineupStatus" class="mt-3 pt-3 border-t border-neutral-800/50 space-y-1.5">
+        <div class="text-[11px] font-medium" :class="lineupStatus.configured ? 'text-delta-green' : 'text-neutral-500'">
+          {{ lineupStatus.configured ? 'Расстановка настроена' : 'Расстановка пуста' }}
+        </div>
+        <div class="text-[11px] text-neutral-500">
+          Слотов:
+          <span class="font-mono text-neutral-300">{{ lineupStatus.totalSlots }}</span>
+          <span class="text-neutral-600">
+            (Назначено
+            <span class="font-mono text-delta-green">{{ lineupStatus.assignedSlots }}</span>
+            /
+            <span class="font-mono text-neutral-400">{{ lineupStatus.freeSlots }}</span>)
+          </span>
+        </div>
+        <div class="text-[11px] text-neutral-500">
+          Запросы слотов:
+          <span class="font-mono text-neutral-300">{{ lineupStatus.slotRequests }}</span>
+        </div>
       </div>
     </div>
   </div>

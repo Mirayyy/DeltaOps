@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
 import { useMissionsStore } from '../stores/missions'
+import { useGamesStore } from '../stores/games'
 import { useGameWeek } from '../composables/useGameWeek'
 import { READINESS_STATUSES } from '../utils/constants'
 import { canEditReadiness } from '../utils/permissions'
@@ -22,6 +23,7 @@ const auth = useAuthStore()
 const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const missionsStore = useMissionsStore()
+const gamesStore = useGamesStore()
 const { games, gameDates, currentWeekId } = useGameWeek()
 
 const showFinalizer = ref(false)
@@ -34,11 +36,12 @@ onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
     attendance.fetchAttendance(),
+    gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
   ])
 })
 
-const pageLoading = computed(() => roster.loading || attendance.loading)
+const pageLoading = computed(() => roster.loading || attendance.loading || gamesStore.loading)
 
 const summaryRows = computed(() => {
   const activeIds = new Set(roster.activePlayers.map(p => p.uid))
@@ -69,6 +72,23 @@ const allUnresponded = computed(() => {
     }
   }
   return roster.activePlayers.filter(p => set.has(p.uid))
+})
+
+const missionLineupStatuses = computed(() => {
+  const result = {}
+  for (const game of games.value) {
+    const slots = gamesStore.getSlots(game.id)
+    const assigned = slots.filter(slot => slot.playerId).length
+    const requests = gamesStore.getSlotRequests(game.id).length
+    result[game.id] = {
+      configured: slots.length > 0,
+      totalSlots: slots.length,
+      assignedSlots: assigned,
+      freeSlots: Math.max(slots.length - assigned, 0),
+      slotRequests: requests,
+    }
+  }
+  return result
 })
 
 // Per-player readiness table
@@ -216,6 +236,7 @@ async function onWeekFinalized() {
           v-for="game in games" :key="game.id"
           :mission="missionsStore.getMission(game.id)"
           :game-label="game.label"
+          :lineup-status="missionLineupStatuses[game.id]"
           @click="selectedMission = $event"
         />
       </div>
