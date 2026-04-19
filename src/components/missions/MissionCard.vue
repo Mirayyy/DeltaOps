@@ -150,9 +150,18 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
             <span class="font-mono text-neutral-400">{{ lineupStatus.freeSlots }}</span>)
           </span>
         </div>
-        <div class="text-[11px] text-neutral-500">
+        <div
+          :class="[
+            'text-[11px]',
+            lineupStatus.slotRequests > 0
+              ? 'inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-200'
+              : 'text-neutral-500'
+          ]"
+        >
           Запросы слотов:
-          <span class="font-mono text-neutral-300">{{ lineupStatus.slotRequests }}</span>
+          <span :class="lineupStatus.slotRequests > 0 ? 'font-mono text-red-300' : 'font-mono text-neutral-300'">
+            {{ lineupStatus.slotRequests }}
+          </span>
         </div>
       </div>
     </div>
