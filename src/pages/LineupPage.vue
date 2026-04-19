@@ -31,6 +31,7 @@ const showEquipmentMenu = ref(null)
 const showSlotConfigurator = ref(false)
 const showSlotRequestModal = ref(false)
 const requestsCollapsed = ref(false)
+const slotRequestsSection = ref(null)
 const actionsExpanded = ref(false)
 const alliesExpanded = ref(false)
 const enemiesExpanded = ref(false)
@@ -364,6 +365,15 @@ function removeSlotRequest(index) {
   gamesStore.removeSlotRequest(activeTab.value, index)
 }
 
+async function openSlotRequestsSection() {
+  requestsCollapsed.value = false
+  await nextTick()
+  slotRequestsSection.value?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  })
+}
+
 async function confirmClearLineup() {
   await gamesStore.clearGame(activeTab.value)
 }
@@ -673,6 +683,23 @@ async function sendSlotNotification(slot, slotIdx) {
         </template>
       </div>
     </div>
+
+    <button
+      v-if="slotRequests.length"
+      @click="openSlotRequestsSection"
+      class="w-full mb-4 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-left transition-colors hover:bg-red-500/15 hover:border-red-500/50"
+    >
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-xs font-medium uppercase tracking-wider text-red-300/80">Запросы слотов</p>
+          <p class="mt-1 text-sm text-red-100">Есть активные запросы. Нажмите, чтобы перейти к полному списку ниже.</p>
+        </div>
+        <div class="shrink-0 rounded-lg border border-red-400/30 bg-red-500/15 px-3 py-1 text-right">
+          <div class="text-[10px] uppercase tracking-wider text-red-300/70">Всего</div>
+          <div class="text-lg font-semibold leading-none text-red-200">{{ slotRequests.length }}</div>
+        </div>
+      </div>
+    </button>
 
     <!-- Stats bar -->
     <div v-if="slots.length" class="flex items-center gap-4 mb-4 text-xs text-neutral-500">
@@ -1213,7 +1240,7 @@ async function sendSlotNotification(slot, slotIdx) {
     </div>
 
     <!-- Slot Requests block -->
-    <div v-if="slotRequests.length" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl">
+    <div v-if="slotRequests.length" ref="slotRequestsSection" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl">
       <button @click="requestsCollapsed = !requestsCollapsed"
         class="w-full flex items-center justify-between px-4 py-3 text-left">
         <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">
