@@ -1,14 +1,21 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '../stores/auth'
 import { useArchiveStore } from '../stores/archive'
 import { useRosterStore } from '../stores/roster'
-import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
+import { useAttendanceStore } from '../stores/attendance'
+import { useGamesStore } from '../stores/games'
+import { READINESS_STATUSES, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
+import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 import BaseModal from '../components/common/BaseModal.vue'
 import BaseSelect from '../components/common/BaseSelect.vue'
 
+const auth = useAuthStore()
 const archive = useArchiveStore()
 const roster = useRosterStore()
+const attendanceStore = useAttendanceStore()
+const gamesStore = useGamesStore()
 
 const SLOT_TYPE_STYLES = {
   squadCommander: 'bg-delta-green/20 text-delta-green border-delta-green/30',
@@ -66,9 +73,20 @@ function groupSlots(slots) {
   return rows
 }
 
+function sortableDate(dateStr = '') {
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.slice(0, 10)
+  const ruMatch = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+  if (!ruMatch) return ''
+  const [, dd, mm, yyyy] = ruMatch
+  return `${yyyy}-${mm}-${dd}`
+}
+
 // --- State ---
 const activeTab = ref('games')
 const selectedRotation = ref('all') // 'all' or rotation ID
+const savingAttendance = ref({})
+const savingOptics = ref({})
+const isAdmin = computed(() => auth.isUserAdmin)
 
 const rotationOptions = computed(() => [
   { value: 'all', label: 'Все' },
@@ -85,9 +103,15 @@ const gameLabel = {
   saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
 }
 
+const attendanceOptions = Object.entries(READINESS_STATUSES).map(([value, config]) => ({
+  value,
+  label: config.label,
+}))
+
 onMounted(async () => {
-  if (!roster.players.length) await roster.fetchPlayers()
-  await archive.fetchArchives()
+  const tasks = [archive.fetchArchives(), attendanceStore.fetchAttendance(), gamesStore.fetchGames()]
+  if (!roster.players.length) tasks.push(roster.fetchPlayers())
+  await Promise.all(tasks)
 })
 
 // --- Filtered archives by rotation ---
@@ -95,6 +119,17 @@ const filteredArchives = computed(() => {
   if (selectedRotation.value === 'all') return archive.archives
   return archive.archives.filter(a => a.rotation === selectedRotation.value)
 })
+
+const comparisonEntries = computed(() =>
+  archive.buildComparisonEntries({
+    players: roster.activePlayers,
+    rotationId: selectedRotation.value,
+  }),
+)
+
+const liveComparisonCount = computed(() =>
+  comparisonEntries.value.filter(entry => entry.isLive).length,
+)
 
 // --- Games tab: group by date ---
 const dateGroups = computed(() => {
@@ -104,7 +139,12 @@ const dateGroups = computed(() => {
     if (!groups[date]) groups[date] = { date, games: [] }
     groups[date].games.push(a)
   }
-  return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date))
+  return Object.values(groups)
+    .map(group => ({
+      ...group,
+      games: group.games.slice().sort((a, b) => sortableDate(b.date).localeCompare(sortableDate(a.date))),
+    }))
+    .sort((a, b) => sortableDate(b.date).localeCompare(sortableDate(a.date)))
 })
 
 function toggleDate(date) {
@@ -122,10 +162,10 @@ function confirmedCount(gameArchive) {
 
 // --- Attendance tab ---
 
-// Collect all unique player IDs from filtered archives (who have records)
+// Collect all unique player IDs from archive + live comparison entries
 const attendancePlayers = computed(() => {
   const playerMap = new Map()
-  for (const a of filteredArchives.value) {
+  for (const a of comparisonEntries.value) {
     for (const r of (a.records || [])) {
       if (!playerMap.has(r.playerId)) {
         playerMap.set(r.playerId, { uid: r.playerId, confirmed: 0, total: 0 })
@@ -137,29 +177,29 @@ const attendancePlayers = computed(() => {
   }
   return [...playerMap.values()]
     .map(p => ({ ...p, rate: p.total > 0 ? p.confirmed / p.total : 0 }))
-    .sort((a, b) => b.rate - a.rate)
+    .sort((a, b) =>
+      (b.rate - a.rate) ||
+      roster.resolveNickname(a.uid).localeCompare(roster.resolveNickname(b.uid), 'ru'),
+    )
 })
 
-// Attendance history: per game day, which players confirmed
+// Attendance history: per game day, which players had which status
 const attendanceHistory = computed(() => {
-  return filteredArchives.value
-    .slice()
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .map(a => {
-      const recordMap = {}
-      for (const r of (a.records || [])) {
-        recordMap[r.playerId] = r.attendance
-      }
-      return { id: a.id, date: a.date, schedule: a.schedule, records: recordMap }
-    })
+  return comparisonEntries.value.map(a => {
+    const recordMap = {}
+    for (const r of (a.records || [])) {
+      recordMap[r.playerId] = r.attendance
+    }
+    return { id: a.id, date: a.date, schedule: a.schedule, records: recordMap, isLive: a.isLive }
+  })
 })
 
 // --- Optics tab ---
 
-// Collect all unique player IDs who ever had optics
+// Collect all unique player IDs from archive + live comparison entries
 const opticsPlayers = computed(() => {
   const playerMap = new Map()
-  for (const a of filteredArchives.value) {
+  for (const a of comparisonEntries.value) {
     for (const s of (a.slots || [])) {
       if (!s.playerId) continue
       if (!playerMap.has(s.playerId)) {
@@ -172,21 +212,21 @@ const opticsPlayers = computed(() => {
   }
   return [...playerMap.values()]
     .map(p => ({ ...p, rate: p.total > 0 ? p.withOptics / p.total : 0 }))
-    .sort((a, b) => b.rate - a.rate)
+    .sort((a, b) =>
+      (b.rate - a.rate) ||
+      roster.resolveNickname(a.uid).localeCompare(roster.resolveNickname(b.uid), 'ru'),
+    )
 })
 
 // Optics history: per game day, which players had optics
 const opticsHistory = computed(() => {
-  return filteredArchives.value
-    .slice()
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .map(a => {
-      const slotMap = {}
-      for (const s of (a.slots || [])) {
-        if (s.playerId) slotMap[s.playerId] = !!s.optics
-      }
-      return { id: a.id, date: a.date, schedule: a.schedule, slots: slotMap }
-    })
+  return comparisonEntries.value.map(a => {
+    const slotMap = {}
+    for (const s of (a.slots || [])) {
+      if (s.playerId) slotMap[s.playerId] = !!s.optics
+    }
+    return { id: a.id, date: a.date, schedule: a.schedule, slots: slotMap, isLive: a.isLive }
+  })
 })
 
 // --- Helpers ---
@@ -198,6 +238,70 @@ function rateColor(rate) {
   if (rate >= 0.7) return 'text-green-400'
   if (rate >= 0.4) return 'text-yellow-400'
   return 'text-red-400'
+}
+
+function attendanceStatusMeta(status) {
+  return READINESS_STATUSES[status] || READINESS_STATUSES.no_response
+}
+
+function attendanceStatusClass(status) {
+  if (status === 'confirmed') return 'text-green-400'
+  if (status === 'tentative') return 'text-yellow-400'
+  if (status === 'absent') return 'text-red-400'
+  return 'text-neutral-600'
+}
+
+function attendanceStatusLabel(status) {
+  return attendanceStatusMeta(status).label
+}
+
+function attendanceStatusIcon(status) {
+  return attendanceStatusMeta(status).icon
+}
+
+function attendanceSaveKey(archiveId, playerId) {
+  return `${archiveId}::${playerId}`
+}
+
+function opticsSaveKey(archiveId, slot) {
+  return `${archiveId}::${slot.side}::${slot.squad}::${slot.number}::${slot.name}`
+}
+
+function isSavingAttendance(archiveId, playerId) {
+  return !!savingAttendance.value[attendanceSaveKey(archiveId, playerId)]
+}
+
+function isSavingOptics(archiveId, slot) {
+  return !!savingOptics.value[opticsSaveKey(archiveId, slot)]
+}
+
+async function setArchiveAttendance(archiveId, playerId, status) {
+  const key = attendanceSaveKey(archiveId, playerId)
+  savingAttendance.value = { ...savingAttendance.value, [key]: true }
+  try {
+    await archive.updateArchiveAttendance(archiveId, playerId, status)
+  } finally {
+    const next = { ...savingAttendance.value }
+    delete next[key]
+    savingAttendance.value = next
+  }
+}
+
+async function setArchiveOptics(archiveId, slot, optics) {
+  const key = opticsSaveKey(archiveId, slot)
+  savingOptics.value = { ...savingOptics.value, [key]: true }
+  try {
+    await archive.updateArchiveSlotOptics(archiveId, {
+      side: slot.side,
+      squad: slot.squad,
+      number: slot.number,
+      name: slot.name,
+    }, optics)
+  } finally {
+    const next = { ...savingOptics.value }
+    delete next[key]
+    savingOptics.value = next
+  }
 }
 
 // --- Rotation CRUD ---
@@ -307,6 +411,7 @@ async function createRotation() {
                           <th class="text-left px-3 py-2 font-medium w-14">ФТ</th>
                           <th class="text-left px-3 py-2 font-medium" style="width:10rem">Позывной</th>
                           <th class="text-left px-3 py-2 font-medium" style="min-width:10rem">Снаряжение</th>
+                          <th class="text-left px-3 py-2 font-medium w-24">Оптика</th>
                           <th class="text-left px-3 py-2 font-medium">Заметки</th>
                         </tr>
                       </thead>
@@ -314,7 +419,7 @@ async function createRotation() {
                         <template v-for="(row, rowIdx) in groupSlots(game.slots)" :key="rowIdx">
                           <tr v-if="row.type === 'header'"
                             :class="['border-b border-neutral-800', SIDE_COLORS[row.color]?.bg || 'bg-neutral-800/60']">
-                            <td colspan="7" class="px-4 py-2">
+                            <td colspan="8" class="px-4 py-2">
                               <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
                                   <span :class="[SIDE_COLORS[row.color]?.dot || 'bg-neutral-500', 'w-2 h-2 rounded-full']"></span>
@@ -356,6 +461,16 @@ async function createRotation() {
                                 <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
                                 <span v-if="!(row.slot.equipment || []).length" class="text-neutral-600 text-xs">—</span>
                               </div>
+                            </td>
+                            <td class="px-3 py-2.5">
+                              <BaseCheckbox
+                                :checked="!!row.slot.optics"
+                                :disabled="isSavingOptics(game.id, row.slot) || !isAdmin"
+                                size="sm"
+                                @change="setArchiveOptics(game.id, row.slot, $event)"
+                              >
+                                <span class="text-[10px] text-neutral-400">Оптика</span>
+                              </BaseCheckbox>
                             </td>
                             <td class="px-3 py-2.5 text-xs text-neutral-500 truncate" :title="row.slot.notes">
                               {{ row.slot.notes || '—' }}
@@ -408,6 +523,15 @@ async function createRotation() {
                             <EquipmentTag v-for="eq in row.slot.equipment" :key="eq" :name="eq" />
                           </div>
                         </div>
+                        <div class="mt-2 flex items-center justify-between">
+                          <span class="text-[10px] text-neutral-500 uppercase tracking-wider">Оптика</span>
+                          <BaseCheckbox
+                            :checked="!!row.slot.optics"
+                            :disabled="isSavingOptics(game.id, row.slot) || !isAdmin"
+                            size="sm"
+                            @change="setArchiveOptics(game.id, row.slot, $event)"
+                          />
+                        </div>
                       </div>
                     </template>
                   </div>
@@ -420,8 +544,19 @@ async function createRotation() {
                     <div v-for="record in (game.records || [])" :key="record.playerId"
                       class="flex items-center justify-between px-3 py-1.5 rounded text-xs bg-neutral-800/30">
                       <span>{{ roster.resolveNickname(record.playerId) }}</span>
-                      <span :class="record.attendance === 'confirmed' ? 'text-green-400 font-bold' : 'text-neutral-600'">
-                        {{ record.attendance === 'confirmed' ? '✓' : '✗' }}
+                      <select
+                        v-if="isAdmin"
+                        :value="record.attendance"
+                        :disabled="isSavingAttendance(game.id, record.playerId)"
+                        class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-[11px] text-neutral-200 outline-none focus:border-delta-green"
+                        @change="setArchiveAttendance(game.id, record.playerId, $event.target.value)"
+                      >
+                        <option v-for="option in attendanceOptions" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </option>
+                      </select>
+                      <span v-else :class="[attendanceStatusClass(record.attendance), 'font-bold']">
+                        {{ attendanceStatusIcon(record.attendance) }}
                       </span>
                     </div>
                   </div>
@@ -442,8 +577,11 @@ async function createRotation() {
       <template v-else>
         <!-- Summary: player cards with % -->
         <div class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden mb-4">
-          <div class="px-5 py-3 border-b border-neutral-800">
+          <div class="px-5 py-3 border-b border-neutral-800 flex items-center justify-between gap-3">
             <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Сводка</h3>
+            <span v-if="liveComparisonCount" class="text-[10px] text-emerald-400 uppercase tracking-wider">
+              + текущая неделя: {{ liveComparisonCount }}
+            </span>
           </div>
           <div class="overflow-x-auto">
             <div class="flex gap-0 min-w-max">
@@ -468,6 +606,9 @@ async function createRotation() {
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
               <span class="text-xs text-neutral-500">{{ gameLabel[entry.schedule] || entry.schedule }}</span>
+              <span v-if="entry.isLive" class="text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-400">
+                Текущая неделя
+              </span>
             </div>
             <div class="overflow-x-auto">
               <div class="flex gap-0 min-w-max">
@@ -476,10 +617,10 @@ async function createRotation() {
                   <span class="text-[10px] text-neutral-500 truncate max-w-[4.5rem]">
                     {{ roster.resolveNickname(p.uid) }}
                   </span>
-                  <span v-if="entry.records[p.uid] === 'confirmed'"
-                    class="text-green-400 font-bold text-sm mt-0.5">✓</span>
-                  <span v-else-if="entry.records[p.uid]"
-                    class="text-neutral-600 text-sm mt-0.5">✗</span>
+                  <span v-if="entry.records[p.uid]"
+                    :class="[attendanceStatusClass(entry.records[p.uid]), 'font-bold text-sm mt-0.5']">
+                    {{ attendanceStatusIcon(entry.records[p.uid]) }}
+                  </span>
                   <span v-else class="text-neutral-700 text-sm mt-0.5">—</span>
                 </div>
               </div>
@@ -498,8 +639,11 @@ async function createRotation() {
       <template v-else>
         <!-- Summary: player cards with % -->
         <div class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden mb-4">
-          <div class="px-5 py-3 border-b border-neutral-800">
+          <div class="px-5 py-3 border-b border-neutral-800 flex items-center justify-between gap-3">
             <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Сводка</h3>
+            <span v-if="liveComparisonCount" class="text-[10px] text-emerald-400 uppercase tracking-wider">
+              + текущая неделя: {{ liveComparisonCount }}
+            </span>
           </div>
           <div class="overflow-x-auto">
             <div class="flex gap-0 min-w-max">
@@ -524,6 +668,9 @@ async function createRotation() {
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
               <span class="text-xs text-neutral-500">{{ gameLabel[entry.schedule] || entry.schedule }}</span>
+              <span v-if="entry.isLive" class="text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-400">
+                Текущая неделя
+              </span>
             </div>
             <div class="overflow-x-auto">
               <div class="flex gap-0 min-w-max">
