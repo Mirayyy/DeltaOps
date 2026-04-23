@@ -4,6 +4,7 @@ import { useRosterStore } from '../../stores/roster'
 import { useAttendanceStore } from '../../stores/attendance'
 import { useGamesStore } from '../../stores/games'
 import { useArchiveStore } from '../../stores/archive'
+import { useMissionsStore } from '../../stores/missions'
 import { useSquadConfig } from '../../stores/squadConfig'
 import { useGameWeek } from '../../composables/useGameWeek'
 import BaseModal from '../common/BaseModal.vue'
@@ -14,6 +15,7 @@ const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const archive = useArchiveStore()
+const missionsStore = useMissionsStore()
 const squadConfig = useSquadConfig()
 const { games } = useGameWeek()
 
@@ -128,6 +130,7 @@ async function finalize() {
         slots: gameData?.slots || [],
         records,
         task: gameData?.task || '',
+        missionTitle: missionsStore.getMission(game.id)?.title || '',
         adminUid: 'admin',
       })
     }

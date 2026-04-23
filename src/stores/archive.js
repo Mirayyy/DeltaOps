@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { GAME_IDS } from '../utils/constants'
 import { useGamesStore } from './games'
 import { useAttendanceStore } from './attendance'
+import { useMissionsStore } from './missions'
 import { buildGameDateMap, getResolvedGameDates, normalizeDate } from '../utils/gameDates'
 
 const GAME_ORDER = GAME_IDS.reduce((acc, gameId, index) => {
@@ -108,9 +109,9 @@ export const useArchiveStore = defineStore('archive', () => {
 
   /**
    * Archive a single game: copy slots from games store + records from attendance store → archive.
-   * @param {object} params — { schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }
+   * @param {object} params — { schedule, date, sourceUrl, version, server, side, slots, records, task, missionTitle, adminUid }
    */
-  async function archiveGame({ schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }) {
+  async function archiveGame({ schedule, date, sourceUrl, version, server, side, slots, records, task, missionTitle, adminUid }) {
     const rotation = date ? getRotationForDate(date) : getActiveRotation()
     const id = `${date}-${schedule}`
 
@@ -132,6 +133,7 @@ export const useArchiveStore = defineStore('archive', () => {
       slots: slots || [],
       records: records || [],
       task: task || '',
+      missionTitle: missionTitle || '',
       archivedAt: new Date().toISOString(),
       archivedBy: adminUid,
     }
@@ -154,6 +156,7 @@ export const useArchiveStore = defineStore('archive', () => {
     const activeRotation = getActiveRotation()
     const gamesStore = useGamesStore()
     const attendanceStore = useAttendanceStore()
+    const missionsStore = useMissionsStore()
     const resolvedDates = buildGameDateMap(getResolvedGameDates({
       now: new Date(),
       gamesById: gamesStore.games,
@@ -185,6 +188,7 @@ export const useArchiveStore = defineStore('archive', () => {
           attendance: attendanceStore.getPlayerAttendance(gameId, player.uid),
         })),
         task: game?.task || '',
+        missionTitle: missionsStore.getMission(gameId)?.title || '',
         isLive: true,
       })
     }
