@@ -22,6 +22,8 @@ function compareEntriesByDateDesc(a, b) {
 }
 
 function matchesSlotLocator(slot, slotLocator) {
+  if (slot.playerId && slotLocator.playerId && slot.playerId === slotLocator.playerId) return true
+
   return slot.side === slotLocator.side &&
     slot.squad === slotLocator.squad &&
     slot.number === slotLocator.number &&
@@ -225,7 +227,7 @@ export const useArchiveStore = defineStore('archive', () => {
 
     for (const entry of relevant) {
       const record = entry.records?.find(r => r.playerId === playerId)
-      if (record) {
+      if (record && record.attendance !== 'no_response') {
         total++
         if (record.attendance === 'confirmed') confirmed++
       }
@@ -271,15 +273,26 @@ export const useArchiveStore = defineStore('archive', () => {
     const nextRecords = [...(entry.records || [])]
     const recordIndex = nextRecords.findIndex(record => record.playerId === playerId)
 
-    if (recordIndex === -1) {
+    if (status === 'no_response') {
+      if (recordIndex !== -1) nextRecords.splice(recordIndex, 1)
+    } else if (recordIndex === -1) {
       nextRecords.push({ playerId, attendance: status })
     } else {
       nextRecords[recordIndex] = { ...nextRecords[recordIndex], attendance: status }
     }
 
+    const nextSlots = (entry.slots || []).map(slot =>
+      slot.playerId === playerId && status !== 'confirmed'
+        ? { ...slot, optics: false }
+        : slot,
+    )
+
     const { doc, updateDoc, db } = await import('../firebase/firestore')
-    await updateDoc(doc(db, 'archive', archiveId), { records: nextRecords })
-    archives.value[archiveIndex] = { ...entry, records: nextRecords }
+    await updateDoc(doc(db, 'archive', archiveId), {
+      records: nextRecords,
+      slots: nextSlots,
+    })
+    archives.value[archiveIndex] = { ...entry, records: nextRecords, slots: nextSlots }
   }
 
   async function updateArchiveSlotOptics(archiveId, slotLocator, optics) {
@@ -287,11 +300,16 @@ export const useArchiveStore = defineStore('archive', () => {
     if (archiveIndex === -1) return
 
     const entry = archives.value[archiveIndex]
-    const nextSlots = (entry.slots || []).map(slot =>
-      matchesSlotLocator(slot, slotLocator)
-        ? { ...slot, optics }
-        : slot,
-    )
+    let matched = false
+    const nextSlots = (entry.slots || []).map(slot => {
+      if (matchesSlotLocator(slot, slotLocator)) {
+        matched = true
+        return { ...slot, optics }
+      }
+      return slot
+    })
+
+    if (!matched) return
 
     const { doc, updateDoc, db } = await import('../firebase/firestore')
     await updateDoc(doc(db, 'archive', archiveId), { slots: nextSlots })

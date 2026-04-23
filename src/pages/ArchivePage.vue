@@ -65,7 +65,7 @@ function groupSlots(slots) {
         squad: slot.squad,
         color: guessSideColor(slot.side),
         count: squadSlots.length,
-        assigned: squadSlots.filter(s => s.playerId).length,
+        assigned: squadSlots.filter(s => s.playerId && isArchivePlayerVisible(s.playerId)).length,
       })
       lastGroup = group
     }
@@ -127,6 +127,10 @@ const liveComparisonCount = computed(() =>
   comparisonEntries.value.filter(entry => entry.isLive).length,
 )
 
+const visibleArchivePlayerIds = computed(() =>
+  new Set(roster.squadMembers.map(player => player.uid)),
+)
+
 // --- Games tab: group by date ---
 const dateGroups = computed(() => {
   const groups = {}
@@ -153,11 +157,25 @@ function selectGame(archiveId) {
 }
 
 function confirmedCount(gameArchive) {
-  return (gameArchive.records || []).filter(r => r.attendance === 'confirmed').length
+  return (gameArchive.records || []).filter(r =>
+    isArchivePlayerVisible(r.playerId) && r.attendance === 'confirmed',
+  ).length
 }
 
 function missionTitleForEntry(entry) {
   return entry?.missionTitle || ''
+}
+
+function isArchivePlayerVisible(playerId) {
+  return visibleArchivePlayerIds.value.has(playerId)
+}
+
+function archivePlayerNickname(playerId) {
+  return isArchivePlayerVisible(playerId) ? roster.resolveNickname(playerId) : ''
+}
+
+function visibleArchiveRecords(records = []) {
+  return records.filter(record => isArchivePlayerVisible(record.playerId))
 }
 
 // --- Attendance tab ---
@@ -167,6 +185,7 @@ const attendancePlayers = computed(() => {
   const playerMap = new Map()
   for (const a of comparisonEntries.value) {
     for (const r of (a.records || [])) {
+      if (!isArchivePlayerVisible(r.playerId)) continue
       if (!playerMap.has(r.playerId)) {
         playerMap.set(r.playerId, { uid: r.playerId, confirmed: 0, total: 0 })
       }
@@ -209,6 +228,7 @@ const opticsPlayers = computed(() => {
   for (const a of comparisonEntries.value) {
     for (const s of (a.slots || [])) {
       if (!s.playerId) continue
+      if (!isArchivePlayerVisible(s.playerId)) continue
       if (!playerMap.has(s.playerId)) {
         playerMap.set(s.playerId, { uid: s.playerId, withOptics: 0, total: 0 })
       }
@@ -230,6 +250,10 @@ const opticsHistory = computed(() => {
   return comparisonEntries.value.map(a => {
     const slotMap = {}
     const slotDetails = {}
+    const attendanceMap = {}
+    for (const record of (a.records || [])) {
+      attendanceMap[record.playerId] = record.attendance
+    }
     for (const s of (a.slots || [])) {
       if (s.playerId) {
         slotMap[s.playerId] = !!s.optics
@@ -243,6 +267,7 @@ const opticsHistory = computed(() => {
       missionTitle: a.missionTitle || '',
       slots: slotMap,
       slotDetails,
+      attendance: attendanceMap,
       isLive: a.isLive,
     }
   })
@@ -300,6 +325,10 @@ function isSavingOptics(archiveId, slot) {
   return !!savingOptics.value[opticsSaveKey(archiveId, slot)]
 }
 
+function canGrantArchiveOptics(entry, playerId) {
+  return entry.attendance?.[playerId] === 'confirmed'
+}
+
 async function setArchiveAttendance(archiveId, playerId, status) {
   const key = attendanceSaveKey(archiveId, playerId)
   savingAttendance.value = { ...savingAttendance.value, [key]: true }
@@ -339,6 +368,7 @@ async function toggleArchiveOptics(entry, playerId) {
   if (!canEditArchiveHistory(entry)) return
   const slot = entry.slotDetails[playerId]
   if (!slot) return
+  if (!entry.slots[playerId] && !canGrantArchiveOptics(entry, playerId)) return
   await setArchiveOptics(entry.id, slot, !entry.slots[playerId])
 }
 
@@ -435,13 +465,13 @@ async function createRotation() {
               <div v-if="expandedGame === game.id" class="pb-4">
                 <!-- Slots — full lineup table -->
                 <div v-if="(game.slots || []).length" class="mb-4">
-                  <div class="flex items-center justify-between px-5 py-2">
-                    <h4 class="text-xs text-neutral-500">Расстановка</h4>
-                    <div class="flex items-center gap-3 text-[10px] text-neutral-500">
-                      <span>Слотов: <span class="text-neutral-300 font-mono">{{ game.slots.length }}</span></span>
-                      <span>Назначено: <span class="text-delta-green font-mono">{{ game.slots.filter(s => s.playerId).length }}</span></span>
+                    <div class="flex items-center justify-between px-5 py-2">
+                      <h4 class="text-xs text-neutral-500">Расстановка</h4>
+                      <div class="flex items-center gap-3 text-[10px] text-neutral-500">
+                        <span>Слотов: <span class="text-neutral-300 font-mono">{{ game.slots.length }}</span></span>
+                      <span>Назначено: <span class="text-delta-green font-mono">{{ game.slots.filter(s => s.playerId && isArchivePlayerVisible(s.playerId)).length }}</span></span>
+                      </div>
                     </div>
-                  </div>
 
                   <!-- Desktop table -->
                   <div class="hidden md:block">
@@ -495,8 +525,8 @@ async function createRotation() {
                               <span v-else class="text-neutral-600 text-xs">—</span>
                             </td>
                             <td class="px-3 py-2.5">
-                              <span :class="row.slot.playerId ? 'text-neutral-200' : 'text-neutral-600'">
-                                {{ row.slot.playerId ? roster.resolveNickname(row.slot.playerId) : '—' }}
+                              <span :class="archivePlayerNickname(row.slot.playerId) ? 'text-neutral-200' : 'text-neutral-600'">
+                                {{ archivePlayerNickname(row.slot.playerId) || '—' }}
                               </span>
                             </td>
                             <td class="px-3 py-2.5">
@@ -554,8 +584,8 @@ async function createRotation() {
                           </div>
                         </div>
                         <div class="flex items-center justify-between text-xs">
-                          <span :class="row.slot.playerId ? 'text-neutral-300' : 'text-neutral-600'">
-                            {{ row.slot.playerId ? roster.resolveNickname(row.slot.playerId) : '—' }}
+                          <span :class="archivePlayerNickname(row.slot.playerId) ? 'text-neutral-300' : 'text-neutral-600'">
+                            {{ archivePlayerNickname(row.slot.playerId) || '—' }}
                           </span>
                           <div v-if="(row.slot.equipment || []).length" class="flex gap-1">
                             <EquipmentTag v-for="eq in row.slot.equipment" :key="eq" :name="eq" />
@@ -576,7 +606,7 @@ async function createRotation() {
                 <div class="px-5">
                   <h4 class="text-xs text-neutral-500 mb-2">Посещаемость</h4>
                   <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
-                  <div v-for="record in (game.records || [])" :key="record.playerId"
+                  <div v-for="record in visibleArchiveRecords(game.records || [])" :key="record.playerId"
                       class="flex items-center justify-between px-3 py-1.5 rounded text-xs bg-neutral-800/30">
                       <span>{{ roster.resolveNickname(record.playerId) }}</span>
                       <span :class="[attendanceStatusClass(record.attendance), 'font-bold']">
@@ -726,13 +756,21 @@ async function createRotation() {
                   <button
                     v-if="canEditArchiveHistory(entry) && entry.slotDetails[p.uid]"
                     type="button"
-                    :disabled="isSavingOptics(entry.id, entry.slotDetails[p.uid])"
+                    :disabled="isSavingOptics(entry.id, entry.slotDetails[p.uid]) || (!entry.slots[p.uid] && !canGrantArchiveOptics(entry, p.uid))"
                     :class="[
                       'mt-0.5 text-sm font-bold transition-colors',
                       entry.slots[p.uid] === true ? 'text-red-400' : 'text-neutral-600',
-                      isSavingOptics(entry.id, entry.slotDetails[p.uid]) ? 'opacity-50 cursor-wait' : 'hover:opacity-80 cursor-pointer',
+                      isSavingOptics(entry.id, entry.slotDetails[p.uid])
+                        ? 'opacity-50 cursor-wait'
+                        : (!entry.slots[p.uid] && !canGrantArchiveOptics(entry, p.uid))
+                          ? 'opacity-40 cursor-not-allowed'
+                          : 'hover:opacity-80 cursor-pointer',
                     ]"
-                    :title="entry.slots[p.uid] ? 'Снять оптику' : 'Выдать оптику'"
+                    :title="entry.slots[p.uid]
+                      ? 'Снять оптику'
+                      : canGrantArchiveOptics(entry, p.uid)
+                        ? 'Выдать оптику'
+                        : 'Нельзя выдать оптику игроку без посещаемости «Буду»'"
                     @click="toggleArchiveOptics(entry, p.uid)"
                   >
                     {{ entry.slots[p.uid] ? '⊕' : '—' }}
