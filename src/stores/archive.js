@@ -1,5 +1,47 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { GAME_IDS } from '../utils/constants'
+import { getGameDates } from '../composables/useGameWeek'
+import { useGamesStore } from './games'
+import { useAttendanceStore } from './attendance'
+
+const GAME_ORDER = GAME_IDS.reduce((acc, gameId, index) => {
+  acc[gameId] = index
+  return acc
+}, {})
+
+function normalizeDate(dateStr = '') {
+  if (!dateStr) return ''
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    return dateStr.slice(0, 10)
+  }
+
+  const ruMatch = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+  if (ruMatch) {
+    const [, dd, mm, yyyy] = ruMatch
+    return `${yyyy}-${mm}-${dd}`
+  }
+
+  return ''
+}
+
+function getEntryKey(date, schedule) {
+  return `${normalizeDate(date)}::${schedule || ''}`
+}
+
+function compareEntriesByDateDesc(a, b) {
+  const dateDiff = (normalizeDate(b.date) || '').localeCompare(normalizeDate(a.date) || '')
+  if (dateDiff !== 0) return dateDiff
+  return (GAME_ORDER[a.schedule] ?? 99) - (GAME_ORDER[b.schedule] ?? 99)
+}
+
+function matchesSlotLocator(slot, slotLocator) {
+  return slot.side === slotLocator.side &&
+    slot.squad === slotLocator.squad &&
+    slot.number === slotLocator.number &&
+    slot.name === slotLocator.name
+}
 
 export const useArchiveStore = defineStore('archive', () => {
   const archives = ref([])  // [{ id, rotation, server, side, date, schedule, slots, records, ... }]
@@ -43,7 +85,8 @@ export const useArchiveStore = defineStore('archive', () => {
   }
 
   function getRotationForDate(dateStr) {
-    const d = dateStr.slice(0, 10)
+    const d = normalizeDate(dateStr)
+    if (!d) return getActiveRotation()
     return rotations.value.find(r => {
       if (!r.startDate || d < r.startDate) return false
       if (r.endDate && d > r.endDate) return false
@@ -116,6 +159,57 @@ export const useArchiveStore = defineStore('archive', () => {
     return entry
   }
 
+  function buildComparisonEntries({ players = [], rotationId = 'all' } = {}) {
+    const { friday, saturday } = getGameDates(new Date())
+    const defaultDates = {
+      friday_1: friday,
+      friday_2: friday,
+      saturday_1: saturday,
+      saturday_2: saturday,
+    }
+
+    const archiveEntries = archives.value
+      .filter(entry => rotationId === 'all' || entry.rotation === rotationId)
+      .map(entry => ({ ...entry, isLive: false }))
+
+    const archivedKeys = new Set(archives.value.map(entry => getEntryKey(entry.date, entry.schedule)))
+
+    const liveEntries = []
+    const activeRotation = getActiveRotation()
+    const gamesStore = useGamesStore()
+    const attendanceStore = useAttendanceStore()
+
+    for (const gameId of GAME_IDS) {
+      const game = gamesStore.getGame(gameId)
+      const resolvedDate = game?.date || defaultDates[gameId] || ''
+      const key = getEntryKey(resolvedDate, gameId)
+      if (archivedKeys.has(key)) continue
+
+      const rotation = getRotationForDate(resolvedDate) || activeRotation
+      if (rotationId !== 'all' && rotation?.id !== rotationId) continue
+
+      liveEntries.push({
+        id: `live-${gameId}`,
+        rotation: rotation?.id || '',
+        server: game?.server || '',
+        side: game?.side || '',
+        date: resolvedDate,
+        schedule: gameId,
+        sourceUrl: game?.sourceUrl || '',
+        version: game?.version || '',
+        slots: (game?.slots || []).map(slot => ({ ...slot })),
+        records: players.map(player => ({
+          playerId: player.uid,
+          attendance: attendanceStore.getPlayerAttendance(gameId, player.uid),
+        })),
+        task: game?.task || '',
+        isLive: true,
+      })
+    }
+
+    return [...archiveEntries, ...liveEntries].sort(compareEntriesByDateDesc)
+  }
+
   // --- Query helpers ---
 
   /** Get all archive entries for a player (by playerId in slots or records) */
@@ -125,7 +219,7 @@ export const useArchiveStore = defineStore('archive', () => {
         a.slots?.some(s => s.playerId === playerId) ||
         a.records?.some(r => r.playerId === playerId),
       )
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort(compareEntriesByDateDesc)
   }
 
   /** Get player's slot from an archive entry */
@@ -183,12 +277,49 @@ export const useArchiveStore = defineStore('archive', () => {
     }
   }
 
+  async function updateArchiveAttendance(archiveId, playerId, status) {
+    const archiveIndex = archives.value.findIndex(entry => entry.id === archiveId)
+    if (archiveIndex === -1) return
+
+    const entry = archives.value[archiveIndex]
+    const nextRecords = [...(entry.records || [])]
+    const recordIndex = nextRecords.findIndex(record => record.playerId === playerId)
+
+    if (recordIndex === -1) {
+      nextRecords.push({ playerId, attendance: status })
+    } else {
+      nextRecords[recordIndex] = { ...nextRecords[recordIndex], attendance: status }
+    }
+
+    const { doc, updateDoc, db } = await import('../firebase/firestore')
+    await updateDoc(doc(db, 'archive', archiveId), { records: nextRecords })
+    archives.value[archiveIndex] = { ...entry, records: nextRecords }
+  }
+
+  async function updateArchiveSlotOptics(archiveId, slotLocator, optics) {
+    const archiveIndex = archives.value.findIndex(entry => entry.id === archiveId)
+    if (archiveIndex === -1) return
+
+    const entry = archives.value[archiveIndex]
+    const nextSlots = (entry.slots || []).map(slot =>
+      matchesSlotLocator(slot, slotLocator)
+        ? { ...slot, optics }
+        : slot,
+    )
+
+    const { doc, updateDoc, db } = await import('../firebase/firestore')
+    await updateDoc(doc(db, 'archive', archiveId), { slots: nextSlots })
+    archives.value[archiveIndex] = { ...entry, slots: nextSlots }
+  }
+
   return {
     archives, rotations, loading,
     fetchArchives, getRotationStatus, getActiveRotation, getRotationForDate,
     createRotation, updateRotation, deleteRotation,
     archiveGame,
+    buildComparisonEntries,
     getPlayerHistory, getPlayerSlotInArchive,
     getPlayerAttendanceStats, getPlayerOpticsStats,
+    updateArchiveAttendance, updateArchiveSlotOptics,
   }
 })
