@@ -120,7 +120,7 @@ async function finalize() {
 
       await archive.archiveGame({
         schedule: game.id,
-        date: gameData?.date || game.date || '',
+        date: gameData?.date || attendance.getGameAttendance(game.id)?.date || game.date || '',
         sourceUrl: gameData?.sourceUrl || '',
         version: gameData?.version || '',
         server: squadConfig.server,

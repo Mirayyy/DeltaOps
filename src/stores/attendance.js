@@ -97,12 +97,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
     await saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
-  function setDate(gameId, date) {
+  async function setDate(gameId, date) {
     if (!attendance.value[gameId]) {
       attendance.value[gameId] = { schedule: gameId, date: '', records: [] }
     }
     attendance.value[gameId].date = date
-    saveAttendanceFirestore(gameId, attendance.value[gameId])
+    return saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
   /** Clear all attendance (new week reset) */
