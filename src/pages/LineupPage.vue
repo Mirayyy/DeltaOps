@@ -48,6 +48,14 @@ onMounted(async () => {
 })
 
 const currentMission = computed(() => missionsStore.getMission(activeTab.value))
+const hasActiveGameContent = computed(() => {
+  const game = gamesStore.getGame(activeTab.value)
+  if (!game) return false
+  if ((game.slots || []).length) return true
+  if ((game.slotRequests || []).length) return true
+  if ((game.task || '').trim()) return true
+  return false
+})
 
 const slots = computed(() => gamesStore.getSlots(activeTab.value))
 const isAdmin = computed(() => auth.isUserAdmin)
@@ -375,12 +383,13 @@ async function openSlotRequestsSection() {
 }
 
 async function confirmClearLineup() {
-  await gamesStore.clearGame(activeTab.value)
+  await gamesStore.clearLineup(activeTab.value)
 }
 
 async function confirmClearGame() {
   await Promise.all([
     gamesStore.clearGame(activeTab.value),
+    attendance.clearGameAttendance(activeTab.value),
     missionsStore.clearMission(activeTab.value),
   ])
 }
@@ -491,12 +500,12 @@ async function sendSlotNotification(slot, slotIdx) {
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-amber-500/30 hover:border-amber-500/60 text-amber-400 hover:text-amber-300 rounded-lg transition-colors">
           Настроить слоты
         </button>
-        <button v-if="isAdmin && gamesStore.getGame(activeTab)"
+        <button v-if="isAdmin && hasActiveGameContent"
           @click="confirmClearLineup"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-purple-500/30 hover:border-purple-500/60 text-purple-400 hover:text-purple-300 rounded-lg transition-colors">
           Очистить расстановку
         </button>
-        <button v-if="isAdmin && (currentMission || gamesStore.getGame(activeTab))"
+        <button v-if="isAdmin && currentMission"
           @click="confirmClearGame"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 rounded-lg transition-colors">
           Удалить миссию

@@ -53,12 +53,40 @@ export const useGamesStore = defineStore('games', () => {
     await setDoc(doc(db, 'games', gameId), { ...data, updatedAt: serverTimestamp() }, { merge: true })
   }
 
+  async function replaceGameFirestore(gameId, data) {
+    const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
+    await setDoc(doc(db, 'games', gameId), { ...data, updatedAt: serverTimestamp() })
+  }
+
   async function mergeGameFirestore(gameId, partial) {
     const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'games', gameId), { schedule: gameId, ...partial, updatedAt: serverTimestamp() }, { merge: true })
   }
 
   // --- Slot management ---
+
+  function createEmptyGame(gameId) {
+    return {
+      schedule: gameId,
+      date: '',
+      sourceUrl: '',
+      version: '',
+      slots: [],
+      task: '',
+      slotRequests: [],
+      updatedBy: null,
+    }
+  }
+
+  function buildResetGame(gameId, { preserveMeta = false } = {}) {
+    const current = games.value[gameId] || {}
+    return {
+      ...createEmptyGame(gameId),
+      date: preserveMeta ? current.date || '' : '',
+      sourceUrl: preserveMeta ? current.sourceUrl || '' : '',
+      version: preserveMeta ? current.version || '' : '',
+    }
+  }
 
   /** Build a unique key for slot memory */
   function slotKey(slot) {
@@ -68,7 +96,7 @@ export const useGamesStore = defineStore('games', () => {
   /** Toggle slot: add if missing, remove (but remember) if present */
   function toggleSlot(gameId, slot) {
     if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
+      games.value[gameId] = createEmptyGame(gameId)
     }
     const game = games.value[gameId]
     const key = slotKey(slot)
@@ -103,11 +131,18 @@ export const useGamesStore = defineStore('games', () => {
   /** Set all configured slots for a game at once */
   function setSlots(gameId, slots, updatedBy) {
     if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
+      games.value[gameId] = createEmptyGame(gameId)
     }
     games.value[gameId].slots = slots
     games.value[gameId].updatedBy = updatedBy
     persist(gameId)
+  }
+
+  async function clearLineup(gameId) {
+    const next = buildResetGame(gameId, { preserveMeta: true })
+    games.value[gameId] = next
+    delete slotMemory.value[gameId]
+    await replaceGameFirestore(gameId, next)
   }
 
   function assignPlayer(gameId, slotIndex, playerId) {
@@ -218,17 +253,21 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Clear a single game */
   async function clearGame(gameId) {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
-    delete games.value[gameId]
+    const next = buildResetGame(gameId)
+    games.value[gameId] = next
     delete slotMemory.value[gameId]
+    await replaceGameFirestore(gameId, next)
   }
 
   /** Clear all games (new week reset) */
   async function clearGames() {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
-    games.value = {}
+    const next = {}
+    await Promise.all(GAME_IDS.map(async (gameId) => {
+      const emptyGame = buildResetGame(gameId)
+      next[gameId] = emptyGame
+      await replaceGameFirestore(gameId, emptyGame)
+    }))
+    games.value = next
     slotMemory.value = {}
   }
 
@@ -240,7 +279,7 @@ export const useGamesStore = defineStore('games', () => {
   return {
     games, loading, initialized,
     getGame, getSlots, getPlayerSlot, getPlayerSlots,
-    fetchGames, clearGame, clearGames,
+    fetchGames, clearLineup, clearGame, clearGames,
     toggleSlot, setSlots, assignPlayer, unassignPlayer, unassignPlayerFromGame, updateSlot,
     setTask, setGameMeta, getSlotRequests, addSlotRequest, removeSlotRequest, cleanup,
   }

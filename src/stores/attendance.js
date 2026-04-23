@@ -66,6 +66,20 @@ export const useAttendanceStore = defineStore('attendance', () => {
     await setDoc(doc(db, 'attendance', gameId), { ...data, updatedAt: serverTimestamp() }, { merge: true })
   }
 
+  async function replaceAttendanceFirestore(gameId, data) {
+    const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
+    await setDoc(doc(db, 'attendance', gameId), { ...data, updatedAt: serverTimestamp() })
+  }
+
+  function createEmptyAttendance(gameId, overrides = {}) {
+    return {
+      schedule: gameId,
+      date: '',
+      records: [],
+      ...overrides,
+    }
+  }
+
   // --- Public API ---
   async function fetchAttendance() {
     loading.value = true
@@ -107,11 +121,24 @@ export const useAttendanceStore = defineStore('attendance', () => {
     return saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
+  async function clearGameAttendance(gameId, { preserveDate = false } = {}) {
+    const current = attendance.value[gameId] || null
+    const next = createEmptyAttendance(gameId, {
+      date: preserveDate ? current?.date || '' : '',
+    })
+    attendance.value[gameId] = next
+    await replaceAttendanceFirestore(gameId, next)
+  }
+
   /** Clear all attendance (new week reset) */
   async function clearAttendance() {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'attendance', id)).catch(() => {})))
-    attendance.value = {}
+    const next = {}
+    await Promise.all(GAME_IDS.map(async (gameId) => {
+      const emptyAttendance = createEmptyAttendance(gameId)
+      next[gameId] = emptyAttendance
+      await replaceAttendanceFirestore(gameId, emptyAttendance)
+    }))
+    attendance.value = next
   }
 
   function cleanup() {
@@ -123,6 +150,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     attendance, loading, initialized,
     getGameAttendance, getPlayerAttendance, getPlayerReadiness,
     summary, unrespondedPlayers,
-    fetchAttendance, setPlayerAttendance, setDate, clearAttendance, cleanup,
+    fetchAttendance, setPlayerAttendance, setDate, clearGameAttendance, clearAttendance, cleanup,
   }
 })

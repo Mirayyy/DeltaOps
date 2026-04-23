@@ -137,6 +137,7 @@ async function finalize() {
 
     await attendance.clearAttendance()
     await gamesStore.clearGames()
+    await missionsStore.clearMissions()
 
     emit('done')
   } finally {
