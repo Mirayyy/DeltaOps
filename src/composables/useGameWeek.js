@@ -52,6 +52,7 @@ export function useGameWeek() {
 
   watch(gameDates, async (resolvedDates) => {
     if (syncingDates || !resolvedDates.friday || !resolvedDates.saturday) return
+    if (!gamesStore.initialized || !attendanceStore.initialized) return
 
     const dateMap = buildGameDateMap(resolvedDates)
     const missingDates = Object.entries(dateMap).filter(([gameId, date]) =>

@@ -135,8 +135,8 @@ async function finalize() {
       })
     }
 
-    await gamesStore.clearGames()
     await attendance.clearAttendance()
+    await gamesStore.clearGames()
 
     emit('done')
   } finally {

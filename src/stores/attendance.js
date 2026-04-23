@@ -6,6 +6,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // { [gameId]: { schedule, date, records: [{ playerId, attendance }] } }
   const attendance = ref({})
   const loading = ref(false)
+  const initialized = ref(false)
 
   function getGameAttendance(gameId) {
     return attendance.value[gameId] || { schedule: gameId, date: '', records: [] }
@@ -55,6 +56,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const data = {}
       snapshot.docs.forEach(d => { data[d.id] = d.data() })
       attendance.value = data
+      initialized.value = true
     })
     unsubscribes.push(unsub)
   }
@@ -118,7 +120,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   return {
-    attendance, loading,
+    attendance, loading, initialized,
     getGameAttendance, getPlayerAttendance, getPlayerReadiness,
     summary, unrespondedPlayers,
     fetchAttendance, setPlayerAttendance, setDate, clearAttendance, cleanup,

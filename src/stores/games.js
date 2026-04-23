@@ -6,6 +6,7 @@ export const useGamesStore = defineStore('games', () => {
   // { [gameId]: { schedule, date, sourceUrl, version, slots[], task, updatedAt, updatedBy } }
   const games = ref({})
   const loading = ref(false)
+  const initialized = ref(false)
 
   // Slot memory: when a slot is removed and re-added, its data persists
   const slotMemory = ref({}) // { [gameId]: { [slotKey]: slotData } }
@@ -42,6 +43,7 @@ export const useGamesStore = defineStore('games', () => {
       const data = {}
       snapshot.docs.forEach(d => { data[d.id] = d.data() })
       games.value = data
+      initialized.value = true
     })
     unsubscribes.push(unsub)
   }
@@ -49,6 +51,11 @@ export const useGamesStore = defineStore('games', () => {
   async function saveGameFirestore(gameId, data) {
     const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'games', gameId), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+  }
+
+  async function mergeGameFirestore(gameId, partial) {
+    const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
+    await setDoc(doc(db, 'games', gameId), { schedule: gameId, ...partial, updatedAt: serverTimestamp() }, { merge: true })
   }
 
   // --- Slot management ---
@@ -159,9 +166,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function addSlotRequest(gameId, { playerId, slots, text }) {
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
-    }
+    if (!games.value[gameId]) games.value[gameId] = { schedule: gameId }
     if (!games.value[gameId].slotRequests) games.value[gameId].slotRequests = []
     // Replace existing request from same player
     const idx = games.value[gameId].slotRequests.findIndex(r => r.playerId === playerId)
@@ -171,7 +176,7 @@ export const useGamesStore = defineStore('games', () => {
     } else {
       games.value[gameId].slotRequests.push(request)
     }
-    persist(gameId)
+    return mergeGameFirestore(gameId, { slotRequests: games.value[gameId].slotRequests })
   }
 
   function removeSlotRequest(gameId, index) {
@@ -181,13 +186,19 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function setGameMeta(gameId, { date, sourceUrl, version }) {
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
+    const patch = {}
+    if (date !== undefined) patch.date = date
+    if (sourceUrl !== undefined) patch.sourceUrl = sourceUrl
+    if (version !== undefined) patch.version = version
+    if (!Object.keys(patch).length) return Promise.resolve()
+
+    if (games.value[gameId]) {
+      if (date !== undefined) games.value[gameId].date = date
+      if (sourceUrl !== undefined) games.value[gameId].sourceUrl = sourceUrl
+      if (version !== undefined) games.value[gameId].version = version
     }
-    if (date !== undefined) games.value[gameId].date = date
-    if (sourceUrl !== undefined) games.value[gameId].sourceUrl = sourceUrl
-    if (version !== undefined) games.value[gameId].version = version
-    return persist(gameId)
+
+    return mergeGameFirestore(gameId, patch)
   }
 
   // --- Persist helper ---
@@ -227,7 +238,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   return {
-    games, loading,
+    games, loading, initialized,
     getGame, getSlots, getPlayerSlot, getPlayerSlots,
     fetchGames, clearGame, clearGames,
     toggleSlot, setSlots, assignPlayer, unassignPlayer, unassignPlayerFromGame, updateSlot,
