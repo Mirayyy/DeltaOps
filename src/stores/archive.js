@@ -1,30 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { GAME_IDS } from '../utils/constants'
-import { getGameDates } from '../composables/useGameWeek'
 import { useGamesStore } from './games'
 import { useAttendanceStore } from './attendance'
+import { useMissionsStore } from './missions'
+import { buildGameDateMap, getResolvedGameDates, normalizeDate } from '../utils/gameDates'
 
 const GAME_ORDER = GAME_IDS.reduce((acc, gameId, index) => {
   acc[gameId] = index
   return acc
 }, {})
-
-function normalizeDate(dateStr = '') {
-  if (!dateStr) return ''
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-    return dateStr.slice(0, 10)
-  }
-
-  const ruMatch = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
-  if (ruMatch) {
-    const [, dd, mm, yyyy] = ruMatch
-    return `${yyyy}-${mm}-${dd}`
-  }
-
-  return ''
-}
 
 function getEntryKey(date, schedule) {
   return `${normalizeDate(date)}::${schedule || ''}`
@@ -124,9 +109,9 @@ export const useArchiveStore = defineStore('archive', () => {
 
   /**
    * Archive a single game: copy slots from games store + records from attendance store → archive.
-   * @param {object} params — { schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }
+   * @param {object} params — { schedule, date, sourceUrl, version, server, side, slots, records, task, missionTitle, adminUid }
    */
-  async function archiveGame({ schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }) {
+  async function archiveGame({ schedule, date, sourceUrl, version, server, side, slots, records, task, missionTitle, adminUid }) {
     const rotation = date ? getRotationForDate(date) : getActiveRotation()
     const id = `${date}-${schedule}`
 
@@ -148,6 +133,7 @@ export const useArchiveStore = defineStore('archive', () => {
       slots: slots || [],
       records: records || [],
       task: task || '',
+      missionTitle: missionTitle || '',
       archivedAt: new Date().toISOString(),
       archivedBy: adminUid,
     }
@@ -160,14 +146,6 @@ export const useArchiveStore = defineStore('archive', () => {
   }
 
   function buildComparisonEntries({ players = [], rotationId = 'all' } = {}) {
-    const { friday, saturday } = getGameDates(new Date())
-    const defaultDates = {
-      friday_1: friday,
-      friday_2: friday,
-      saturday_1: saturday,
-      saturday_2: saturday,
-    }
-
     const archiveEntries = archives.value
       .filter(entry => rotationId === 'all' || entry.rotation === rotationId)
       .map(entry => ({ ...entry, isLive: false }))
@@ -178,10 +156,17 @@ export const useArchiveStore = defineStore('archive', () => {
     const activeRotation = getActiveRotation()
     const gamesStore = useGamesStore()
     const attendanceStore = useAttendanceStore()
+    const missionsStore = useMissionsStore()
+    const resolvedDates = buildGameDateMap(getResolvedGameDates({
+      now: new Date(),
+      gamesById: gamesStore.games,
+      attendanceById: attendanceStore.attendance,
+      archives: archives.value,
+    }))
 
     for (const gameId of GAME_IDS) {
       const game = gamesStore.getGame(gameId)
-      const resolvedDate = game?.date || defaultDates[gameId] || ''
+      const resolvedDate = game?.date || attendanceStore.getGameAttendance(gameId)?.date || resolvedDates[gameId] || ''
       const key = getEntryKey(resolvedDate, gameId)
       if (archivedKeys.has(key)) continue
 
@@ -203,6 +188,7 @@ export const useArchiveStore = defineStore('archive', () => {
           attendance: attendanceStore.getPlayerAttendance(gameId, player.uid),
         })),
         task: game?.task || '',
+        missionTitle: missionsStore.getMission(gameId)?.title || '',
         isLive: true,
       })
     }

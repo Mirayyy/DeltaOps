@@ -187,12 +187,12 @@ export const useGamesStore = defineStore('games', () => {
     if (date !== undefined) games.value[gameId].date = date
     if (sourceUrl !== undefined) games.value[gameId].sourceUrl = sourceUrl
     if (version !== undefined) games.value[gameId].version = version
-    persist(gameId)
+    return persist(gameId)
   }
 
   // --- Persist helper ---
   function persist(gameId) {
-    saveGameFirestore(gameId, games.value[gameId])
+    return saveGameFirestore(gameId, games.value[gameId])
   }
 
   // --- Public API ---

@@ -5,6 +5,7 @@ import { useArchiveStore } from '../stores/archive'
 import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
 import { useGamesStore } from '../stores/games'
+import { useMissionsStore } from '../stores/missions'
 import { READINESS_STATUSES, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import BaseModal from '../components/common/BaseModal.vue'
@@ -15,6 +16,7 @@ const archive = useArchiveStore()
 const roster = useRosterStore()
 const attendanceStore = useAttendanceStore()
 const gamesStore = useGamesStore()
+const missionsStore = useMissionsStore()
 
 const SLOT_TYPE_STYLES = {
   squadCommander: 'bg-delta-green/20 text-delta-green border-delta-green/30',
@@ -103,7 +105,7 @@ const gameLabel = {
 }
 
 onMounted(async () => {
-  const tasks = [archive.fetchArchives(), attendanceStore.fetchAttendance(), gamesStore.fetchGames()]
+  const tasks = [archive.fetchArchives(), attendanceStore.fetchAttendance(), gamesStore.fetchGames(), missionsStore.fetchMissions()]
   if (!roster.players.length) tasks.push(roster.fetchPlayers())
   await Promise.all(tasks)
 })
@@ -154,6 +156,10 @@ function confirmedCount(gameArchive) {
   return (gameArchive.records || []).filter(r => r.attendance === 'confirmed').length
 }
 
+function missionTitleForEntry(entry) {
+  return entry?.missionTitle || ''
+}
+
 // --- Attendance tab ---
 
 // Collect all unique player IDs from archive + live comparison entries
@@ -184,7 +190,14 @@ const attendanceHistory = computed(() => {
     for (const r of (a.records || [])) {
       recordMap[r.playerId] = r.attendance
     }
-    return { id: a.id, date: a.date, schedule: a.schedule, records: recordMap, isLive: a.isLive }
+    return {
+      id: a.id,
+      date: a.date,
+      schedule: a.schedule,
+      missionTitle: a.missionTitle || '',
+      records: recordMap,
+      isLive: a.isLive,
+    }
   })
 })
 
@@ -223,7 +236,15 @@ const opticsHistory = computed(() => {
         slotDetails[s.playerId] = s
       }
     }
-    return { id: a.id, date: a.date, schedule: a.schedule, slots: slotMap, slotDetails, isLive: a.isLive }
+    return {
+      id: a.id,
+      date: a.date,
+      schedule: a.schedule,
+      missionTitle: a.missionTitle || '',
+      slots: slotMap,
+      slotDetails,
+      isLive: a.isLive,
+    }
   })
 })
 
@@ -396,7 +417,12 @@ async function createRotation() {
             <div v-for="game in group.games" :key="game.id" class="border-b border-neutral-800/50 last:border-b-0">
               <button @click="selectGame(game.id)"
                 class="w-full px-5 py-2.5 flex items-center justify-between hover:bg-neutral-800/30 transition-colors">
-                <span class="text-sm">{{ gameLabel[game.schedule] || game.schedule }}</span>
+                <div class="min-w-0 flex items-center gap-2">
+                  <span class="text-sm shrink-0">{{ gameLabel[game.schedule] || game.schedule }}</span>
+                  <span v-if="missionTitleForEntry(game)" class="text-xs text-neutral-500 truncate">
+                    {{ missionTitleForEntry(game) }}
+                  </span>
+                </div>
                 <div class="flex items-center gap-3">
                   <span class="text-xs text-delta-green font-mono">{{ confirmedCount(game) }} чел.</span>
                   <svg :class="['w-3.5 h-3.5 text-neutral-500 transition-transform', expandedGame === game.id ? 'rotate-180' : '']"
@@ -604,6 +630,9 @@ async function createRotation() {
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
               <span class="text-xs text-neutral-500">{{ gameLabel[entry.schedule] || entry.schedule }}</span>
+              <span v-if="missionTitleForEntry(entry)" class="text-xs text-neutral-500 truncate">
+                {{ missionTitleForEntry(entry) }}
+              </span>
               <span v-if="entry.isLive" class="text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-400">
                 Текущая неделя
               </span>
@@ -680,6 +709,9 @@ async function createRotation() {
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
               <span class="text-xs text-neutral-500">{{ gameLabel[entry.schedule] || entry.schedule }}</span>
+              <span v-if="missionTitleForEntry(entry)" class="text-xs text-neutral-500 truncate">
+                {{ missionTitleForEntry(entry) }}
+              </span>
               <span v-if="entry.isLive" class="text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 text-emerald-400">
                 Текущая неделя
               </span>
