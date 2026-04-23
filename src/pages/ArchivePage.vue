@@ -7,7 +7,6 @@ import { useAttendanceStore } from '../stores/attendance'
 import { useGamesStore } from '../stores/games'
 import { READINESS_STATUSES, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
-import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 import BaseModal from '../components/common/BaseModal.vue'
 import BaseSelect from '../components/common/BaseSelect.vue'
 
@@ -102,11 +101,6 @@ const gameLabel = {
   friday_1: 'Пятница 1', friday_2: 'Пятница 2',
   saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
 }
-
-const attendanceOptions = Object.entries(READINESS_STATUSES).map(([value, config]) => ({
-  value,
-  label: config.label,
-}))
 
 onMounted(async () => {
   const tasks = [archive.fetchArchives(), attendanceStore.fetchAttendance(), gamesStore.fetchGames()]
@@ -222,10 +216,14 @@ const opticsPlayers = computed(() => {
 const opticsHistory = computed(() => {
   return comparisonEntries.value.map(a => {
     const slotMap = {}
+    const slotDetails = {}
     for (const s of (a.slots || [])) {
-      if (s.playerId) slotMap[s.playerId] = !!s.optics
+      if (s.playerId) {
+        slotMap[s.playerId] = !!s.optics
+        slotDetails[s.playerId] = s
+      }
     }
-    return { id: a.id, date: a.date, schedule: a.schedule, slots: slotMap, isLive: a.isLive }
+    return { id: a.id, date: a.date, schedule: a.schedule, slots: slotMap, slotDetails, isLive: a.isLive }
   })
 })
 
@@ -251,12 +249,18 @@ function attendanceStatusClass(status) {
   return 'text-neutral-600'
 }
 
-function attendanceStatusLabel(status) {
-  return attendanceStatusMeta(status).label
-}
-
 function attendanceStatusIcon(status) {
   return attendanceStatusMeta(status).icon
+}
+
+function cycleArchivedAttendanceStatus(status) {
+  if (status === 'confirmed') return 'absent'
+  if (status === 'absent') return 'no_response'
+  return 'confirmed'
+}
+
+function canEditArchiveHistory(entry) {
+  return isAdmin.value && !entry.isLive
 }
 
 function attendanceSaveKey(archiveId, playerId) {
@@ -287,6 +291,12 @@ async function setArchiveAttendance(archiveId, playerId, status) {
   }
 }
 
+async function cycleArchiveAttendance(entry, playerId) {
+  if (!canEditArchiveHistory(entry)) return
+  const nextStatus = cycleArchivedAttendanceStatus(entry.records[playerId])
+  await setArchiveAttendance(entry.id, playerId, nextStatus)
+}
+
 async function setArchiveOptics(archiveId, slot, optics) {
   const key = opticsSaveKey(archiveId, slot)
   savingOptics.value = { ...savingOptics.value, [key]: true }
@@ -302,6 +312,13 @@ async function setArchiveOptics(archiveId, slot, optics) {
     delete next[key]
     savingOptics.value = next
   }
+}
+
+async function toggleArchiveOptics(entry, playerId) {
+  if (!canEditArchiveHistory(entry)) return
+  const slot = entry.slotDetails[playerId]
+  if (!slot) return
+  await setArchiveOptics(entry.id, slot, !entry.slots[playerId])
 }
 
 // --- Rotation CRUD ---
@@ -463,14 +480,9 @@ async function createRotation() {
                               </div>
                             </td>
                             <td class="px-3 py-2.5">
-                              <BaseCheckbox
-                                :checked="!!row.slot.optics"
-                                :disabled="isSavingOptics(game.id, row.slot) || !isAdmin"
-                                size="sm"
-                                @change="setArchiveOptics(game.id, row.slot, $event)"
-                              >
-                                <span class="text-[10px] text-neutral-400">Оптика</span>
-                              </BaseCheckbox>
+                              <span :class="row.slot.optics ? 'text-red-400 font-bold' : 'text-neutral-600'">
+                                {{ row.slot.optics ? '⊕' : '—' }}
+                              </span>
                             </td>
                             <td class="px-3 py-2.5 text-xs text-neutral-500 truncate" :title="row.slot.notes">
                               {{ row.slot.notes || '—' }}
@@ -525,12 +537,9 @@ async function createRotation() {
                         </div>
                         <div class="mt-2 flex items-center justify-between">
                           <span class="text-[10px] text-neutral-500 uppercase tracking-wider">Оптика</span>
-                          <BaseCheckbox
-                            :checked="!!row.slot.optics"
-                            :disabled="isSavingOptics(game.id, row.slot) || !isAdmin"
-                            size="sm"
-                            @change="setArchiveOptics(game.id, row.slot, $event)"
-                          />
+                          <span :class="row.slot.optics ? 'text-red-400 font-bold' : 'text-neutral-600'">
+                            {{ row.slot.optics ? '⊕' : '—' }}
+                          </span>
                         </div>
                       </div>
                     </template>
@@ -541,21 +550,10 @@ async function createRotation() {
                 <div class="px-5">
                   <h4 class="text-xs text-neutral-500 mb-2">Посещаемость</h4>
                   <div class="grid grid-cols-2 md:grid-cols-3 gap-1">
-                    <div v-for="record in (game.records || [])" :key="record.playerId"
+                  <div v-for="record in (game.records || [])" :key="record.playerId"
                       class="flex items-center justify-between px-3 py-1.5 rounded text-xs bg-neutral-800/30">
                       <span>{{ roster.resolveNickname(record.playerId) }}</span>
-                      <select
-                        v-if="isAdmin"
-                        :value="record.attendance"
-                        :disabled="isSavingAttendance(game.id, record.playerId)"
-                        class="bg-neutral-800 border border-neutral-700 rounded px-2 py-1 text-[11px] text-neutral-200 outline-none focus:border-delta-green"
-                        @change="setArchiveAttendance(game.id, record.playerId, $event.target.value)"
-                      >
-                        <option v-for="option in attendanceOptions" :key="option.value" :value="option.value">
-                          {{ option.label }}
-                        </option>
-                      </select>
-                      <span v-else :class="[attendanceStatusClass(record.attendance), 'font-bold']">
+                      <span :class="[attendanceStatusClass(record.attendance), 'font-bold']">
                         {{ attendanceStatusIcon(record.attendance) }}
                       </span>
                     </div>
@@ -617,7 +615,21 @@ async function createRotation() {
                   <span class="text-[10px] text-neutral-500 truncate max-w-[4.5rem]">
                     {{ roster.resolveNickname(p.uid) }}
                   </span>
-                  <span v-if="entry.records[p.uid]"
+                  <button
+                    v-if="canEditArchiveHistory(entry)"
+                    type="button"
+                    :disabled="isSavingAttendance(entry.id, p.uid)"
+                    :class="[
+                      'mt-0.5 text-sm font-bold transition-colors',
+                      attendanceStatusClass(entry.records[p.uid]),
+                      isSavingAttendance(entry.id, p.uid) ? 'opacity-50 cursor-wait' : 'hover:opacity-80 cursor-pointer',
+                    ]"
+                    :title="READINESS_STATUSES[cycleArchivedAttendanceStatus(entry.records[p.uid])].label"
+                    @click="cycleArchiveAttendance(entry, p.uid)"
+                  >
+                    {{ attendanceStatusIcon(entry.records[p.uid]) }}
+                  </button>
+                  <span v-else-if="entry.records[p.uid]"
                     :class="[attendanceStatusClass(entry.records[p.uid]), 'font-bold text-sm mt-0.5']">
                     {{ attendanceStatusIcon(entry.records[p.uid]) }}
                   </span>
@@ -679,7 +691,21 @@ async function createRotation() {
                   <span class="text-[10px] text-neutral-500 truncate max-w-[4.5rem]">
                     {{ roster.resolveNickname(p.uid) }}
                   </span>
-                  <span v-if="entry.slots[p.uid] === true"
+                  <button
+                    v-if="canEditArchiveHistory(entry) && entry.slotDetails[p.uid]"
+                    type="button"
+                    :disabled="isSavingOptics(entry.id, entry.slotDetails[p.uid])"
+                    :class="[
+                      'mt-0.5 text-sm font-bold transition-colors',
+                      entry.slots[p.uid] === true ? 'text-red-400' : 'text-neutral-600',
+                      isSavingOptics(entry.id, entry.slotDetails[p.uid]) ? 'opacity-50 cursor-wait' : 'hover:opacity-80 cursor-pointer',
+                    ]"
+                    :title="entry.slots[p.uid] ? 'Снять оптику' : 'Выдать оптику'"
+                    @click="toggleArchiveOptics(entry, p.uid)"
+                  >
+                    {{ entry.slots[p.uid] ? '⊕' : '—' }}
+                  </button>
+                  <span v-else-if="entry.slots[p.uid] === true"
                     class="text-red-400 font-bold text-sm mt-0.5">⊕</span>
                   <span v-else-if="entry.slots[p.uid] === false"
                     class="text-neutral-600 text-sm mt-0.5">—</span>
