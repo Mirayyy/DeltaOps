@@ -104,6 +104,13 @@ const gameLabel = {
   saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
 }
 
+const archiveGameOrder = {
+  saturday_2: 0,
+  saturday_1: 1,
+  friday_2: 2,
+  friday_1: 3,
+}
+
 onMounted(async () => {
   const tasks = [archive.fetchArchives(), attendanceStore.fetchAttendance(), gamesStore.fetchGames(), missionsStore.fetchMissions()]
   if (!roster.players.length) tasks.push(roster.fetchPlayers())
@@ -142,7 +149,9 @@ const dateGroups = computed(() => {
   return Object.values(groups)
     .map(group => ({
       ...group,
-      games: group.games.slice().sort((a, b) => sortableDate(b.date).localeCompare(sortableDate(a.date))),
+      games: group.games.slice().sort((a, b) =>
+        (archiveGameOrder[a.schedule] ?? 99) - (archiveGameOrder[b.schedule] ?? 99),
+      ),
     }))
     .sort((a, b) => sortableDate(b.date).localeCompare(sortableDate(a.date)))
 })
@@ -176,6 +185,10 @@ function archivePlayerNickname(playerId) {
 
 function visibleArchiveRecords(records = []) {
   return records.filter(record => isArchivePlayerVisible(record.playerId))
+}
+
+function entrySlotHasOptics(slot) {
+  return !!slot?.optics || (slot?.equipment || []).includes('Оптика')
 }
 
 // --- Attendance tab ---
@@ -256,7 +269,7 @@ const opticsHistory = computed(() => {
     }
     for (const s of (a.slots || [])) {
       if (s.playerId) {
-        slotMap[s.playerId] = !!s.optics
+        slotMap[s.playerId] = entrySlotHasOptics(s)
         slotDetails[s.playerId] = s
       }
     }

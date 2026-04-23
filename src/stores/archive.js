@@ -6,10 +6,12 @@ import { useAttendanceStore } from './attendance'
 import { useMissionsStore } from './missions'
 import { buildGameDateMap, getResolvedGameDates, normalizeDate } from '../utils/gameDates'
 
-const GAME_ORDER = GAME_IDS.reduce((acc, gameId, index) => {
-  acc[gameId] = index
-  return acc
-}, {})
+const GAME_ORDER = {
+  saturday_2: 0,
+  saturday_1: 1,
+  friday_2: 2,
+  friday_1: 3,
+}
 
 function getEntryKey(date, schedule) {
   return `${normalizeDate(date)}::${schedule || ''}`
@@ -28,6 +30,10 @@ function matchesSlotLocator(slot, slotLocator) {
     slot.squad === slotLocator.squad &&
     slot.number === slotLocator.number &&
     slot.name === slotLocator.name
+}
+
+function hasSlotOptics(slot) {
+  return !!slot?.optics || (slot?.equipment || []).includes('Оптика')
 }
 
 export const useArchiveStore = defineStore('archive', () => {
@@ -184,7 +190,10 @@ export const useArchiveStore = defineStore('archive', () => {
         schedule: gameId,
         sourceUrl: game?.sourceUrl || '',
         version: game?.version || '',
-        slots: (game?.slots || []).map(slot => ({ ...slot })),
+        slots: (game?.slots || []).map(slot => ({
+          ...slot,
+          optics: hasSlotOptics(slot),
+        })),
         records: players.map(player => ({
           playerId: player.uid,
           attendance: attendanceStore.getPlayerAttendance(gameId, player.uid),
