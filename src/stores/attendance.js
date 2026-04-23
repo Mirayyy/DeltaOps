@@ -52,13 +52,27 @@ export const useAttendanceStore = defineStore('attendance', () => {
   async function loadFirestore() {
     const { attendanceRef, onSnapshot } = await import('../firebase/firestore')
 
-    const unsub = onSnapshot(attendanceRef, (snapshot) => {
-      const data = {}
-      snapshot.docs.forEach(d => { data[d.id] = d.data() })
-      attendance.value = data
-      initialized.value = true
+    await new Promise((resolve, reject) => {
+      let firstSnapshot = true
+      const unsub = onSnapshot(attendanceRef, (snapshot) => {
+        const data = {}
+        snapshot.docs.forEach(d => { data[d.id] = d.data() })
+        attendance.value = data
+        initialized.value = true
+        if (firstSnapshot) {
+          firstSnapshot = false
+          resolve()
+        }
+      }, (error) => {
+        if (firstSnapshot) {
+          firstSnapshot = false
+          reject(error)
+        } else {
+          console.error('Attendance snapshot error:', error)
+        }
+      })
+      unsubscribes.push(unsub)
     })
-    unsubscribes.push(unsub)
   }
 
   async function saveAttendanceFirestore(gameId, data) {

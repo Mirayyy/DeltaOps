@@ -389,7 +389,6 @@ async function confirmClearLineup() {
 async function confirmClearGame() {
   await Promise.all([
     gamesStore.clearGame(activeTab.value),
-    attendance.clearGameAttendance(activeTab.value),
     missionsStore.clearMission(activeTab.value),
   ])
 }

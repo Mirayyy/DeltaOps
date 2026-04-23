@@ -39,13 +39,27 @@ export const useGamesStore = defineStore('games', () => {
     const { doc, getDoc, db, onSnapshot, collection } = await import('../firebase/firestore')
     const { gamesRef } = await import('../firebase/firestore')
 
-    const unsub = onSnapshot(gamesRef, (snapshot) => {
-      const data = {}
-      snapshot.docs.forEach(d => { data[d.id] = d.data() })
-      games.value = data
-      initialized.value = true
+    await new Promise((resolve, reject) => {
+      let firstSnapshot = true
+      const unsub = onSnapshot(gamesRef, (snapshot) => {
+        const data = {}
+        snapshot.docs.forEach(d => { data[d.id] = normalizeGame(d.id, d.data()) })
+        games.value = data
+        initialized.value = true
+        if (firstSnapshot) {
+          firstSnapshot = false
+          resolve()
+        }
+      }, (error) => {
+        if (firstSnapshot) {
+          firstSnapshot = false
+          reject(error)
+        } else {
+          console.error('Games snapshot error:', error)
+        }
+      })
+      unsubscribes.push(unsub)
     })
-    unsubscribes.push(unsub)
   }
 
   async function saveGameFirestore(gameId, data) {
@@ -78,8 +92,31 @@ export const useGamesStore = defineStore('games', () => {
     }
   }
 
+  function normalizeGame(gameId, game = {}) {
+    return {
+      ...createEmptyGame(gameId),
+      ...game,
+      schedule: game?.schedule || gameId,
+      slots: Array.isArray(game?.slots) ? game.slots : [],
+      slotRequests: Array.isArray(game?.slotRequests) ? game.slotRequests : [],
+      task: typeof game?.task === 'string' ? game.task : '',
+      date: typeof game?.date === 'string' ? game.date : '',
+      sourceUrl: typeof game?.sourceUrl === 'string' ? game.sourceUrl : '',
+      version: typeof game?.version === 'string' ? game.version : '',
+    }
+  }
+
+  function ensureGame(gameId) {
+    if (!games.value[gameId]) {
+      games.value[gameId] = createEmptyGame(gameId)
+    } else {
+      games.value[gameId] = normalizeGame(gameId, games.value[gameId])
+    }
+    return games.value[gameId]
+  }
+
   function buildResetGame(gameId, { preserveMeta = false } = {}) {
-    const current = games.value[gameId] || {}
+    const current = normalizeGame(gameId, games.value[gameId] || {})
     return {
       ...createEmptyGame(gameId),
       date: preserveMeta ? current.date || '' : '',
@@ -95,10 +132,7 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Toggle slot: add if missing, remove (but remember) if present */
   function toggleSlot(gameId, slot) {
-    if (!games.value[gameId]) {
-      games.value[gameId] = createEmptyGame(gameId)
-    }
-    const game = games.value[gameId]
+    const game = ensureGame(gameId)
     const key = slotKey(slot)
     const existingIdx = game.slots.findIndex(s => slotKey(s) === key)
 
@@ -130,11 +164,9 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Set all configured slots for a game at once */
   function setSlots(gameId, slots, updatedBy) {
-    if (!games.value[gameId]) {
-      games.value[gameId] = createEmptyGame(gameId)
-    }
-    games.value[gameId].slots = slots
-    games.value[gameId].updatedBy = updatedBy
+    const game = ensureGame(gameId)
+    game.slots = Array.isArray(slots) ? slots : []
+    game.updatedBy = updatedBy
     persist(gameId)
   }
 
@@ -146,7 +178,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function assignPlayer(gameId, slotIndex, playerId) {
-    const game = games.value[gameId]
+    const game = ensureGame(gameId)
     if (!game || !game.slots[slotIndex]) return
 
     // Unassign from any other slot in this game
@@ -158,7 +190,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function unassignPlayer(gameId, slotIndex) {
-    const game = games.value[gameId]
+    const game = ensureGame(gameId)
     if (!game || !game.slots[slotIndex]) return
     game.slots[slotIndex].playerId = null
     persist(gameId)
@@ -166,7 +198,7 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Remove a player from all slots in a game (e.g. when marked absent) */
   function unassignPlayerFromGame(gameId, playerId) {
-    const game = games.value[gameId]
+    const game = ensureGame(gameId)
     if (!game) return
     let changed = false
     for (const slot of game.slots) {
@@ -179,7 +211,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function updateSlot(gameId, slotIndex, updates) {
-    const game = games.value[gameId]
+    const game = ensureGame(gameId)
     if (!game || !game.slots[slotIndex]) return
     Object.assign(game.slots[slotIndex], updates)
     // Auto-derive optics from equipment
@@ -189,34 +221,33 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function setTask(gameId, task) {
-    if (!games.value[gameId]) return
-    games.value[gameId].task = task
+    const game = ensureGame(gameId)
+    game.task = task
     persist(gameId)
   }
 
   // --- Slot Requests ---
 
   function getSlotRequests(gameId) {
-    return games.value[gameId]?.slotRequests || []
+    return ensureGame(gameId).slotRequests
   }
 
   function addSlotRequest(gameId, { playerId, slots, text }) {
-    if (!games.value[gameId]) games.value[gameId] = { schedule: gameId }
-    if (!games.value[gameId].slotRequests) games.value[gameId].slotRequests = []
+    const game = ensureGame(gameId)
     // Replace existing request from same player
-    const idx = games.value[gameId].slotRequests.findIndex(r => r.playerId === playerId)
+    const idx = game.slotRequests.findIndex(r => r.playerId === playerId)
     const request = { playerId, slots, text, createdAt: new Date().toISOString() }
     if (idx !== -1) {
-      games.value[gameId].slotRequests[idx] = request
+      game.slotRequests[idx] = request
     } else {
-      games.value[gameId].slotRequests.push(request)
+      game.slotRequests.push(request)
     }
-    return mergeGameFirestore(gameId, { slotRequests: games.value[gameId].slotRequests })
+    return mergeGameFirestore(gameId, { slotRequests: game.slotRequests })
   }
 
   function removeSlotRequest(gameId, index) {
-    if (!games.value[gameId]?.slotRequests) return
-    games.value[gameId].slotRequests.splice(index, 1)
+    const game = ensureGame(gameId)
+    game.slotRequests.splice(index, 1)
     persist(gameId)
   }
 
@@ -227,11 +258,10 @@ export const useGamesStore = defineStore('games', () => {
     if (version !== undefined) patch.version = version
     if (!Object.keys(patch).length) return Promise.resolve()
 
-    if (games.value[gameId]) {
-      if (date !== undefined) games.value[gameId].date = date
-      if (sourceUrl !== undefined) games.value[gameId].sourceUrl = sourceUrl
-      if (version !== undefined) games.value[gameId].version = version
-    }
+    const game = ensureGame(gameId)
+    if (date !== undefined) game.date = date
+    if (sourceUrl !== undefined) game.sourceUrl = sourceUrl
+    if (version !== undefined) game.version = version
 
     return mergeGameFirestore(gameId, patch)
   }
