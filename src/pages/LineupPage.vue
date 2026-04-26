@@ -6,6 +6,7 @@ import { useAttendanceStore } from '../stores/attendance'
 import { useGamesStore } from '../stores/games'
 import { useMissionsStore } from '../stores/missions'
 import { useSquadConfig } from '../stores/squadConfig'
+import { useWeekStateStore } from '../stores/weekState'
 import { useGameWeek } from '../composables/useGameWeek'
 import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
@@ -13,6 +14,7 @@ import SlotConfigurator from '../components/admin/SlotConfigurator.vue'
 import SlotRequestModal from '../components/lineup/SlotRequestModal.vue'
 import ImageLightbox from '../components/common/ImageLightbox.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
+import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
 
@@ -23,6 +25,7 @@ const gamesStore = useGamesStore()
 const missionsStore = useMissionsStore()
 const squadConfig = useSquadConfig()
 const { games, gameDates, currentWeekId } = useGameWeek()
+const weekState = useWeekStateStore()
 
 const activeTab = ref('friday_1')
 const editingSlot = ref(null)
@@ -41,11 +44,16 @@ const personalTaskDraft = ref('')
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
+    weekState.fetchOrBootstrap(),
     attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
   ])
 })
+
+const pageLoading = computed(() =>
+  roster.loading || attendance.loading || gamesStore.loading || missionsStore.loading || weekState.loading
+)
 
 const currentMission = computed(() => missionsStore.getMission(activeTab.value))
 
@@ -461,6 +469,8 @@ async function sendSlotNotification(slot, slotIdx) {
 
 <template>
   <div class="pb-20 md:pb-0">
+    <LoadingSpinner v-if="pageLoading" />
+    <template v-else>
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
       <div>
@@ -1305,5 +1315,6 @@ async function sendSlotNotification(slot, slotIdx) {
       :start-index="galleryStartIndex"
       @close="showGallery = false"
     />
+    </template>
   </div>
 </template>

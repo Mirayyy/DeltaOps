@@ -15,6 +15,7 @@ import WeekFinalizer from '../components/admin/WeekFinalizer.vue'
 import MissionCard from '../components/missions/MissionCard.vue'
 import MissionDetail from '../components/missions/MissionDetail.vue'
 import { useSquadConfig } from '../stores/squadConfig'
+import { useWeekStateStore } from '../stores/weekState'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
 
@@ -25,6 +26,7 @@ const attendance = useAttendanceStore()
 const missionsStore = useMissionsStore()
 const gamesStore = useGamesStore()
 const { games, gameDates, currentWeekId } = useGameWeek()
+const weekState = useWeekStateStore()
 
 const showFinalizer = ref(false)
 const selectedMission = ref(null)
@@ -35,13 +37,14 @@ const toast = useToast()
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
+    weekState.fetchOrBootstrap(),
     attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
   ])
 })
 
-const pageLoading = computed(() => roster.loading || attendance.loading || gamesStore.loading)
+const pageLoading = computed(() => roster.loading || attendance.loading || gamesStore.loading || weekState.loading)
 
 const summaryRows = computed(() => {
   const activeIds = new Set(roster.activePlayers.map(p => p.uid))

@@ -5,6 +5,7 @@ import { useAttendanceStore } from '../../stores/attendance'
 import { useGamesStore } from '../../stores/games'
 import { useArchiveStore } from '../../stores/archive'
 import { useSquadConfig } from '../../stores/squadConfig'
+import { useWeekStateStore } from '../../stores/weekState'
 import { useGameWeek } from '../../composables/useGameWeek'
 import BaseModal from '../common/BaseModal.vue'
 
@@ -15,6 +16,7 @@ const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const archive = useArchiveStore()
 const squadConfig = useSquadConfig()
+const weekState = useWeekStateStore()
 const { games } = useGameWeek()
 
 const processing = ref(false)
@@ -134,6 +136,7 @@ async function finalize() {
 
     await gamesStore.clearGames()
     await attendance.clearAttendance()
+    await weekState.clearLockedWeek()
 
     emit('done')
   } finally {

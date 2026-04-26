@@ -16,6 +16,7 @@ export const statsRef = collection(db, 'stats')
 export const structuresRef = collection(db, 'structures')
 export const configRef = doc(db, 'config', 'app')
 export const squadConfigRef = doc(db, 'config', 'squad')
+export const weekConfigRef = doc(db, 'config', 'week')
 
 // Re-export commonly used Firestore functions
 export {

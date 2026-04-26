@@ -8,6 +8,7 @@ import { useGamesStore } from '../stores/games'
 import { useStatsStore } from '../stores/stats'
 import { useArchiveStore } from '../stores/archive'
 import { useWebContentStore } from '../stores/webContent'
+import { useWeekStateStore } from '../stores/weekState'
 import { useGameWeek } from '../composables/useGameWeek'
 import { getTsgUrl, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import { kpdColor } from '../utils/formatters'
@@ -28,6 +29,7 @@ const gamesStore = useGamesStore()
 const statsStore = useStatsStore()
 const archiveStore = useArchiveStore()
 const webContent = useWebContentStore()
+const weekState = useWeekStateStore()
 const { games } = useGameWeek()
 const toast = useToast()
 
@@ -42,6 +44,7 @@ const telegramBotUrl = import.meta.env.VITE_TELEGRAM_BOT_URL || ''
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await Promise.all([
+    weekState.fetchOrBootstrap(),
     attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     statsStore.fetchStats(),
@@ -49,6 +52,16 @@ onMounted(async () => {
     webContent.fetchContent(),
   ])
 })
+
+const pageLoading = computed(() =>
+  roster.loading ||
+  attendance.loading ||
+  gamesStore.loading ||
+  statsStore.loading ||
+  archiveStore.loading ||
+  webContent.loading ||
+  weekState.loading
+)
 
 const isOwnProfile = computed(() => !route.params.id || route.params.id === auth.player?.uid)
 
@@ -258,7 +271,9 @@ async function saveTelegramId() {
 </script>
 
 <template>
-  <div v-if="!player" class="text-center py-12">
+  <LoadingSpinner v-if="pageLoading" />
+
+  <div v-else-if="!player" class="text-center py-12">
     <p class="text-neutral-500">Игрок не найден</p>
   </div>
 

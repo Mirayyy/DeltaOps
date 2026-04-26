@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_IDS } from '../utils/constants'
+import { useWeekStateStore } from './weekState'
 
 export const useAttendanceStore = defineStore('attendance', () => {
   // { [gameId]: { schedule, date, records: [{ playerId, attendance }] } }
@@ -75,6 +76,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   async function setPlayerAttendance(gameId, playerId, status) {
+    const weekState = useWeekStateStore()
+    await weekState.ensureLockedForAttendance()
+
     if (!attendance.value[gameId]) {
       attendance.value[gameId] = { schedule: gameId, date: '', records: [] }
     }
