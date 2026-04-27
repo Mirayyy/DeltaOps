@@ -10,7 +10,7 @@ import { firebaseProjectId } from '../firebase/config'
 
 const DEFAULTS = {
   siteName: 'DELTAops',
-  siteUrl: '',
+  siteUrl: 'https://mirayyy.github.io/DeltaOps/#/',
   githubUrl: '',
   firestoreUrl: '',
 }
