@@ -24,7 +24,7 @@ const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const missionsStore = useMissionsStore()
 const squadConfig = useSquadConfig()
-const { games, gameDates, currentWeekId } = useGameWeek()
+const { games, gameDates } = useGameWeek()
 const weekState = useWeekStateStore()
 
 const activeTab = ref('friday_1')
@@ -475,7 +475,7 @@ async function sendSlotNotification(slot, slotIdx) {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
       <div>
         <h1 class="text-2xl font-bold">Расстановка</h1>
-        <p class="text-sm text-neutral-500">Неделя {{ currentWeekId }}</p>
+        <p class="text-sm text-neutral-500">Пт {{ gameDates.friday }} — Сб {{ gameDates.saturday }}</p>
       </div>
       <!-- Mobile: collapsible actions toggle -->
       <button @click="actionsExpanded = !actionsExpanded"

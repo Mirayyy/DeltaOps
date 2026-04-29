@@ -25,7 +25,7 @@ const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const missionsStore = useMissionsStore()
 const gamesStore = useGamesStore()
-const { games, gameDates, currentWeekId } = useGameWeek()
+const { games, gameDates } = useGameWeek()
 const weekState = useWeekStateStore()
 
 const showFinalizer = ref(false)
@@ -173,7 +173,7 @@ async function onWeekFinalized() {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
       <div>
         <h1 class="text-2xl font-bold">Дашборд</h1>
-        <p class="text-sm text-neutral-500">Неделя {{ currentWeekId }} | Пт {{ gameDates.friday }} — Сб {{ gameDates.saturday }}</p>
+        <p class="text-sm text-neutral-500">Пт {{ gameDates.friday }} — Сб {{ gameDates.saturday }}</p>
       </div>
       <div class="flex items-center gap-3">
         <button v-if="auth.isUserAdmin" @click="showFinalizer = true"

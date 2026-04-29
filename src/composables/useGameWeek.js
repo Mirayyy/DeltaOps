@@ -5,7 +5,6 @@ import { getDefaultWeekDates } from '../utils/gameWeek'
 export function useGameWeek() {
   const weekState = useWeekStateStore()
   const fallbackWeek = computed(() => getDefaultWeekDates())
-  const currentWeekId = computed(() => weekState.lockedWeek?.weekId || fallbackWeek.value.weekId)
   const gameDates = computed(() => {
     if (weekState.lockedWeek) {
       return {
@@ -26,5 +25,5 @@ export function useGameWeek() {
     { id: 'saturday_2', label: `Суббота 2`, date: gameDates.value.saturday, day: 'saturday' },
   ])
 
-  return { currentWeekId, gameDates, games }
+  return { gameDates, games }
 }
