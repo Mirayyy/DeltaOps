@@ -43,23 +43,23 @@ const telegramBotUrl = import.meta.env.VITE_TELEGRAM_BOT_URL || ''
 
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
+
   await Promise.all([
     weekState.fetchOrBootstrap(),
     attendance.fetchAttendance(),
     gamesStore.fetchGames(),
-    statsStore.fetchStats(),
-    archiveStore.fetchArchives(),
-    webContent.fetchContent(),
   ])
+
+  // Secondary blocks should not prevent the profile from opening.
+  statsStore.fetchStats()
+  archiveStore.fetchArchives()
+  webContent.fetchContent()
 })
 
 const pageLoading = computed(() =>
   roster.loading ||
   attendance.loading ||
   gamesStore.loading ||
-  statsStore.loading ||
-  archiveStore.loading ||
-  webContent.loading ||
   weekState.loading
 )
 

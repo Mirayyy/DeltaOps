@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useSquadConfig } from './squadConfig'
 
 const API_BASE = 'https://stats.tsgames.ru/api/v1'
+const API_TIMEOUT_MS = 8000
 
 /**
  * TSG API endpoints:
@@ -75,6 +76,23 @@ export const useStatsStore = defineStore('stats', () => {
     return items.filter(s => set.has((s.callsign || '').toLowerCase()))
   }
 
+  async function fetchJsonWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+      return response.ok ? response.json() : null
+    } catch {
+      return null
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
   /** Fetch all data from TSG API */
   async function fetchFromApi() {
     loading.value = true
@@ -86,9 +104,9 @@ export const useStatsStore = defineStore('stats', () => {
       ]
       const results = await Promise.all(
         endpoints.map(ep =>
-          fetch(`${API_BASE}/${ep}/`, { headers: { Accept: 'application/json' } })
-            .then(r => r.ok ? r.json() : null)
-            .catch(() => null)
+          fetchJsonWithTimeout(`${API_BASE}/${ep}/`, {
+            headers: { Accept: 'application/json' },
+          })
         )
       )
 
@@ -111,6 +129,10 @@ export const useStatsStore = defineStore('stats', () => {
         lastUpdated: lastUpdated.value,
         cachedAt: new Date().toISOString(),
       }))
+
+      if (!results.some(Boolean)) {
+        fetchError.value = `TSG API недоступен или не ответил за ${Math.round(API_TIMEOUT_MS / 1000)}с`
+      }
     } catch (e) {
       fetchError.value = e.message
       loadFromCache()
