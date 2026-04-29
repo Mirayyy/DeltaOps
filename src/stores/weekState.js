@@ -9,7 +9,7 @@ import {
   setDoc,
   weekConfigRef,
 } from '../firebase/firestore'
-import { getFrozenWeekDates } from '../utils/gameWeek'
+import { getDefaultWeekDates, getFrozenWeekDates } from '../utils/gameWeek'
 
 function normalizeWeek(data) {
   if (!data?.weekId || !data?.friday || !data?.saturday) return null
@@ -21,8 +21,8 @@ function normalizeWeek(data) {
   }
 }
 
-function buildLockedWeek(source, now = new Date()) {
-  const dates = getFrozenWeekDates(now)
+function buildLockedWeek(source, resolveDates = getDefaultWeekDates, now = new Date()) {
+  const dates = resolveDates(now)
   return {
     weekId: dates.weekId,
     friday: dates.friday,
@@ -69,7 +69,7 @@ export const useWeekStateStore = defineStore('weekState', () => {
 
         const shouldBootstrap = await hasAttendanceActivity()
         if (shouldBootstrap) {
-          const week = buildLockedWeek('bootstrap')
+          const week = buildLockedWeek('bootstrap', getFrozenWeekDates)
           await saveLockedWeek(week)
           lockedWeek.value = week
           return week

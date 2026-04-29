@@ -1,11 +1,11 @@
 import { computed } from 'vue'
 import { useWeekStateStore } from '../stores/weekState'
-import { getUpcomingGameDates, getWeekId } from '../utils/gameWeek'
+import { getDefaultWeekDates } from '../utils/gameWeek'
 
 export function useGameWeek() {
-  const now = new Date()
   const weekState = useWeekStateStore()
-  const currentWeekId = computed(() => weekState.lockedWeek?.weekId || getWeekId(now))
+  const fallbackWeek = computed(() => getDefaultWeekDates())
+  const currentWeekId = computed(() => weekState.lockedWeek?.weekId || fallbackWeek.value.weekId)
   const gameDates = computed(() => {
     if (weekState.lockedWeek) {
       return {
@@ -13,7 +13,10 @@ export function useGameWeek() {
         saturday: weekState.lockedWeek.saturday,
       }
     }
-    return getUpcomingGameDates(now)
+    return {
+      friday: fallbackWeek.value.friday,
+      saturday: fallbackWeek.value.saturday,
+    }
   })
 
   const games = computed(() => [

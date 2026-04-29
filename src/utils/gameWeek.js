@@ -10,15 +10,25 @@ export function getWeekId(date = new Date()) {
 }
 
 /**
- * Current fallback behavior: Mon-Thu point to the upcoming Friday/Saturday,
- * Fri-Sun point to the next Friday/Saturday.
+ * Default behavior when no week is locked yet:
+ * Sun-Thu point to the next Friday/Saturday,
+ * Fri-Sat point to the current Friday/Saturday.
  */
-export function getUpcomingGameDates(date = new Date()) {
+export function getDefaultWeekDates(date = new Date()) {
   const d = new Date(date)
   const day = d.getDay() // 0=Sun, 5=Fri, 6=Sat
-  const diff = 5 - day
+  const fridayOffsets = {
+    0: 5,
+    1: 4,
+    2: 3,
+    3: 2,
+    4: 1,
+    5: 0,
+    6: -1,
+  }
+
   const friday = new Date(d)
-  friday.setDate(d.getDate() + (diff <= 0 && day !== 0 ? diff + 7 : diff))
+  friday.setDate(d.getDate() + fridayOffsets[day])
 
   const saturday = new Date(friday)
   saturday.setDate(friday.getDate() + 1)
@@ -26,6 +36,7 @@ export function getUpcomingGameDates(date = new Date()) {
   return {
     friday: formatDate(friday),
     saturday: formatDate(saturday),
+    weekId: getWeekId(friday),
   }
 }
 
