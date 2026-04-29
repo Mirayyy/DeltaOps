@@ -15,12 +15,34 @@ const DEFAULTS = {
   firestoreUrl: '',
 }
 
+function getBasePath() {
+  const base = import.meta.env.BASE_URL || '/'
+  return base.endsWith('/') ? base : base + '/'
+}
+
+function getDefaultSiteUrl() {
+  if (typeof window === 'undefined') return DEFAULTS.siteUrl
+  return new URL(getBasePath(), window.location.origin).toString()
+}
+
 function normalizeSiteUrl(value) {
   const raw = String(value || '').trim()
-  if (!raw) return ''
+  if (!raw) return getDefaultSiteUrl()
 
   const clean = raw.replace(/\/?#\/?$/, '/')
-  return clean.endsWith('/') ? clean : clean + '/'
+
+  try {
+    const url = new URL(clean)
+    const basePath = getBasePath()
+
+    if (basePath !== '/' && (url.pathname === '/' || url.pathname === '')) {
+      url.pathname = basePath
+    }
+
+    return url.toString()
+  } catch {
+    return clean.endsWith('/') ? clean : clean + '/'
+  }
 }
 
 export const useAppConfig = defineStore('appConfig', () => {
@@ -30,7 +52,7 @@ export const useAppConfig = defineStore('appConfig', () => {
   // Convenience computed
   const siteName = computed(() => config.value.siteName)
   const siteUrl = computed(() => {
-    const raw = config.value.siteUrl || import.meta.env.VITE_SITE_URL || window.location.origin
+    const raw = config.value.siteUrl || import.meta.env.VITE_SITE_URL || getDefaultSiteUrl()
     return normalizeSiteUrl(raw)
   })
   const githubUrl = computed(() => config.value.githubUrl)
