@@ -10,9 +10,17 @@ import { firebaseProjectId } from '../firebase/config'
 
 const DEFAULTS = {
   siteName: 'DELTAops',
-  siteUrl: 'https://mirayyy.github.io/DeltaOps/#/',
+  siteUrl: 'https://mirayyy.github.io/DeltaOps/',
   githubUrl: '',
   firestoreUrl: '',
+}
+
+function normalizeSiteUrl(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+
+  const clean = raw.replace(/\/?#\/?$/, '/')
+  return clean.endsWith('/') ? clean : clean + '/'
 }
 
 export const useAppConfig = defineStore('appConfig', () => {
@@ -23,7 +31,7 @@ export const useAppConfig = defineStore('appConfig', () => {
   const siteName = computed(() => config.value.siteName)
   const siteUrl = computed(() => {
     const raw = config.value.siteUrl || import.meta.env.VITE_SITE_URL || window.location.origin
-    return raw.endsWith('/') ? raw : raw + '/'
+    return normalizeSiteUrl(raw)
   })
   const githubUrl = computed(() => config.value.githubUrl)
   const firestoreUrl = computed(() =>
@@ -37,6 +45,7 @@ export const useAppConfig = defineStore('appConfig', () => {
       const snap = await getDoc(configRef)
       if (snap.exists()) {
         config.value = { ...DEFAULTS, ...snap.data() }
+        config.value.siteUrl = normalizeSiteUrl(config.value.siteUrl)
       }
     } catch (e) {
       console.warn('App config load failed, using defaults:', e.message)
@@ -45,7 +54,10 @@ export const useAppConfig = defineStore('appConfig', () => {
   }
 
   async function save(data) {
-    config.value = { ...config.value, ...data }
+    const next = { ...data }
+    if ('siteUrl' in next) next.siteUrl = normalizeSiteUrl(next.siteUrl)
+
+    config.value = { ...config.value, ...next }
     await setDoc(configRef, config.value, { merge: true })
   }
 

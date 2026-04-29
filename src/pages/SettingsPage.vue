@@ -354,7 +354,7 @@ function initSiteForm() {
   const c = appConfig.config
   siteForm.value = {
     siteName: c.siteName || '',
-    siteUrl: c.siteUrl || '',
+    siteUrl: appConfig.siteUrl || '',
     githubUrl: c.githubUrl || '',
     firestoreUrl: c.firestoreUrl || '',
   }
