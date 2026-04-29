@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { GAME_IDS } from '../utils/constants'
 import { useWeekStateStore } from './weekState'
 
+const PRESET_STATUSES = new Set(['confirmed', 'tentative', 'absent'])
+
 export const useAttendanceStore = defineStore('attendance', () => {
   // { [gameId]: { schedule, date, records: [{ playerId, attendance }] } }
   const attendance = ref({})
@@ -101,6 +103,49 @@ export const useAttendanceStore = defineStore('attendance', () => {
     await saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
+  async function applyAttendancePresets(players = []) {
+    const applicablePlayers = players.filter(player =>
+      player?.status === 'active' &&
+      player?.attendancePreset?.enabled &&
+      GAME_IDS.some(gameId => PRESET_STATUSES.has(player.attendancePreset?.[gameId]))
+    )
+    if (!applicablePlayers.length) return
+
+    const weekState = useWeekStateStore()
+    await weekState.ensureLockedForAttendance()
+
+    const changedGameIds = new Set()
+
+    for (const player of applicablePlayers) {
+      for (const gameId of GAME_IDS) {
+        const presetStatus = player.attendancePreset?.[gameId]
+        if (!PRESET_STATUSES.has(presetStatus)) continue
+
+        if (!attendance.value[gameId]) {
+          attendance.value[gameId] = { schedule: gameId, date: '', records: [] }
+        }
+
+        const records = attendance.value[gameId].records
+        const idx = records.findIndex(r => r.playerId === player.uid)
+
+        if (idx === -1) {
+          records.push({ playerId: player.uid, attendance: presetStatus })
+          changedGameIds.add(gameId)
+          continue
+        }
+
+        const currentStatus = records[idx]?.attendance || 'no_response'
+        if (currentStatus === 'no_response') {
+          records[idx].attendance = presetStatus
+          changedGameIds.add(gameId)
+        }
+      }
+    }
+
+    if (!changedGameIds.size) return
+    await Promise.all([...changedGameIds].map(gameId => saveAttendanceFirestore(gameId, attendance.value[gameId])))
+  }
+
   function setDate(gameId, date) {
     if (!attendance.value[gameId]) {
       attendance.value[gameId] = { schedule: gameId, date: '', records: [] }
@@ -125,6 +170,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     attendance, loading,
     getGameAttendance, getPlayerAttendance, getPlayerReadiness,
     summary, unrespondedPlayers,
-    fetchAttendance, setPlayerAttendance, setDate, clearAttendance, cleanup,
+    fetchAttendance, setPlayerAttendance, applyAttendancePresets, setDate, clearAttendance, cleanup,
   }
 })

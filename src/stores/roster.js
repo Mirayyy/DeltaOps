@@ -2,6 +2,39 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { POSITIONS } from '../utils/constants'
 
+const DEFAULT_ATTENDANCE_PRESET = Object.freeze({
+  enabled: false,
+  friday_1: 'skip',
+  friday_2: 'skip',
+  saturday_1: 'skip',
+  saturday_2: 'skip',
+})
+
+const PLAYER_DEFAULTS = {
+  nickname: '', email: '', position: 'Боец отряда', status: 'active',
+  avatar: '', nicknameColor: '', steamUrl: '',
+  telegramUsername: '', telegramId: null,
+  discordId: '', discordUsername: '',
+  skills: [], wishes: '', nicknameHistory: [],
+  attendancePreset: DEFAULT_ATTENDANCE_PRESET,
+}
+
+function normalizeAttendancePreset(preset) {
+  return {
+    ...DEFAULT_ATTENDANCE_PRESET,
+    ...(preset || {}),
+  }
+}
+
+function buildPlayer(uid, data = {}) {
+  return {
+    uid,
+    ...PLAYER_DEFAULTS,
+    ...data,
+    attendancePreset: normalizeAttendancePreset(data.attendancePreset),
+  }
+}
+
 export const useRosterStore = defineStore('roster', () => {
   const players = ref([])
   const loading = ref(false)
@@ -60,30 +93,17 @@ export const useRosterStore = defineStore('roster', () => {
     return playerMap.value[uid]?.nicknameColor || ''
   }
 
-  // --- Firestore mode ---
-  const PLAYER_DEFAULTS = {
-    nickname: '', email: '', position: 'Боец отряда', status: 'active',
-    avatar: '', nicknameColor: '', steamUrl: '',
-    telegramUsername: '', telegramId: null,
-    discordId: '', discordUsername: '',
-    skills: [], wishes: '', nicknameHistory: [],
-  }
-
   async function loadFirestore() {
     const { playersRef, getDocs } = await import('../firebase/firestore')
     const snapshot = await getDocs(playersRef)
-    players.value = sortByPositionThenName(snapshot.docs.map(doc => ({
-      uid: doc.id,
-      ...PLAYER_DEFAULTS,
-      ...doc.data(),
-    })))
+    players.value = sortByPositionThenName(snapshot.docs.map(doc => buildPlayer(doc.id, doc.data())))
   }
 
   // Whitelist of fields allowed in players/ documents
   const PLAYER_FIELDS = [
     'nickname', 'email', 'position', 'status', 'avatar', 'nicknameColor', 'steamUrl',
     'telegramUsername', 'telegramId', 'discordId', 'discordUsername',
-    'skills', 'wishes', 'nicknameHistory', 'createdAt', 'updatedAt',
+    'skills', 'wishes', 'nicknameHistory', 'attendancePreset', 'createdAt', 'updatedAt',
   ]
 
   function sanitizePlayerData(data) {
@@ -173,12 +193,10 @@ export const useRosterStore = defineStore('roster', () => {
 
   async function addPlayer(playerData) {
     const uid = `p-${Date.now()}`
-    const newPlayer = {
-      uid,
-      ...PLAYER_DEFAULTS,
+    const newPlayer = buildPlayer(uid, {
       ...playerData,
       status: playerData.status || 'active',
-    }
+    })
 
     await savePlayerFirestore(newPlayer)
     await setNicknameIndex(newPlayer.nickname, uid)
@@ -202,7 +220,7 @@ export const useRosterStore = defineStore('roster', () => {
       }
     }
 
-    const updated = { ...currentPlayer, ...updates }
+    const updated = buildPlayer(uid, { ...currentPlayer, ...updates })
 
     await savePlayerFirestore(updated)
     // If nickname changed, atomic swap in nicknameIndex

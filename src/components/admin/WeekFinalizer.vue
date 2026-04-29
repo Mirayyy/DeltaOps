@@ -137,6 +137,7 @@ async function finalize() {
     await gamesStore.clearGames()
     await attendance.clearAttendance()
     await weekState.clearLockedWeek()
+    await attendance.applyAttendancePresets(roster.activePlayers)
 
     emit('done')
   } finally {

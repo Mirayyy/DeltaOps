@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import BaseModal from '../common/BaseModal.vue'
 import BaseSelect from '../common/BaseSelect.vue'
-import { PLAYER_STATUSES, SKILL_LEVELS, POSITIONS } from '../../utils/constants'
+import { GAMES, PLAYER_STATUSES, SKILL_LEVELS, POSITIONS } from '../../utils/constants'
 import { useAuthStore } from '../../stores/auth'
 import { useSquadConfig } from '../../stores/squadConfig'
 
@@ -18,6 +18,16 @@ const emit = defineEmits(['save', 'close'])
 const isEdit = !!props.player
 const isAdmin = auth.isUserAdmin
 
+function createDefaultAttendancePreset() {
+  return {
+    enabled: false,
+    friday_1: 'skip',
+    friday_2: 'skip',
+    saturday_1: 'skip',
+    saturday_2: 'skip',
+  }
+}
+
 const form = ref({
   nickname: '',
   email: '',
@@ -31,6 +41,7 @@ const form = ref({
   discordId: '',
   discordUsername: '',
   wishes: '',
+  attendancePreset: createDefaultAttendancePreset(),
 })
 
 // skills as array of { skillName, level }
@@ -50,6 +61,10 @@ if (isEdit) {
     discordId: props.player.discordId || '',
     discordUsername: props.player.discordUsername || '',
     wishes: props.player.wishes || '',
+    attendancePreset: {
+      ...createDefaultAttendancePreset(),
+      ...(props.player.attendancePreset || {}),
+    },
   }
   skills.value = [...(props.player.skills || [])]
 }
@@ -78,6 +93,12 @@ function removeSkill(skillName) {
 const memberStatuses = { active: PLAYER_STATUSES.active, reserve: PLAYER_STATUSES.reserve, banned: PLAYER_STATUSES.banned }
 
 const positionOptions = POSITIONS.map(p => ({ value: p, label: p }))
+const attendancePresetOptions = [
+  { value: 'skip', label: 'Не заполнять' },
+  { value: 'confirmed', label: 'Буду' },
+  { value: 'tentative', label: 'Возможно' },
+  { value: 'absent', label: 'Не буду' },
+]
 const statusOptions = computed(() => {
   const src = isAdmin ? PLAYER_STATUSES : memberStatuses
   return Object.entries(src).map(([key, cfg]) => ({ value: key, label: cfg.label }))
@@ -89,6 +110,10 @@ function handleSave() {
     emit('save', {
       ...form.value,
       telegramId: form.value.telegramId ? Number(form.value.telegramId) : null,
+      attendancePreset: {
+        ...createDefaultAttendancePreset(),
+        ...(form.value.attendancePreset || {}),
+      },
       skills: [...skills.value],
     })
   } else {
@@ -199,6 +224,34 @@ function handleSave() {
           <span class="text-sm font-medium" :style="{ color: form.nicknameColor || '#e5e5e5' }">{{ form.nickname || 'Превью' }}</span>
           <button v-if="form.nicknameColor" @click="form.nicknameColor = ''"
             class="text-[10px] text-neutral-500 hover:text-neutral-300 ml-auto">Сбросить</button>
+        </div>
+      </div>
+
+      <!-- Attendance preset (admin only) -->
+      <div v-if="isAdmin" class="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4 space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm font-medium text-neutral-200">Автопосещаемость</div>
+            <p class="text-xs text-neutral-500 mt-1">
+              После завершения недели этим игрокам автоматически проставится шаблон на новую неделю.
+            </p>
+          </div>
+          <label class="inline-flex items-center gap-2 text-sm text-neutral-300 cursor-pointer select-none">
+            <input v-model="form.attendancePreset.enabled" type="checkbox"
+              class="w-4 h-4 rounded border-neutral-600 bg-neutral-800 text-delta-green focus:ring-delta-green/30" />
+            <span>Включено</span>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div v-for="game in GAMES" :key="game.id">
+            <label class="block text-xs text-neutral-400 mb-1">{{ game.label }}</label>
+            <BaseSelect
+              v-model="form.attendancePreset[game.id]"
+              :options="attendancePresetOptions"
+              class="w-full"
+            />
+          </div>
         </div>
       </div>
 
