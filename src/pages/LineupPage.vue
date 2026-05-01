@@ -248,6 +248,27 @@ function openGallery(images, index = 0, label = '') {
   showGallery.value = true
 }
 
+function openMarkdownImagePreview(event) {
+  const image = event.target?.closest?.('img')
+  if (!image) return
+
+  const container = image.closest('.task-markdown')
+  if (!container) return
+
+  const images = Array.from(container.querySelectorAll('img'))
+    .map(img => img.getAttribute('src'))
+    .filter(Boolean)
+
+  const clickedSrc = image.getAttribute('src')
+  const clickedIndex = images.findIndex(src => src === clickedSrc)
+
+  if (!images.length || clickedIndex === -1) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  openGallery(images, clickedIndex)
+}
+
 // Players available for assignment
 const availablePlayers = computed(() => {
   const assignedIds = new Set(slots.value.filter(s => s.playerId).map(s => s.playerId))
@@ -1364,6 +1385,7 @@ async function sendSlotNotification(slot, slotIdx) {
       <div
         v-else
         class="task-markdown rounded-lg border border-neutral-800 bg-neutral-950/60 px-4 py-3 text-sm text-neutral-200"
+        @click="openMarkdownImagePreview"
         v-html="squadTaskHtml"
       ></div>
     </div>
@@ -1424,6 +1446,7 @@ async function sendSlotNotification(slot, slotIdx) {
             </div>
             <div
               class="task-markdown text-sm text-neutral-300"
+              @click="openMarkdownImagePreview"
               v-html="pt.taskHtml"
             ></div>
           </div>
