@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import DOMPurify from 'dompurify'
+import { marked } from 'marked'
 import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
@@ -38,8 +40,12 @@ const slotRequestsSection = ref(null)
 const actionsExpanded = ref(false)
 const alliesExpanded = ref(false)
 const enemiesExpanded = ref(false)
+const editingSquadTask = ref(false)
+const squadTaskDraft = ref('')
 const editingPersonalTask = ref(null) // slotIndex being edited
 const personalTaskDraft = ref('')
+const squadTaskTextarea = ref(null)
+const personalTaskTextarea = ref(null)
 
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
@@ -56,11 +62,104 @@ const pageLoading = computed(() =>
 )
 
 const currentMission = computed(() => missionsStore.getMission(activeTab.value))
+const currentGame = computed(() => gamesStore.getGame(activeTab.value))
 
 const slots = computed(() => gamesStore.getSlots(activeTab.value))
 const isAdmin = computed(() => auth.isUserAdmin)
 const telegram = useTelegram()
 const toast = useToast()
+
+function resizeTextarea(target) {
+  const element = target?.target ?? target?.value ?? target
+  if (!element) return
+  element.style.height = 'auto'
+  element.style.height = `${element.scrollHeight}px`
+}
+
+function sanitizeCssColor(value) {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (/^#([0-9a-fA-F]{3,8})$/.test(normalized)) return normalized
+  if (/^(rgb|rgba|hsl|hsla)\([\d\s.,%]+\)$/.test(normalized)) return normalized
+  if (/^[a-zA-Z]+$/.test(normalized)) return normalized.toLowerCase()
+  return ''
+}
+
+function sanitizeInlineStyles(root) {
+  const styleSanitizers = {
+    color: sanitizeCssColor,
+    'background-color': sanitizeCssColor,
+    'text-align': (value) => {
+      const normalized = value.trim().toLowerCase()
+      return ['left', 'center', 'right', 'justify'].includes(normalized) ? normalized : ''
+    },
+  }
+
+  root.querySelectorAll('[style]').forEach((element) => {
+    const declarations = element
+      .getAttribute('style')
+      ?.split(';')
+      .map(part => part.trim())
+      .filter(Boolean) || []
+
+    const safeDeclarations = declarations.reduce((result, declaration) => {
+      const [property, ...valueParts] = declaration.split(':')
+      if (!property || !valueParts.length) return result
+
+      const normalizedProperty = property.trim().toLowerCase()
+      const sanitizer = styleSanitizers[normalizedProperty]
+      if (!sanitizer) return result
+
+      const safeValue = sanitizer(valueParts.join(':').trim())
+      if (!safeValue) return result
+
+      result.push(`${normalizedProperty}: ${safeValue}`)
+      return result
+    }, [])
+
+    if (safeDeclarations.length) {
+      element.setAttribute('style', safeDeclarations.join('; '))
+    } else {
+      element.removeAttribute('style')
+    }
+  })
+}
+
+function renderMarkdown(content) {
+  if (!content?.trim()) return ''
+
+  const rawHtml = marked.parse(content, {
+    breaks: true,
+    gfm: true,
+  })
+
+  const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+    ADD_ATTR: ['target', 'rel', 'style', 'loading', 'decoding'],
+  })
+
+  const parser = new DOMParser()
+  const documentFragment = parser.parseFromString(sanitizedHtml, 'text/html')
+
+  documentFragment.querySelectorAll('a[href]').forEach((link) => {
+    link.setAttribute('target', '_blank')
+    link.setAttribute('rel', 'noopener noreferrer')
+  })
+
+  documentFragment.querySelectorAll('img').forEach((image) => {
+    image.setAttribute('loading', 'lazy')
+    image.setAttribute('decoding', 'async')
+    if (!image.getAttribute('alt')) {
+      image.setAttribute('alt', 'Встроенное изображение')
+    }
+  })
+
+  sanitizeInlineStyles(documentFragment.body)
+
+  return documentFragment.body.innerHTML
+}
+
+const hasSquadTask = computed(() => Boolean(currentGame.value?.task?.trim()))
+const showSquadTaskEditor = computed(() => isAdmin.value && (editingSquadTask.value || !hasSquadTask.value))
+const squadTaskHtml = computed(() => renderMarkdown(currentGame.value?.task || ''))
 
 async function sendLineupToTelegram() {
   const missionsData = {}
@@ -175,6 +274,10 @@ function selectTab(gameId) {
   activeTab.value = gameId
   editingSlot.value = null
   showEquipmentMenu.value = null
+  editingSquadTask.value = false
+  squadTaskDraft.value = ''
+  editingPersonalTask.value = null
+  personalTaskDraft.value = ''
 }
 
 function startAssign(slotIndex) {
@@ -311,28 +414,48 @@ onUnmounted(() => {
   window.removeEventListener('scroll', onScrollClosePopups, true)
 })
 
+function startEditSquadTask() {
+  squadTaskDraft.value = currentGame.value?.task || ''
+  editingSquadTask.value = true
+  nextTick(() => resizeTextarea(squadTaskTextarea))
+}
+
+function saveSquadTask() {
+  gamesStore.setTask(activeTab.value, squadTaskDraft.value)
+  editingSquadTask.value = false
+}
+
+function cancelSquadTaskEdit() {
+  squadTaskDraft.value = currentGame.value?.task || ''
+  editingSquadTask.value = false
+}
+
 // Personal tasks
 function startEditPersonalTask(slotIndex) {
   const slot = slots.value[slotIndex]
   if (!slot) return
   personalTaskDraft.value = slot.personalTask || ''
   editingPersonalTask.value = slotIndex
+  nextTick(() => resizeTextarea(personalTaskTextarea))
 }
 
 function savePersonalTask(slotIndex) {
+  if (slotIndex === null || slotIndex === undefined) return
   gamesStore.updateSlot(activeTab.value, slotIndex, { personalTask: personalTaskDraft.value })
   editingPersonalTask.value = null
+  personalTaskDraft.value = ''
 }
 
 function cancelEditPersonalTask() {
   editingPersonalTask.value = null
+  personalTaskDraft.value = ''
 }
 
 // Personal tasks for display below squad task
 const personalTasks = computed(() => {
   const result = []
   slots.value.forEach((slot, idx) => {
-    if (!slot.personalTask) return
+    if (!slot.personalTask?.trim()) return
     const nickname = slot.playerId ? roster.resolveNickname(slot.playerId) : null
     result.push({
       idx,
@@ -341,6 +464,7 @@ const personalTasks = computed(() => {
       playerId: slot.playerId,
       nickname,
       task: slot.personalTask,
+      taskHtml: renderMarkdown(slot.personalTask),
     })
   })
   return result
@@ -1169,17 +1293,53 @@ async function sendSlotNotification(slot, slotIdx) {
     </div>
 
     <!-- Task -->
-    <div v-if="isAdmin || gamesStore.getGame(activeTab)?.task" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl p-4">
-      <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">Задача отряда</h3>
-      <textarea v-if="isAdmin"
-        :value="gamesStore.getGame(activeTab)?.task || ''"
-        @blur="gamesStore.setTask(activeTab, $event.target.value)"
-        @input="$event.target.style.height = 'auto'; $event.target.style.height = $event.target.scrollHeight + 'px'"
-        @keydown.ctrl.enter="$event.target.blur()"
-        rows="1"
-        placeholder="Опишите задачу для расстановки..."
-        class="w-full bg-transparent border border-neutral-800 hover:border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none overflow-hidden transition-colors"></textarea>
-      <p v-else class="text-sm text-neutral-300">{{ gamesStore.getGame(activeTab).task }}</p>
+    <div v-if="isAdmin || hasSquadTask" class="mt-4 bg-neutral-900 border border-neutral-800 rounded-xl p-4">
+      <div class="flex items-start justify-between gap-3 mb-3">
+        <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Задача отряда</h3>
+        <button
+          v-if="isAdmin && !showSquadTaskEditor"
+          @click="startEditSquadTask"
+          class="shrink-0 px-3 py-1.5 text-xs text-neutral-300 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 hover:border-neutral-600 rounded-lg transition-colors"
+        >
+          Редактировать
+        </button>
+      </div>
+
+      <template v-if="showSquadTaskEditor">
+        <textarea
+          ref="squadTaskTextarea"
+          v-model="squadTaskDraft"
+          rows="6"
+          placeholder="Опишите задачу для расстановки. Поддерживается Markdown: ссылки, списки, выделение, изображения."
+          class="w-full min-h-[160px] bg-neutral-950/70 border border-neutral-800 hover:border-neutral-700 focus:border-delta-green rounded-lg px-3 py-3 text-sm text-neutral-200 outline-none resize-y overflow-auto transition-colors"
+          @input="resizeTextarea"
+          @keydown.ctrl.enter.prevent="saveSquadTask"
+        ></textarea>
+        <p class="mt-2 text-[11px] text-neutral-600">
+          Можно использовать Markdown и HTML-вставки вроде ссылок, изображений и цветного текста через `style="color: ..."`.
+        </p>
+        <div class="flex justify-end gap-2 mt-3">
+          <button
+            v-if="hasSquadTask"
+            @click="cancelSquadTaskEdit"
+            class="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+          >
+            Отмена
+          </button>
+          <button
+            @click="saveSquadTask"
+            class="px-3 py-1.5 text-xs bg-delta-green hover:bg-delta-green/80 text-white rounded-lg transition-colors"
+          >
+            Сохранить
+          </button>
+        </div>
+      </template>
+
+      <div
+        v-else
+        class="task-markdown rounded-lg border border-neutral-800 bg-neutral-950/60 px-4 py-3 text-sm text-neutral-200"
+        v-html="squadTaskHtml"
+      ></div>
     </div>
 
     <!-- Personal tasks container -->
@@ -1196,13 +1356,17 @@ async function sendSlotNotification(slot, slotIdx) {
           </span>
         </div>
         <textarea
+          ref="personalTaskTextarea"
           v-model="personalTaskDraft"
-          rows="1"
-          placeholder="Опишите личную задачу..."
-          class="w-full bg-neutral-900 border border-neutral-700 focus:border-delta-green rounded-lg px-3 py-2 text-sm text-neutral-300 outline-none resize-none overflow-hidden transition-colors"
-          @input="$event.target.style.height = 'auto'; $event.target.style.height = $event.target.scrollHeight + 'px'"
-          @keydown.ctrl.enter="savePersonalTask(editingPersonalTask)"
+          rows="5"
+          placeholder="Опишите личную задачу. Поддерживается Markdown."
+          class="w-full min-h-[140px] bg-neutral-900 border border-neutral-700 focus:border-delta-green rounded-lg px-3 py-3 text-sm text-neutral-300 outline-none resize-y overflow-auto transition-colors"
+          @input="resizeTextarea"
+          @keydown.ctrl.enter.prevent="savePersonalTask(editingPersonalTask)"
         ></textarea>
+        <p class="mt-2 text-[11px] text-neutral-600">
+          Поддерживаются ссылки, списки, изображения и базовое цветовое оформление текста.
+        </p>
         <div class="flex justify-end gap-2 mt-2">
           <button @click="cancelEditPersonalTask"
             class="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors">
@@ -1232,7 +1396,10 @@ async function sendSlotNotification(slot, slotIdx) {
               <span class="text-xs font-medium text-neutral-300">{{ pt.nickname || pt.slotName }}</span>
               <span v-if="pt.nickname" class="text-[10px] text-neutral-600">{{ pt.slotName }}</span>
             </div>
-            <p class="text-sm text-neutral-400 whitespace-pre-line">{{ pt.task }}</p>
+            <div
+              class="task-markdown text-sm text-neutral-300"
+              v-html="pt.taskHtml"
+            ></div>
           </div>
           <button v-if="canEditPersonalTask(slots[pt.idx])"
             @click="startEditPersonalTask(pt.idx)"

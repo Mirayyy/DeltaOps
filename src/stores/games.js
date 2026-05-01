@@ -147,7 +147,9 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function setTask(gameId, task) {
-    if (!games.value[gameId]) return
+    if (!games.value[gameId]) {
+      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
+    }
     games.value[gameId].task = task
     persist(gameId)
   }

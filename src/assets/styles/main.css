@@ -246,6 +246,132 @@ input[type="checkbox"]:disabled {
   cursor: not-allowed;
 }
 
+.task-markdown {
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.task-markdown > :first-child {
+  margin-top: 0;
+}
+
+.task-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.task-markdown p,
+.task-markdown ul,
+.task-markdown ol,
+.task-markdown blockquote,
+.task-markdown pre,
+.task-markdown table {
+  margin: 0.75rem 0;
+}
+
+.task-markdown h1,
+.task-markdown h2,
+.task-markdown h3,
+.task-markdown h4 {
+  margin: 1rem 0 0.5rem;
+  color: #f5f5f5;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.task-markdown h1 {
+  font-size: 1.25rem;
+}
+
+.task-markdown h2 {
+  font-size: 1.125rem;
+}
+
+.task-markdown h3,
+.task-markdown h4 {
+  font-size: 1rem;
+}
+
+.task-markdown a {
+  color: #fb923c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.task-markdown a:hover {
+  color: #fdba74;
+}
+
+.task-markdown ul,
+.task-markdown ol {
+  padding-left: 1.25rem;
+}
+
+.task-markdown ul {
+  list-style: disc;
+}
+
+.task-markdown ol {
+  list-style: decimal;
+}
+
+.task-markdown li + li {
+  margin-top: 0.3rem;
+}
+
+.task-markdown strong {
+  color: #fafafa;
+  font-weight: 600;
+}
+
+.task-markdown em {
+  color: #d4d4d4;
+}
+
+.task-markdown code {
+  background: rgba(38, 38, 38, 0.9);
+  border: 1px solid rgba(82, 82, 82, 0.5);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.35rem;
+  font-size: 0.85em;
+  color: #fde68a;
+}
+
+.task-markdown pre {
+  overflow-x: auto;
+  background: rgba(10, 10, 10, 0.9);
+  border: 1px solid rgba(64, 64, 64, 0.7);
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+}
+
+.task-markdown pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+.task-markdown blockquote {
+  border-left: 3px solid rgba(249, 115, 22, 0.65);
+  padding-left: 0.9rem;
+  color: #cfcfcf;
+}
+
+.task-markdown img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.9rem 0;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(64, 64, 64, 0.8);
+}
+
+.task-markdown hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid rgba(64, 64, 64, 0.8);
+}
+
 /* ─── Radio ─── */
 input[type="radio"] {
   appearance: none;
