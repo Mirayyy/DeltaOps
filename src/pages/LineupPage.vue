@@ -69,11 +69,131 @@ const isAdmin = computed(() => auth.isUserAdmin)
 const telegram = useTelegram()
 const toast = useToast()
 
+const markdownToolbarButtons = [
+  { id: 'bold', label: 'B', title: 'Жирный текст' },
+  { id: 'italic', label: 'I', title: 'Курсив' },
+  { id: 'strike', label: 'S', title: 'Зачеркнутый текст' },
+  { id: 'heading', label: 'H', title: 'Заголовок' },
+  { id: 'bulletList', label: '•', title: 'Маркированный список' },
+  { id: 'numberList', label: '1.', title: 'Нумерованный список' },
+  { id: 'link', label: 'Link', title: 'Ссылка' },
+  { id: 'image', label: 'Img', title: 'Изображение' },
+  { id: 'spoiler', label: '@@@', title: 'Спойлер' },
+  { id: 'code', label: '</>', title: 'Блок кода' },
+  { id: 'quote', label: '>', title: 'Цитата' },
+]
+
 function resizeTextarea(target) {
   const element = target?.target ?? target?.value ?? target
   if (!element) return
   element.style.height = 'auto'
   element.style.height = `${element.scrollHeight}px`
+}
+
+function getDraftValue(kind) {
+  return kind === 'squad' ? squadTaskDraft.value : personalTaskDraft.value
+}
+
+function setDraftValue(kind, value) {
+  if (kind === 'squad') squadTaskDraft.value = value
+  else personalTaskDraft.value = value
+}
+
+function updateDraftSelection(kind, textareaRef, value, selectionStart, selectionEnd = selectionStart) {
+  setDraftValue(kind, value)
+  nextTick(() => {
+    const textarea = textareaRef.value
+    if (!textarea) return
+    textarea.focus()
+    textarea.setSelectionRange(selectionStart, selectionEnd)
+    resizeTextarea(textarea)
+  })
+}
+
+function wrapSelection(kind, textareaRef, before, after, placeholder) {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const value = getDraftValue(kind)
+  const start = textarea.selectionStart ?? value.length
+  const end = textarea.selectionEnd ?? value.length
+  const selected = value.slice(start, end)
+  const inserted = selected || placeholder
+  const nextValue = `${value.slice(0, start)}${before}${inserted}${after}${value.slice(end)}`
+  const selectionFrom = start + before.length
+  const selectionTo = selectionFrom + inserted.length
+
+  updateDraftSelection(kind, textareaRef, nextValue, selectionFrom, selectionTo)
+}
+
+function prefixSelectedLines(kind, textareaRef, prefix, fallbackText) {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const value = getDraftValue(kind)
+  const start = textarea.selectionStart ?? value.length
+  const end = textarea.selectionEnd ?? value.length
+  const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1
+  const lineEndIndex = value.indexOf('\n', end)
+  const lineEnd = lineEndIndex === -1 ? value.length : lineEndIndex
+  const block = value.slice(lineStart, lineEnd)
+  const lines = (block || fallbackText).split('\n')
+  const updatedBlock = lines.map(line => `${prefix}${line || fallbackText}`).join('\n')
+  const nextValue = `${value.slice(0, lineStart)}${updatedBlock}${value.slice(lineEnd)}`
+
+  updateDraftSelection(kind, textareaRef, nextValue, lineStart, lineStart + updatedBlock.length)
+}
+
+function insertTemplate(kind, textareaRef, template, selectFromOffset = 0, selectToOffset = 0) {
+  const textarea = textareaRef.value
+  if (!textarea) return
+
+  const value = getDraftValue(kind)
+  const start = textarea.selectionStart ?? value.length
+  const end = textarea.selectionEnd ?? value.length
+  const nextValue = `${value.slice(0, start)}${template}${value.slice(end)}`
+  const selectionStart = start + selectFromOffset
+  const selectionEnd = start + (selectToOffset || template.length)
+
+  updateDraftSelection(kind, textareaRef, nextValue, selectionStart, selectionEnd)
+}
+
+function applyMarkdownAction(kind, textareaRef, actionId) {
+  switch (actionId) {
+    case 'bold':
+      wrapSelection(kind, textareaRef, '**', '**', 'жирный текст')
+      break
+    case 'italic':
+      wrapSelection(kind, textareaRef, '*', '*', 'курсив')
+      break
+    case 'strike':
+      wrapSelection(kind, textareaRef, '~~', '~~', 'зачеркнутый текст')
+      break
+    case 'heading':
+      prefixSelectedLines(kind, textareaRef, '## ', 'Заголовок')
+      break
+    case 'bulletList':
+      prefixSelectedLines(kind, textareaRef, '- ', 'Пункт')
+      break
+    case 'numberList':
+      insertTemplate(kind, textareaRef, '1. Пункт 1\n2. Пункт 2', 0, 23)
+      break
+    case 'link':
+      wrapSelection(kind, textareaRef, '[', '](https://example.com)', 'текст ссылки')
+      break
+    case 'image':
+      insertTemplate(kind, textareaRef, '![Описание](https://i.ibb.co/example/image.png)', 2, 10)
+      break
+    case 'spoiler':
+      insertTemplate(kind, textareaRef, '@@@ Заголовок\nСодержимое спойлера\n@@@', 4, 13)
+      break
+    case 'code':
+      insertTemplate(kind, textareaRef, '```text\nтекст\n```', 8, 13)
+      break
+    case 'quote':
+      prefixSelectedLines(kind, textareaRef, '> ', 'Цитата')
+      break
+  }
 }
 
 function sanitizeCssColor(value) {
@@ -1353,6 +1473,18 @@ async function sendSlotNotification(slot, slotIdx) {
       </div>
 
       <template v-if="showSquadTaskEditor">
+        <div class="mb-2 flex flex-wrap gap-1.5">
+          <button
+            v-for="button in markdownToolbarButtons"
+            :key="`squad-${button.id}`"
+            type="button"
+            :title="button.title"
+            @click="applyMarkdownAction('squad', squadTaskTextarea, button.id)"
+            class="min-w-9 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-600 rounded-md transition-colors"
+          >
+            {{ button.label }}
+          </button>
+        </div>
         <textarea
           ref="squadTaskTextarea"
           v-model="squadTaskDraft"
@@ -1402,6 +1534,18 @@ async function sendSlotNotification(slot, slotIdx) {
           <span v-if="resolveSlotPlayer(slots[editingPersonalTask])" class="text-xs text-neutral-300 ml-auto">
             {{ resolveSlotPlayer(slots[editingPersonalTask]) }}
           </span>
+        </div>
+        <div class="mb-2 flex flex-wrap gap-1.5">
+          <button
+            v-for="button in markdownToolbarButtons"
+            :key="`personal-${button.id}`"
+            type="button"
+            :title="button.title"
+            @click="applyMarkdownAction('personal', personalTaskTextarea, button.id)"
+            class="min-w-9 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 hover:border-neutral-600 rounded-md transition-colors"
+          >
+            {{ button.label }}
+          </button>
         </div>
         <textarea
           ref="personalTaskTextarea"
