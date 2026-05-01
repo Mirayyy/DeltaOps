@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
 
 export const useArchiveStore = defineStore('archive', () => {
   const archives = ref([])  // [{ id, rotation, server, side, date, schedule, slots, records, ... }]
@@ -13,7 +14,9 @@ export const useArchiveStore = defineStore('archive', () => {
       getDocs(archiveRef),
       getDocs(rotationsRef),
     ])
-    archives.value = archSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    archives.value = archSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort(compareArchivedGames)
     rotations.value = rotSnap.docs.map(d => ({ id: d.id, ...d.data() }))
   }
 
@@ -113,6 +116,7 @@ export const useArchiveStore = defineStore('archive', () => {
     await setDoc(doc(db, 'archive', id), { ...entry, archivedAt: serverTimestamp() })
 
     archives.value.push(entry)
+    archives.value = sortArchivedGames(archives.value)
     return entry
   }
 
@@ -120,12 +124,11 @@ export const useArchiveStore = defineStore('archive', () => {
 
   /** Get all archive entries for a player (by playerId in slots or records) */
   function getPlayerHistory(playerId) {
-    return archives.value
+    return sortArchivedGames(archives.value
       .filter(a =>
         a.slots?.some(s => s.playerId === playerId) ||
         a.records?.some(r => r.playerId === playerId),
-      )
-      .sort((a, b) => b.date.localeCompare(a.date))
+      ))
   }
 
   /** Get player's slot from an archive entry */

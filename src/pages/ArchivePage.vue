@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useArchiveStore } from '../stores/archive'
 import { useRosterStore } from '../stores/roster'
 import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
+import { compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import BaseModal from '../components/common/BaseModal.vue'
 import BaseSelect from '../components/common/BaseSelect.vue'
@@ -92,8 +93,8 @@ onMounted(async () => {
 
 // --- Filtered archives by rotation ---
 const filteredArchives = computed(() => {
-  if (selectedRotation.value === 'all') return archive.archives
-  return archive.archives.filter(a => a.rotation === selectedRotation.value)
+  if (selectedRotation.value === 'all') return sortArchivedGames(archive.archives)
+  return sortArchivedGames(archive.archives.filter(a => a.rotation === selectedRotation.value))
 })
 
 // --- Games tab: group by date ---
@@ -104,7 +105,9 @@ const dateGroups = computed(() => {
     if (!groups[date]) groups[date] = { date, games: [] }
     groups[date].games.push(a)
   }
-  return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date))
+  return Object.values(groups)
+    .map(group => ({ ...group, games: [...group.games].sort(compareArchivedGames) }))
+    .sort((a, b) => b.date.localeCompare(a.date))
 })
 
 function toggleDate(date) {
@@ -144,7 +147,7 @@ const attendancePlayers = computed(() => {
 const attendanceHistory = computed(() => {
   return filteredArchives.value
     .slice()
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort(compareArchivedGames)
     .map(a => {
       const recordMap = {}
       for (const r of (a.records || [])) {
@@ -179,7 +182,7 @@ const opticsPlayers = computed(() => {
 const opticsHistory = computed(() => {
   return filteredArchives.value
     .slice()
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort(compareArchivedGames)
     .map(a => {
       const slotMap = {}
       for (const s of (a.slots || [])) {
