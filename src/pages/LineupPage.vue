@@ -124,16 +124,42 @@ function sanitizeInlineStyles(root) {
   })
 }
 
+function transformCustomSpoilers(content) {
+  return content.replace(
+    /^@@@\s+(.+?)\s*\r?\n([\s\S]*?)^\s*@@@\s*$/gm,
+    (_, summary = '', body = '') => `<details><summary>${summary.trim()}</summary>\n${body.trim()}\n</details>`
+  )
+}
+
+function renderDetailsBlocks(content) {
+  return content.replace(/<details(\s+open)?>([\s\S]*?)<\/details>/gi, (_, openAttr = '', innerContent = '') => {
+    const match = innerContent.match(/<summary>([\s\S]*?)<\/summary>([\s\S]*)/i)
+    if (!match) return _
+
+    const [, summaryContent = '', bodyContent = ''] = match
+    const summaryHtml = marked.parseInline(summaryContent.trim())
+    const bodyHtml = marked.parse(bodyContent.trim(), {
+      breaks: true,
+      gfm: true,
+    })
+
+    return `<details class="task-spoiler"${openAttr || ''}><summary>${summaryHtml}</summary><div class="task-spoiler__content">${bodyHtml}</div></details>`
+  })
+}
+
 function renderMarkdown(content) {
   if (!content?.trim()) return ''
 
-  const rawHtml = marked.parse(content, {
+  const preparedContent = renderDetailsBlocks(transformCustomSpoilers(content))
+
+  const rawHtml = marked.parse(preparedContent, {
     breaks: true,
     gfm: true,
   })
 
   const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
-    ADD_ATTR: ['target', 'rel', 'style', 'loading', 'decoding'],
+    ADD_TAGS: ['details', 'summary'],
+    ADD_ATTR: ['target', 'rel', 'style', 'loading', 'decoding', 'class', 'open'],
   })
 
   const parser = new DOMParser()
