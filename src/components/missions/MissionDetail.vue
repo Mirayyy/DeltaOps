@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { SIDE_COLORS } from '../../utils/constants'
 import { useMissionsStore } from '../../stores/missions'
 import { useSquadConfig } from '../../stores/squadConfig'
@@ -38,6 +38,16 @@ function sideColor(color) {
 }
 
 const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission, squadConfig.side))
+
+watch(groupedSides, (groups) => {
+  if (groups?.ally?.length) {
+    const allyIndex = props.mission.sides.indexOf(groups.ally[0])
+    activeSide.value = allyIndex !== -1 ? allyIndex : 0
+    return
+  }
+
+  activeSide.value = 0
+}, { immediate: true })
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'

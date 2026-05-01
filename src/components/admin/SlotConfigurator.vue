@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useGamesStore } from '../../stores/games'
 import { useMissionsStore } from '../../stores/missions'
 import { useSquadConfig } from '../../stores/squadConfig'
@@ -101,6 +101,16 @@ const currentSideAllActive = computed(() => {
   const side = currentSide.value
   return side.squads.every(sq => isSquadFullyActive(side.name, sq))
 })
+
+watch(() => missionsStore.getGroupedSides(props.mission, squadConfig.side), (groups) => {
+  if (groups?.ally?.length) {
+    const allyIndex = props.mission.sides.indexOf(groups.ally[0])
+    activeSide.value = allyIndex !== -1 ? allyIndex : 0
+    return
+  }
+
+  activeSide.value = 0
+}, { immediate: true })
 </script>
 
 <template>
