@@ -2,14 +2,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useArchiveStore } from '../stores/archive'
 import { useRosterStore } from '../stores/roster'
+import { useAttendanceStore } from '../stores/attendance'
+import { useGamesStore } from '../stores/games'
+import { useMissionsStore } from '../stores/missions'
+import { useWeekStateStore } from '../stores/weekState'
 import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import { compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
+import { useGameWeek } from '../composables/useGameWeek'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import BaseModal from '../components/common/BaseModal.vue'
 import BaseSelect from '../components/common/BaseSelect.vue'
 
 const archive = useArchiveStore()
 const roster = useRosterStore()
+const attendanceStore = useAttendanceStore()
+const gamesStore = useGamesStore()
+const missionsStore = useMissionsStore()
+const weekState = useWeekStateStore()
+const { games: currentWeekGames } = useGameWeek()
 
 const SLOT_TYPE_STYLES = {
   squadCommander: 'bg-delta-green/20 text-delta-green border-delta-green/30',
@@ -91,15 +101,78 @@ function archiveGameLabel(entry) {
   return entry?.missionTitle ? `${baseLabel} — ${entry.missionTitle}` : baseLabel
 }
 
+function isCurrentGame(entry) {
+  return Boolean(entry?.isCurrent)
+}
+
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
-  await archive.fetchArchives()
+  await Promise.all([
+    weekState.fetchOrBootstrap(),
+    archive.fetchArchives(),
+    attendanceStore.fetchAttendance(),
+    gamesStore.fetchGames(),
+    missionsStore.fetchMissions(),
+  ])
 })
 
 // --- Filtered archives by rotation ---
+const activeRotationId = computed(() => archive.getActiveRotation()?.id || '')
+
+function hasCurrentGameData(gameId) {
+  const game = gamesStore.getGame(gameId)
+  const attendance = attendanceStore.getGameAttendance(gameId)
+  const mission = missionsStore.getMission(gameId)
+
+  return Boolean(
+    game?.slots?.length ||
+    game?.task?.trim() ||
+    game?.sourceUrl ||
+    game?.version ||
+    attendance?.records?.length ||
+    mission?.title ||
+    mission?.sides?.length
+  )
+}
+
+const currentGameEntries = computed(() => {
+  return sortArchivedGames(
+    currentWeekGames.value
+      .filter(game => hasCurrentGameData(game.id))
+      .map((game) => {
+        const gameData = gamesStore.getGame(game.id)
+        const attendance = attendanceStore.getGameAttendance(game.id)
+        const mission = missionsStore.getMission(game.id)
+
+        return {
+          id: `current-${game.id}`,
+          rotation: activeRotationId.value,
+          date: gameData?.date || attendance?.date || game.date || '',
+          schedule: game.id,
+          sourceUrl: gameData?.sourceUrl || '',
+          version: gameData?.version || mission?.version || '',
+          missionTitle: mission?.title || '',
+          slots: gameData?.slots || [],
+          records: attendance?.records || [],
+          task: gameData?.task || '',
+          isCurrent: true,
+        }
+      })
+  )
+})
+
 const filteredArchives = computed(() => {
-  if (selectedRotation.value === 'all') return sortArchivedGames(archive.archives)
-  return sortArchivedGames(archive.archives.filter(a => a.rotation === selectedRotation.value))
+  const archivedGames = selectedRotation.value === 'all'
+    ? archive.archives
+    : archive.archives.filter(a => a.rotation === selectedRotation.value)
+
+  const includeCurrentGames = selectedRotation.value === 'all' ||
+    (activeRotationId.value && selectedRotation.value === activeRotationId.value)
+
+  return sortArchivedGames([
+    ...archivedGames,
+    ...(includeCurrentGames ? currentGameEntries.value : []),
+  ])
 })
 
 // --- Games tab: group by date ---
@@ -158,7 +231,14 @@ const attendanceHistory = computed(() => {
       for (const r of (a.records || [])) {
         recordMap[r.playerId] = r.attendance
       }
-      return { id: a.id, date: a.date, schedule: a.schedule, records: recordMap }
+      return {
+        id: a.id,
+        date: a.date,
+        schedule: a.schedule,
+        missionTitle: a.missionTitle || '',
+        isCurrent: !!a.isCurrent,
+        records: recordMap,
+      }
     })
 })
 
@@ -193,7 +273,14 @@ const opticsHistory = computed(() => {
       for (const s of (a.slots || [])) {
         if (s.playerId) slotMap[s.playerId] = !!s.optics
       }
-      return { id: a.id, date: a.date, schedule: a.schedule, slots: slotMap }
+      return {
+        id: a.id,
+        date: a.date,
+        schedule: a.schedule,
+        missionTitle: a.missionTitle || '',
+        isCurrent: !!a.isCurrent,
+        slots: slotMap,
+      }
     })
 })
 
@@ -283,7 +370,13 @@ async function createRotation() {
             <div v-for="game in group.games" :key="game.id" class="border-b border-neutral-800/50 last:border-b-0">
               <button @click="selectGame(game.id)"
                 class="w-full px-5 py-2.5 flex items-center justify-between hover:bg-neutral-800/30 transition-colors">
-                <span class="text-sm">{{ archiveGameLabel(game) }}</span>
+                <div class="min-w-0 flex items-center gap-2">
+                  <span class="text-sm truncate">{{ archiveGameLabel(game) }}</span>
+                  <span v-if="isCurrentGame(game)"
+                    class="shrink-0 px-2 py-0.5 rounded-full border border-sky-500/30 bg-sky-500/10 text-[10px] font-medium text-sky-300">
+                    Текущая
+                  </span>
+                </div>
                 <div class="flex items-center gap-3">
                   <span class="text-xs text-delta-green font-mono">{{ confirmedCount(game) }} чел.</span>
                   <svg :class="['w-3.5 h-3.5 text-neutral-500 transition-transform', expandedGame === game.id ? 'rotate-180' : '']"
@@ -476,6 +569,10 @@ async function createRotation() {
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
               <span class="text-xs text-neutral-500">{{ archiveGameLabel(entry) }}</span>
+              <span v-if="isCurrentGame(entry)"
+                class="px-2 py-0.5 rounded-full border border-sky-500/30 bg-sky-500/10 text-[10px] font-medium text-sky-300">
+                Текущая
+              </span>
             </div>
             <div class="overflow-x-auto">
               <div class="flex gap-0 min-w-max">
@@ -532,6 +629,10 @@ async function createRotation() {
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
               <span class="text-xs text-neutral-500">{{ archiveGameLabel(entry) }}</span>
+              <span v-if="isCurrentGame(entry)"
+                class="px-2 py-0.5 rounded-full border border-sky-500/30 bg-sky-500/10 text-[10px] font-medium text-sky-300">
+                Текущая
+              </span>
             </div>
             <div class="overflow-x-auto">
               <div class="flex gap-0 min-w-max">
