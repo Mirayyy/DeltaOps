@@ -86,6 +86,11 @@ const gameLabel = {
   saturday_1: 'Суббота 1', saturday_2: 'Суббота 2',
 }
 
+function archiveGameLabel(entry) {
+  const baseLabel = gameLabel[entry?.schedule] || entry?.schedule || '—'
+  return entry?.missionTitle ? `${baseLabel} — ${entry.missionTitle}` : baseLabel
+}
+
 onMounted(async () => {
   if (!roster.players.length) await roster.fetchPlayers()
   await archive.fetchArchives()
@@ -278,7 +283,7 @@ async function createRotation() {
             <div v-for="game in group.games" :key="game.id" class="border-b border-neutral-800/50 last:border-b-0">
               <button @click="selectGame(game.id)"
                 class="w-full px-5 py-2.5 flex items-center justify-between hover:bg-neutral-800/30 transition-colors">
-                <span class="text-sm">{{ gameLabel[game.schedule] || game.schedule }}</span>
+                <span class="text-sm">{{ archiveGameLabel(game) }}</span>
                 <div class="flex items-center gap-3">
                   <span class="text-xs text-delta-green font-mono">{{ confirmedCount(game) }} чел.</span>
                   <svg :class="['w-3.5 h-3.5 text-neutral-500 transition-transform', expandedGame === game.id ? 'rotate-180' : '']"
@@ -470,7 +475,7 @@ async function createRotation() {
             class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden">
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
-              <span class="text-xs text-neutral-500">{{ gameLabel[entry.schedule] || entry.schedule }}</span>
+              <span class="text-xs text-neutral-500">{{ archiveGameLabel(entry) }}</span>
             </div>
             <div class="overflow-x-auto">
               <div class="flex gap-0 min-w-max">
@@ -526,7 +531,7 @@ async function createRotation() {
             class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden">
             <div class="px-5 py-2.5 border-b border-neutral-800 flex items-center gap-3">
               <span class="font-mono text-sm text-delta-green">{{ entry.date }}</span>
-              <span class="text-xs text-neutral-500">{{ gameLabel[entry.schedule] || entry.schedule }}</span>
+              <span class="text-xs text-neutral-500">{{ archiveGameLabel(entry) }}</span>
             </div>
             <div class="overflow-x-auto">
               <div class="flex gap-0 min-w-max">

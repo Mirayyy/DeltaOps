@@ -84,9 +84,9 @@ export const useArchiveStore = defineStore('archive', () => {
 
   /**
    * Archive a single game: copy slots from games store + records from attendance store → archive.
-   * @param {object} params — { schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }
+   * @param {object} params — { schedule, date, sourceUrl, version, missionTitle, server, side, slots, records, task, adminUid }
    */
-  async function archiveGame({ schedule, date, sourceUrl, version, server, side, slots, records, task, adminUid }) {
+  async function archiveGame({ schedule, date, sourceUrl, version, missionTitle, server, side, slots, records, task, adminUid }) {
     const rotation = date ? getRotationForDate(date) : getActiveRotation()
     const id = `${date}-${schedule}`
 
@@ -105,6 +105,7 @@ export const useArchiveStore = defineStore('archive', () => {
       schedule,
       sourceUrl: sourceUrl || '',
       version: version || '',
+      missionTitle: missionTitle || '',
       slots: slots || [],
       records: records || [],
       task: task || '',

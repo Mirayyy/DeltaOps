@@ -4,6 +4,7 @@ import { useRosterStore } from '../../stores/roster'
 import { useAttendanceStore } from '../../stores/attendance'
 import { useGamesStore } from '../../stores/games'
 import { useArchiveStore } from '../../stores/archive'
+import { useMissionsStore } from '../../stores/missions'
 import { useSquadConfig } from '../../stores/squadConfig'
 import { useWeekStateStore } from '../../stores/weekState'
 import { useGameWeek } from '../../composables/useGameWeek'
@@ -15,6 +16,7 @@ const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const archive = useArchiveStore()
+const missionsStore = useMissionsStore()
 const squadConfig = useSquadConfig()
 const weekState = useWeekStateStore()
 const { games } = useGameWeek()
@@ -107,6 +109,7 @@ async function finalize() {
   try {
     for (const game of games.value) {
       const gameData = gamesStore.getGame(game.id)
+      const missionData = missionsStore.getMission(game.id)
 
       const records = roster.activePlayers.map(p => {
         const status = attendance.getPlayerAttendance(game.id, p.uid)
@@ -125,6 +128,7 @@ async function finalize() {
         date: gameData?.date || game.date || '',
         sourceUrl: gameData?.sourceUrl || '',
         version: gameData?.version || '',
+        missionTitle: missionData?.title || '',
         server: squadConfig.server,
         side: squadConfig.side,
         slots: gameData?.slots || [],

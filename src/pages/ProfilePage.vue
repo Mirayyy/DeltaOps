@@ -175,6 +175,11 @@ function scheduleLabel(schedule) {
   return SCHEDULE_LABELS[schedule] || schedule
 }
 
+function archiveScheduleLabel(entry) {
+  const baseLabel = scheduleLabel(entry?.schedule)
+  return entry?.missionTitle ? `${baseLabel} — ${entry.missionTitle}` : baseLabel
+}
+
 // Guess side color from side name in archived slot
 function guessSideColor(sideName) {
   if (!sideName) return null
@@ -589,7 +594,7 @@ async function saveTelegramId() {
                 <!-- Date -->
                 <td class="px-4 py-2.5 text-xs text-neutral-400 font-mono">{{ row.entry.date }}</td>
                 <!-- Schedule -->
-                <td class="px-3 py-2.5 text-xs text-neutral-500">{{ scheduleLabel(row.entry.schedule) }}</td>
+                <td class="px-3 py-2.5 text-xs text-neutral-500">{{ archiveScheduleLabel(row.entry) }}</td>
                 <!-- Side (colored) -->
                 <td class="px-3 py-2.5">
                   <span class="flex items-center gap-1.5">
@@ -623,7 +628,7 @@ async function saveTelegramId() {
             <!-- Row 1: Date (left) + Game (right, visible) -->
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-mono text-neutral-400">{{ row.entry.date }}</span>
-              <span class="text-xs text-neutral-300 font-medium">{{ scheduleLabel(row.entry.schedule) }}</span>
+              <span class="text-xs text-neutral-300 font-medium">{{ archiveScheduleLabel(row.entry) }}</span>
             </div>
             <!-- Row 2: Side › Squad › Slot number -->
             <div class="flex items-center gap-1 text-[11px] text-neutral-500 mb-0.5">
