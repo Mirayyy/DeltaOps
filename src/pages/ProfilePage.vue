@@ -581,6 +581,7 @@ async function saveTelegramId() {
               <tr class="border-b border-neutral-800 text-neutral-500 text-xs">
                 <th class="text-left px-4 py-2.5 font-medium" style="width:6.5rem">Дата</th>
                 <th class="text-left px-3 py-2.5 font-medium" style="width:7rem">Игра</th>
+                <th class="text-left px-3 py-2.5 font-medium" style="width:14rem">Миссия</th>
                 <th class="text-left px-3 py-2.5 font-medium" style="width:8rem">Сторона</th>
                 <th class="text-left px-3 py-2.5 font-medium" style="width:9rem">Отделение</th>
                 <th class="text-left px-3 py-2.5 font-medium w-8">#</th>
@@ -594,7 +595,11 @@ async function saveTelegramId() {
                 <!-- Date -->
                 <td class="px-4 py-2.5 text-xs text-neutral-400 font-mono">{{ row.entry.date }}</td>
                 <!-- Schedule -->
-                <td class="px-3 py-2.5 text-xs text-neutral-500">{{ archiveScheduleLabel(row.entry) }}</td>
+                <td class="px-3 py-2.5 text-xs text-neutral-500">{{ scheduleLabel(row.entry.schedule) }}</td>
+                <!-- Mission title -->
+                <td class="px-3 py-2.5 text-xs text-neutral-400 truncate" :title="row.entry.missionTitle || '—'">
+                  {{ row.entry.missionTitle || '—' }}
+                </td>
                 <!-- Side (colored) -->
                 <td class="px-3 py-2.5">
                   <span class="flex items-center gap-1.5">
@@ -628,7 +633,10 @@ async function saveTelegramId() {
             <!-- Row 1: Date (left) + Game (right, visible) -->
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-mono text-neutral-400">{{ row.entry.date }}</span>
-              <span class="text-xs text-neutral-300 font-medium">{{ archiveScheduleLabel(row.entry) }}</span>
+              <span class="text-xs text-neutral-300 font-medium">{{ scheduleLabel(row.entry.schedule) }}</span>
+            </div>
+            <div class="text-[11px] text-neutral-500 mb-1">
+              {{ row.entry.missionTitle || '—' }}
             </div>
             <!-- Row 2: Side › Squad › Slot number -->
             <div class="flex items-center gap-1 text-[11px] text-neutral-500 mb-0.5">
