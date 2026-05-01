@@ -7,7 +7,7 @@ import { useGamesStore } from '../stores/games'
 import { useMissionsStore } from '../stores/missions'
 import { useWeekStateStore } from '../stores/weekState'
 import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
-import { compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
+import { compareArchiveDates, compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
 import { useGameWeek } from '../composables/useGameWeek'
 import EquipmentTag from '../components/common/EquipmentTag.vue'
 import BaseModal from '../components/common/BaseModal.vue'
@@ -185,7 +185,7 @@ const dateGroups = computed(() => {
   }
   return Object.values(groups)
     .map(group => ({ ...group, games: [...group.games].sort(compareArchivedGames) }))
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => compareArchiveDates(a.date, b.date))
 })
 
 function toggleDate(date) {
