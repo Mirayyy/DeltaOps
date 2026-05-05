@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { POSITIONS } from '../utils/constants'
+import { writeAuditLog } from '../utils/auditLog'
 
 const DEFAULT_ATTENDANCE_PRESET = Object.freeze({
   enabled: false,
@@ -201,6 +202,17 @@ export const useRosterStore = defineStore('roster', () => {
     await savePlayerFirestore(newPlayer)
     await setNicknameIndex(newPlayer.nickname, uid)
     players.value.push(newPlayer)
+    await writeAuditLog({
+      action: 'create',
+      entityType: 'player',
+      entityId: uid,
+      summary: `Создан игрок "${newPlayer.nickname || uid}"`,
+      details: {
+        nickname: newPlayer.nickname,
+        email: newPlayer.email,
+        status: newPlayer.status,
+      },
+    })
     return newPlayer
   }
 
@@ -232,6 +244,13 @@ export const useRosterStore = defineStore('roster', () => {
       await batch.commit()
     }
     players.value[idx] = updated
+    await writeAuditLog({
+      action: 'update',
+      entityType: 'player',
+      entityId: uid,
+      summary: `Обновлен игрок "${updated.nickname || uid}"`,
+      details: updates,
+    })
   }
 
   async function removePlayer(uid) {
@@ -243,6 +262,13 @@ export const useRosterStore = defineStore('roster', () => {
     if (player?.nickname) batch.delete(doc(db, 'nicknameIndex', player.nickname))
     await batch.commit()
     players.value = players.value.filter(p => p.uid !== uid)
+    await writeAuditLog({
+      action: 'delete',
+      entityType: 'player',
+      entityId: uid,
+      summary: `Удален игрок "${player?.nickname || uid}"`,
+      details: player || null,
+    })
   }
 
   /** Mark player as left + downgrade linked user to guest */

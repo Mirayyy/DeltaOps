@@ -66,6 +66,12 @@ const routes = [
     component: () => import('../pages/SettingsPage.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: '/logs',
+    name: 'logs',
+    component: () => import('../pages/LogsPage.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ]
 
 const router = createRouter({

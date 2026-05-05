@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { GAME_IDS } from '../utils/constants'
+import { writeAuditLog } from '../utils/auditLog'
 
 export const useGamesStore = defineStore('games', () => {
   // { [gameId]: { schedule, date, sourceUrl, version, slots[], task, updatedAt, updatedBy } }
@@ -95,12 +96,23 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Set all configured slots for a game at once */
   function setSlots(gameId, slots, updatedBy) {
+    const existed = !!games.value[gameId]
     if (!games.value[gameId]) {
       games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
     }
     games.value[gameId].slots = slots
     games.value[gameId].updatedBy = updatedBy
     persist(gameId)
+    void writeAuditLog({
+      action: existed ? 'update' : 'create',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `${existed ? 'Обновлена' : 'Создана'} расстановка ${gameId}`,
+      details: {
+        slotCount: slots.length,
+        updatedBy,
+      },
+    })
   }
 
   function assignPlayer(gameId, slotIndex, playerId) {
@@ -113,13 +125,35 @@ export const useGamesStore = defineStore('games', () => {
     })
     game.slots[slotIndex].playerId = playerId
     persist(gameId)
+    void writeAuditLog({
+      action: 'update',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `Назначен игрок в ${gameId}`,
+      details: {
+        slotIndex,
+        playerId,
+        slot: game.slots[slotIndex],
+      },
+    })
   }
 
   function unassignPlayer(gameId, slotIndex) {
     const game = games.value[gameId]
     if (!game || !game.slots[slotIndex]) return
+    const playerId = game.slots[slotIndex].playerId
     game.slots[slotIndex].playerId = null
     persist(gameId)
+    void writeAuditLog({
+      action: 'update',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `Снят игрок из слота ${gameId}`,
+      details: {
+        slotIndex,
+        playerId,
+      },
+    })
   }
 
   /** Remove a player from all slots in a game (e.g. when marked absent) */
@@ -133,7 +167,16 @@ export const useGamesStore = defineStore('games', () => {
         changed = true
       }
     }
-    if (changed) persist(gameId)
+    if (changed) {
+      persist(gameId)
+      void writeAuditLog({
+        action: 'update',
+        entityType: 'game',
+        entityId: gameId,
+        summary: `Игрок снят со всех слотов ${gameId}`,
+        details: { playerId },
+      })
+    }
   }
 
   function updateSlot(gameId, slotIndex, updates) {
@@ -144,14 +187,34 @@ export const useGamesStore = defineStore('games', () => {
     const eq = game.slots[slotIndex].equipment || []
     game.slots[slotIndex].optics = eq.includes('Оптика')
     persist(gameId)
+    void writeAuditLog({
+      action: 'update',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `Обновлен слот ${gameId}`,
+      details: {
+        slotIndex,
+        updates,
+      },
+    })
   }
 
   function setTask(gameId, task) {
+    const existed = !!games.value[gameId]
     if (!games.value[gameId]) {
       games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
     }
     games.value[gameId].task = task
     persist(gameId)
+    void writeAuditLog({
+      action: existed ? 'update' : 'create',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `${existed ? 'Обновлена' : 'Создана'} задача игры ${gameId}`,
+      details: {
+        taskLength: String(task || '').length,
+      },
+    })
   }
 
   // --- Slot Requests ---
@@ -161,6 +224,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function addSlotRequest(gameId, { playerId, slots, text }) {
+    const existed = !!games.value[gameId]
     if (!games.value[gameId]) {
       games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
     }
@@ -174,15 +238,36 @@ export const useGamesStore = defineStore('games', () => {
       games.value[gameId].slotRequests.push(request)
     }
     persist(gameId)
+    void writeAuditLog({
+      action: existed ? 'update' : 'create',
+      entityType: 'slot_request',
+      entityId: `${gameId}:${playerId}`,
+      summary: `Обновлен запрос слота ${gameId}`,
+      details: {
+        gameId,
+        playerId,
+        slots,
+        text,
+      },
+    })
   }
 
   function removeSlotRequest(gameId, index) {
     if (!games.value[gameId]?.slotRequests) return
+    const request = games.value[gameId].slotRequests[index]
     games.value[gameId].slotRequests.splice(index, 1)
     persist(gameId)
+    void writeAuditLog({
+      action: 'delete',
+      entityType: 'slot_request',
+      entityId: `${gameId}:${request?.playerId || index}`,
+      summary: `Удален запрос слота ${gameId}`,
+      details: request || { index },
+    })
   }
 
   function setGameMeta(gameId, { date, sourceUrl, version }) {
+    const existed = !!games.value[gameId]
     if (!games.value[gameId]) {
       games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
     }
@@ -190,6 +275,13 @@ export const useGamesStore = defineStore('games', () => {
     if (sourceUrl !== undefined) games.value[gameId].sourceUrl = sourceUrl
     if (version !== undefined) games.value[gameId].version = version
     persist(gameId)
+    void writeAuditLog({
+      action: existed ? 'update' : 'create',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `${existed ? 'Обновлены' : 'Созданы'} метаданные игры ${gameId}`,
+      details: { date, sourceUrl, version },
+    })
   }
 
   // --- Persist helper ---
@@ -213,6 +305,12 @@ export const useGamesStore = defineStore('games', () => {
     await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
     delete games.value[gameId]
     delete slotMemory.value[gameId]
+    await writeAuditLog({
+      action: 'delete',
+      entityType: 'game',
+      entityId: gameId,
+      summary: `Удалена игра ${gameId}`,
+    })
   }
 
   /** Clear all games (new week reset) */
@@ -221,6 +319,13 @@ export const useGamesStore = defineStore('games', () => {
     await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
     games.value = {}
     slotMemory.value = {}
+    await writeAuditLog({
+      action: 'delete',
+      entityType: 'game',
+      entityId: 'all-current-games',
+      summary: 'Удалены все текущие игры недели',
+      details: { gameIds: GAME_IDS },
+    })
   }
 
   function cleanup() {

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { writeAuditLog } from '../utils/auditLog'
 
 /**
  * Auto-generates slotId from section headers and row positions.
@@ -74,11 +75,28 @@ export const useStructuresStore = defineStore('structures', () => {
     }
 
     await saveStructureFirestore(structure)
+    await writeAuditLog({
+      action: idx === -1 ? 'create' : 'update',
+      entityType: 'structure',
+      entityId: structure.id,
+      summary: `${idx === -1 ? 'Создан' : 'Обновлен'} шаблон "${structure.name || structure.id}"`,
+      details: {
+        slotCount: structure.slots.length,
+      },
+    })
   }
 
   async function deleteStructure(id) {
+    const structure = structures.value.find(s => s.id === id)
     structures.value = structures.value.filter(s => s.id !== id)
     await deleteStructureFirestore(id)
+    await writeAuditLog({
+      action: 'delete',
+      entityType: 'structure',
+      entityId: id,
+      summary: `Удален шаблон "${structure?.name || id}"`,
+      details: structure || null,
+    })
   }
 
   return {

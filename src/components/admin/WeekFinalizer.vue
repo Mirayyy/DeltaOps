@@ -8,6 +8,7 @@ import { useMissionsStore } from '../../stores/missions'
 import { useSquadConfig } from '../../stores/squadConfig'
 import { useWeekStateStore } from '../../stores/weekState'
 import { useGameWeek } from '../../composables/useGameWeek'
+import { writeAuditLog } from '../../utils/auditLog'
 import BaseModal from '../common/BaseModal.vue'
 
 const emit = defineEmits(['close', 'done'])
@@ -107,6 +108,8 @@ async function finalize() {
   if (!canFinalize.value) return
   processing.value = true
   try {
+    const archivedGameIds = []
+
     for (const game of games.value) {
       const gameData = gamesStore.getGame(game.id)
       const missionData = missionsStore.getMission(game.id)
@@ -136,14 +139,28 @@ async function finalize() {
         task: gameData?.task || '',
         adminUid: 'admin',
       })
+      archivedGameIds.push(game.id)
     }
 
     await gamesStore.clearGames()
+    await missionsStore.clearMissions()
     await attendance.clearAttendance()
     await weekState.clearLockedWeek()
-    await attendance.applyAttendancePresets(roster.activePlayers)
+
+    await writeAuditLog({
+      action: 'finalize',
+      entityType: 'week',
+      entityId: `${games.value[0]?.date || ''}-${games.value[games.value.length - 1]?.date || ''}`,
+      summary: 'Неделя завершена',
+      details: {
+        archivedGameIds,
+        rotationId: activeRotation.value?.id || '',
+      },
+    })
 
     emit('done')
+
+    void attendance.applyAttendancePresets(roster.activePlayers)
   } finally {
     processing.value = false
   }

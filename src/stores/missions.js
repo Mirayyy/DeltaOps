@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_IDS } from '../utils/constants'
+import { writeAuditLog } from '../utils/auditLog'
 
 export const useMissionsStore = defineStore('missions', () => {
   const missions = ref({})
@@ -96,6 +97,12 @@ export const useMissionsStore = defineStore('missions', () => {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
     await deleteDoc(doc(db, 'missions', gameId)).catch(() => {})
     delete missions.value[gameId]
+    await writeAuditLog({
+      action: 'delete',
+      entityType: 'mission',
+      entityId: gameId,
+      summary: `Удалена миссия ${gameId}`,
+    })
   }
 
   async function clearMissions() {
@@ -104,6 +111,13 @@ export const useMissionsStore = defineStore('missions', () => {
       try { await deleteDoc(doc(db, 'missions', gameId)) } catch (e) { /* ignore */ }
     }))
     missions.value = {}
+    await writeAuditLog({
+      action: 'delete',
+      entityType: 'mission',
+      entityId: 'all-current-missions',
+      summary: 'Удалены все текущие миссии недели',
+      details: { gameIds: GAME_IDS },
+    })
   }
 
   return {

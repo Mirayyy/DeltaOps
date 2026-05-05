@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { writeAuditLog } from '../utils/auditLog'
 
 let _awardIdCounter = 0
 function ensureAwardId(award) {
@@ -65,6 +66,16 @@ export const useWebContentStore = defineStore('webContent', () => {
 
   async function saveContent() {
     await saveFirestore()
+    await writeAuditLog({
+      action: 'update',
+      entityType: 'web_content',
+      entityId: 'config/squad',
+      summary: 'Обновлен веб-контент отряда',
+      details: {
+        awardsCount: awards.value.length,
+        aboutLength: aboutMarkdown.value.length,
+      },
+    })
   }
 
   // --- Award CRUD ---

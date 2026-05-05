@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getDoc, setDoc, squadConfigRef } from '../firebase/firestore'
+import { writeAuditLog } from '../utils/auditLog'
 
 /**
  * Squad identity config — stored in Firestore `config/squad`.
@@ -77,8 +78,20 @@ export const useSquadConfig = defineStore('squadConfig', () => {
   }
 
   async function save(data) {
+    const previous = { ...config.value }
     config.value = { ...config.value, ...data }
     await setDoc(squadConfigRef, config.value, { merge: true })
+    await writeAuditLog({
+      action: 'update',
+      entityType: 'squad_config',
+      entityId: 'config/squad',
+      summary: 'Обновлены настройки отряда',
+      details: {
+        updatedKeys: Object.keys(data || {}),
+        previous,
+        next: config.value,
+      },
+    })
   }
 
   return {
