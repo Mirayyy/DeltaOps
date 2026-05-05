@@ -10,7 +10,7 @@ import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
  */
 
 const DEFAULTS = {
-  siteName: 'DELTAops',
+  siteName: '',
   siteUrl: 'https://mirayyy.github.io/DeltaOps/',
   githubUrl: '',
   firestoreUrl: '',
