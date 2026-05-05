@@ -18,6 +18,7 @@ import { useSquadConfig } from '../stores/squadConfig'
 import { useWeekStateStore } from '../stores/weekState'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
+import { writeAuditLog } from '../utils/auditLog'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -134,6 +135,17 @@ async function sendReminder() {
   const msg = telegram.buildReminderMessage(allUnresponded.value, gameDates.value)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
+    await writeAuditLog({
+      action: 'send',
+      entityType: 'telegram',
+      entityId: 'readiness-reminder',
+      summary: 'telegram - send - readiness-reminder',
+      after: {
+        playerIds: allUnresponded.value.map(player => player.uid),
+        playerNicknames: allUnresponded.value.map(player => player.nickname),
+        gameDates: gameDates.value,
+      },
+    })
     toast.success('Напоминание отправлено')
   } else {
     toast.error('Ошибка: ' + result.error)
@@ -153,6 +165,17 @@ async function sendMissionsToTelegram() {
   const msg = telegram.buildMissionsMessage(missionsData, gameDates.value, squadConfig.side)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
+    await writeAuditLog({
+      action: 'send',
+      entityType: 'telegram',
+      entityId: 'missions-summary',
+      summary: 'telegram - send - missions-summary',
+      after: {
+        gameIds: Object.keys(missionsData),
+        side: squadConfig.side,
+        gameDates: gameDates.value,
+      },
+    })
     toast.success('Миссии отправлены в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)

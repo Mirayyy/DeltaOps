@@ -50,9 +50,9 @@ function formatActor(actor) {
   return actor.displayName || actor.email || actor.uid || '—'
 }
 
-function prettyDetails(details) {
-  if (!details) return ''
-  return JSON.stringify(details, null, 2)
+function prettyJson(value) {
+  if (!value) return ''
+  return JSON.stringify(value, null, 2)
 }
 
 onMounted(async () => {
@@ -112,11 +112,24 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <details v-if="log.details" class="mt-3">
+          <details v-if="log.before || log.after || log.metadata" class="mt-3">
             <summary class="text-xs text-neutral-500 cursor-pointer hover:text-neutral-300 transition-colors">
               Детали
             </summary>
-            <pre class="mt-2 p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-[11px] text-neutral-400 overflow-x-auto whitespace-pre-wrap">{{ prettyDetails(log.details) }}</pre>
+            <div class="mt-2 space-y-2">
+              <div v-if="log.before">
+                <div class="text-[10px] text-neutral-600 uppercase tracking-wide mb-1">Before</div>
+                <pre class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-[11px] text-neutral-400 overflow-x-auto whitespace-pre-wrap">{{ prettyJson(log.before) }}</pre>
+              </div>
+              <div v-if="log.after">
+                <div class="text-[10px] text-neutral-600 uppercase tracking-wide mb-1">After</div>
+                <pre class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-[11px] text-neutral-400 overflow-x-auto whitespace-pre-wrap">{{ prettyJson(log.after) }}</pre>
+              </div>
+              <div v-if="log.metadata">
+                <div class="text-[10px] text-neutral-600 uppercase tracking-wide mb-1">Metadata</div>
+                <pre class="p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-[11px] text-neutral-400 overflow-x-auto whitespace-pre-wrap">{{ prettyJson(log.metadata) }}</pre>
+              </div>
+            </div>
           </details>
         </div>
       </div>

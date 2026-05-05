@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 export const useUsersStore = defineStore('users', () => {
   const users = ref([])
@@ -30,19 +30,17 @@ export const useUsersStore = defineStore('users', () => {
 
   async function setRole(userId, role) {
     const current = users.value.find(u => u.uid === userId)
+    const before = cloneForAudit(current)
     const { doc, setDoc, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'users', userId), { role }, { merge: true })
     const idx = users.value.findIndex(u => u.uid === userId)
     if (idx !== -1) users.value[idx] = { ...users.value[idx], role }
-    await writeAuditLog({
-      action: 'update',
-      entityType: 'user',
+    await logEntitySnapshot({
+      entityType: 'users',
       entityId: userId,
-      summary: `Изменена роль пользователя ${current?.email || userId}`,
-      details: {
-        previousRole: current?.role || null,
-        nextRole: role,
-      },
+      before,
+      after: users.value.find(u => u.uid === userId) || { ...(current || {}), role },
+      summary: `users - update - ${userId}`,
     })
   }
 

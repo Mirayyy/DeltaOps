@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 let _awardIdCounter = 0
 function ensureAwardId(award) {
@@ -15,6 +15,10 @@ export const useWebContentStore = defineStore('webContent', () => {
   const awards = ref([])
   const aboutMarkdown = ref('')
   const loading = ref(false)
+  const persistedSnapshot = ref({
+    awards: [],
+    aboutMarkdown: '',
+  })
 
   // --- Computed filters ---
   const landingAwards = computed(() =>
@@ -41,6 +45,10 @@ export const useWebContentStore = defineStore('webContent', () => {
       const data = snap.data()
       awards.value = (data.awards || []).map(ensureAwardId)
       aboutMarkdown.value = data.aboutMarkdown || ''
+      persistedSnapshot.value = {
+        awards: cloneForAudit(data.awards || []),
+        aboutMarkdown: cloneForAudit(data.aboutMarkdown || ''),
+      }
     }
   }
 
@@ -65,15 +73,21 @@ export const useWebContentStore = defineStore('webContent', () => {
   }
 
   async function saveContent() {
+    const before = cloneForAudit(persistedSnapshot.value)
+    const after = {
+      awards: cleanAwards(),
+      aboutMarkdown: aboutMarkdown.value,
+    }
     await saveFirestore()
-    await writeAuditLog({
-      action: 'update',
-      entityType: 'web_content',
-      entityId: 'config/squad',
-      summary: 'Обновлен веб-контент отряда',
-      details: {
-        awardsCount: awards.value.length,
-        aboutLength: aboutMarkdown.value.length,
+    persistedSnapshot.value = cloneForAudit(after)
+    await logEntitySnapshot({
+      entityType: 'config',
+      entityId: 'web-content',
+      before,
+      after,
+      summary: 'config - update - web-content',
+      metadata: {
+        operation: 'save-web-content',
       },
     })
   }

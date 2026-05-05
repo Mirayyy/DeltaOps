@@ -152,7 +152,7 @@ async function finalize() {
       entityType: 'week',
       entityId: `${games.value[0]?.date || ''}-${games.value[games.value.length - 1]?.date || ''}`,
       summary: 'Неделя завершена',
-      details: {
+      after: {
         archivedGameIds,
         rotationId: activeRotation.value?.id || '',
       },

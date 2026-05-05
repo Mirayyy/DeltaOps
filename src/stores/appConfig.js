@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getDoc, setDoc, configRef } from '../firebase/firestore'
 import { firebaseProjectId } from '../firebase/config'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 /**
  * App/site config — stored in Firestore `config/app`.
@@ -80,18 +80,18 @@ export const useAppConfig = defineStore('appConfig', () => {
     const next = { ...data }
     if ('siteUrl' in next) next.siteUrl = normalizeSiteUrl(next.siteUrl)
 
-    const previous = { ...config.value }
+    const previous = cloneForAudit(config.value)
     config.value = { ...config.value, ...next }
     await setDoc(configRef, config.value, { merge: true })
-    await writeAuditLog({
-      action: 'update',
-      entityType: 'app_config',
-      entityId: 'config/app',
-      summary: 'Обновлены настройки сайта',
-      details: {
+    await logEntitySnapshot({
+      entityType: 'config',
+      entityId: 'app',
+      before: previous,
+      after: config.value,
+      summary: 'config - update - app',
+      metadata: {
+        operation: 'save-app-config',
         updatedKeys: Object.keys(next || {}),
-        previous,
-        next: config.value,
       },
     })
   }

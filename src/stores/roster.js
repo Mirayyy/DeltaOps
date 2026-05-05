@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { POSITIONS } from '../utils/constants'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 const DEFAULT_ATTENDANCE_PRESET = Object.freeze({
   enabled: false,
@@ -202,16 +202,12 @@ export const useRosterStore = defineStore('roster', () => {
     await savePlayerFirestore(newPlayer)
     await setNicknameIndex(newPlayer.nickname, uid)
     players.value.push(newPlayer)
-    await writeAuditLog({
-      action: 'create',
-      entityType: 'player',
+    await logEntitySnapshot({
+      entityType: 'players',
       entityId: uid,
-      summary: `Создан игрок "${newPlayer.nickname || uid}"`,
-      details: {
-        nickname: newPlayer.nickname,
-        email: newPlayer.email,
-        status: newPlayer.status,
-      },
+      before: null,
+      after: newPlayer,
+      summary: `players - create - ${uid}`,
     })
     return newPlayer
   }
@@ -221,6 +217,7 @@ export const useRosterStore = defineStore('roster', () => {
     if (idx === -1) return
 
     const currentPlayer = players.value[idx]
+    const before = cloneForAudit(currentPlayer)
     const oldNickname = currentPlayer.nickname
 
     // --- Role management on status transition ---
@@ -244,17 +241,18 @@ export const useRosterStore = defineStore('roster', () => {
       await batch.commit()
     }
     players.value[idx] = updated
-    await writeAuditLog({
-      action: 'update',
-      entityType: 'player',
+    await logEntitySnapshot({
+      entityType: 'players',
       entityId: uid,
-      summary: `Обновлен игрок "${updated.nickname || uid}"`,
-      details: updates,
+      before,
+      after: updated,
+      summary: `players - update - ${uid}`,
     })
   }
 
   async function removePlayer(uid) {
     const player = getPlayer(uid)
+    const before = cloneForAudit(player)
     // Atomic batch: delete player + nicknameIndex together
     const { doc, writeBatch, db } = await import('../firebase/firestore')
     const batch = writeBatch(db)
@@ -262,12 +260,12 @@ export const useRosterStore = defineStore('roster', () => {
     if (player?.nickname) batch.delete(doc(db, 'nicknameIndex', player.nickname))
     await batch.commit()
     players.value = players.value.filter(p => p.uid !== uid)
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'player',
+    await logEntitySnapshot({
+      entityType: 'players',
       entityId: uid,
-      summary: `Удален игрок "${player?.nickname || uid}"`,
-      details: player || null,
+      before,
+      after: null,
+      summary: `players - delete - ${uid}`,
     })
   }
 

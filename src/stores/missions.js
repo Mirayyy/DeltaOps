@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_IDS } from '../utils/constants'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 export const useMissionsStore = defineStore('missions', () => {
   const missions = ref({})
@@ -95,29 +95,37 @@ export const useMissionsStore = defineStore('missions', () => {
 
   async function clearMission(gameId) {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    const before = cloneForAudit(getMission(gameId))
     await deleteDoc(doc(db, 'missions', gameId)).catch(() => {})
     delete missions.value[gameId]
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'mission',
+    await logEntitySnapshot({
+      entityType: 'missions',
       entityId: gameId,
-      summary: `Удалена миссия ${gameId}`,
+      before,
+      after: null,
+      summary: `missions - delete - ${gameId}`,
     })
   }
 
   async function clearMissions() {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    const existingMissions = GAME_IDS
+      .map(gameId => ({ id: gameId, before: cloneForAudit(getMission(gameId)) }))
+      .filter(entry => entry.before)
     await Promise.all(GAME_IDS.map(async (gameId) => {
       try { await deleteDoc(doc(db, 'missions', gameId)) } catch (e) { /* ignore */ }
     }))
     missions.value = {}
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'mission',
-      entityId: 'all-current-missions',
-      summary: 'Удалены все текущие миссии недели',
-      details: { gameIds: GAME_IDS },
-    })
+    await Promise.all(existingMissions.map(entry =>
+      logEntitySnapshot({
+        entityType: 'missions',
+        entityId: entry.id,
+        before: entry.before,
+        after: null,
+        summary: `missions - delete - ${entry.id}`,
+        metadata: { operation: 'clear-missions' },
+      })
+    ))
   }
 
   return {

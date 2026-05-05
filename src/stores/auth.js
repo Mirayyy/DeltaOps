@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../firebase/config'
 import { isAdmin, isMember } from '../utils/permissions'
+import { writeAuditLog } from '../utils/auditLog'
 
 export const useAuthStore = defineStore('auth', () => {
   const firebaseUser = ref(null)
@@ -50,6 +51,19 @@ export const useAuthStore = defineStore('auth', () => {
         lastLoginAt: serverTimestamp(),
       }
       await setDoc(userDocRef, newUser)
+      await writeAuditLog({
+        action: 'create',
+        entityType: 'users',
+        entityId: fbUser.uid,
+        summary: `users - create - ${fbUser.uid}`,
+        after: {
+          uid: fbUser.uid,
+          email: fbUser.email || '',
+          displayName: fbUser.displayName || '',
+          photoURL: fbUser.photoURL || '',
+          role: 'guest',
+        },
+      })
       return { uid: fbUser.uid, ...newUser }
     } catch (e) {
       console.warn('fetchOrCreateUser failed:', e.message)
@@ -78,11 +92,34 @@ export const useAuthStore = defineStore('auth', () => {
     if (!userData || !foundPlayer) return userData
     if (userData.role !== 'guest') return userData
     try {
+      const before = {
+        uid: userData.uid,
+        email: userData.email || '',
+        displayName: userData.displayName || '',
+        photoURL: userData.photoURL || '',
+        role: userData.role,
+      }
       const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
       await setDoc(doc(db, 'users', userData.uid), {
         role: 'member',
         lastLoginAt: serverTimestamp(),
       }, { merge: true })
+      await writeAuditLog({
+        action: 'update',
+        entityType: 'users',
+        entityId: userData.uid,
+        summary: `users - update - ${userData.uid}`,
+        before,
+        after: {
+          ...before,
+          role: 'member',
+        },
+        metadata: {
+          operation: 'auto-link-by-email',
+          playerUid: foundPlayer.uid,
+          playerNickname: foundPlayer.nickname || '',
+        },
+      })
       return { ...userData, role: 'member' }
     } catch (e) {
       console.warn('tryAutoLink failed:', e.message)

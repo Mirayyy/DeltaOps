@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 /**
  * Auto-generates slotId from section headers and row positions.
@@ -65,6 +65,7 @@ export const useStructuresStore = defineStore('structures', () => {
 
   async function saveStructure(structure) {
     const idx = structures.value.findIndex(s => s.id === structure.id)
+    const before = cloneForAudit(idx === -1 ? null : structures.value[idx])
     // Regenerate slot IDs
     structure.slots = generateSlotIds(structure.slots)
 
@@ -75,27 +76,26 @@ export const useStructuresStore = defineStore('structures', () => {
     }
 
     await saveStructureFirestore(structure)
-    await writeAuditLog({
-      action: idx === -1 ? 'create' : 'update',
-      entityType: 'structure',
+    await logEntitySnapshot({
+      entityType: 'structures',
       entityId: structure.id,
-      summary: `${idx === -1 ? 'Создан' : 'Обновлен'} шаблон "${structure.name || structure.id}"`,
-      details: {
-        slotCount: structure.slots.length,
-      },
+      before,
+      after: structure,
+      summary: `structures - ${before ? 'update' : 'create'} - ${structure.id}`,
     })
   }
 
   async function deleteStructure(id) {
     const structure = structures.value.find(s => s.id === id)
+    const before = cloneForAudit(structure)
     structures.value = structures.value.filter(s => s.id !== id)
     await deleteStructureFirestore(id)
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'structure',
+    await logEntitySnapshot({
+      entityType: 'structures',
       entityId: id,
-      summary: `Удален шаблон "${structure?.name || id}"`,
-      details: structure || null,
+      before,
+      after: null,
+      summary: `structures - delete - ${id}`,
     })
   }
 

@@ -60,7 +60,9 @@ export const useAuditLogsStore = defineStore('auditLogs', () => {
     entityType,
     entityId = '',
     summary = '',
-    details = null,
+    before = null,
+    after = null,
+    metadata = null,
     severity = 'info',
   }) {
     const auth = useAuthStore()
@@ -75,7 +77,9 @@ export const useAuditLogsStore = defineStore('auditLogs', () => {
         entityType,
         entityId,
         summary,
-        details,
+        before,
+        after,
+        metadata,
         severity,
         actor,
         createdAt: serverTimestamp(),

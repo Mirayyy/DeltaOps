@@ -3,6 +3,7 @@ import { onMounted, computed, ref } from 'vue'
 import { useUsersStore } from '../stores/users'
 import { useRosterStore } from '../stores/roster'
 import { SITE_ROLES } from '../utils/constants'
+import { writeAuditLog } from '../utils/auditLog'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import BaseSelect from '../components/common/BaseSelect.vue'
 
@@ -37,8 +38,22 @@ async function linkPlayer(user, playerUid) {
   if (!playerUid || linkingBusy.value) return
   linkingBusy.value = true
   try {
+    const player = roster.getPlayer(playerUid)
     await roster.updatePlayer(playerUid, { email: user.email })
     if (user.role === 'guest') await usersStore.setRole(user.uid, 'member')
+    await writeAuditLog({
+      action: 'link',
+      entityType: 'user-player-link',
+      entityId: `${user.uid}:${playerUid}`,
+      summary: `user-player-link - link - ${user.uid}:${playerUid}`,
+      before: null,
+      after: {
+        userId: user.uid,
+        userEmail: user.email || '',
+        playerUid,
+        playerNickname: player?.nickname || '',
+      },
+    })
     linkingUser.value = null
   } finally {
     linkingBusy.value = false
@@ -50,8 +65,22 @@ async function unlinkPlayer(user) {
   if (!player || linkingBusy.value) return
   linkingBusy.value = true
   try {
+    const relation = {
+      userId: user.uid,
+      userEmail: user.email || '',
+      playerUid: player.uid,
+      playerNickname: player.nickname || '',
+    }
     await roster.updatePlayer(player.uid, { email: '' })
     if (user.role === 'member') await usersStore.setRole(user.uid, 'guest')
+    await writeAuditLog({
+      action: 'unlink',
+      entityType: 'user-player-link',
+      entityId: `${user.uid}:${player.uid}`,
+      summary: `user-player-link - unlink - ${user.uid}:${player.uid}`,
+      before: relation,
+      after: null,
+    })
   } finally {
     linkingBusy.value = false
   }

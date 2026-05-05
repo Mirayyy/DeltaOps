@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { GAME_IDS } from '../utils/constants'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 export const useGamesStore = defineStore('games', () => {
   // { [gameId]: { schedule, date, sourceUrl, version, slots[], task, updatedAt, updatedBy } }
@@ -10,6 +10,13 @@ export const useGamesStore = defineStore('games', () => {
 
   // Slot memory: when a slot is removed and re-added, its data persists
   const slotMemory = ref({}) // { [gameId]: { [slotKey]: slotData } }
+
+  function ensureGame(gameId) {
+    if (!games.value[gameId]) {
+      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
+    }
+    return games.value[gameId]
+  }
 
   function getGame(gameId) {
     return games.value[gameId] || null
@@ -61,10 +68,8 @@ export const useGamesStore = defineStore('games', () => {
 
   /** Toggle slot: add if missing, remove (but remember) if present */
   function toggleSlot(gameId, slot) {
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
-    }
-    const game = games.value[gameId]
+    const before = cloneForAudit(getGame(gameId))
+    const game = ensureGame(gameId)
     const key = slotKey(slot)
     const existingIdx = game.slots.findIndex(s => slotKey(s) === key)
 
@@ -91,25 +96,27 @@ export const useGamesStore = defineStore('games', () => {
       })
     }
 
-    persist(gameId)
+    void persist(gameId, {
+      before,
+      summary: `games - update - ${gameId}`,
+      metadata: {
+        operation: 'toggle-slot',
+        slotKey: key,
+      },
+    })
   }
 
   /** Set all configured slots for a game at once */
   function setSlots(gameId, slots, updatedBy) {
-    const existed = !!games.value[gameId]
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
-    }
-    games.value[gameId].slots = slots
-    games.value[gameId].updatedBy = updatedBy
-    persist(gameId)
-    void writeAuditLog({
-      action: existed ? 'update' : 'create',
-      entityType: 'game',
-      entityId: gameId,
-      summary: `${existed ? 'Обновлена' : 'Создана'} расстановка ${gameId}`,
-      details: {
-        slotCount: slots.length,
+    const before = cloneForAudit(getGame(gameId))
+    const game = ensureGame(gameId)
+    game.slots = slots
+    game.updatedBy = updatedBy
+    void persist(gameId, {
+      before,
+      summary: `games - ${before ? 'update' : 'create'} - ${gameId}`,
+      metadata: {
+        operation: 'set-slots',
         updatedBy,
       },
     })
@@ -118,22 +125,20 @@ export const useGamesStore = defineStore('games', () => {
   function assignPlayer(gameId, slotIndex, playerId) {
     const game = games.value[gameId]
     if (!game || !game.slots[slotIndex]) return
+    const before = cloneForAudit(game)
 
     // Unassign from any other slot in this game
     game.slots.forEach(s => {
       if (s.playerId === playerId) s.playerId = null
     })
     game.slots[slotIndex].playerId = playerId
-    persist(gameId)
-    void writeAuditLog({
-      action: 'update',
-      entityType: 'game',
-      entityId: gameId,
-      summary: `Назначен игрок в ${gameId}`,
-      details: {
+    void persist(gameId, {
+      before,
+      summary: `games - update - ${gameId}`,
+      metadata: {
+        operation: 'assign-player',
         slotIndex,
         playerId,
-        slot: game.slots[slotIndex],
       },
     })
   }
@@ -141,15 +146,14 @@ export const useGamesStore = defineStore('games', () => {
   function unassignPlayer(gameId, slotIndex) {
     const game = games.value[gameId]
     if (!game || !game.slots[slotIndex]) return
+    const before = cloneForAudit(game)
     const playerId = game.slots[slotIndex].playerId
     game.slots[slotIndex].playerId = null
-    persist(gameId)
-    void writeAuditLog({
-      action: 'update',
-      entityType: 'game',
-      entityId: gameId,
-      summary: `Снят игрок из слота ${gameId}`,
-      details: {
+    void persist(gameId, {
+      before,
+      summary: `games - update - ${gameId}`,
+      metadata: {
+        operation: 'unassign-player',
         slotIndex,
         playerId,
       },
@@ -160,6 +164,7 @@ export const useGamesStore = defineStore('games', () => {
   function unassignPlayerFromGame(gameId, playerId) {
     const game = games.value[gameId]
     if (!game) return
+    const before = cloneForAudit(game)
     let changed = false
     for (const slot of game.slots) {
       if (slot.playerId === playerId) {
@@ -168,13 +173,13 @@ export const useGamesStore = defineStore('games', () => {
       }
     }
     if (changed) {
-      persist(gameId)
-      void writeAuditLog({
-        action: 'update',
-        entityType: 'game',
-        entityId: gameId,
-        summary: `Игрок снят со всех слотов ${gameId}`,
-        details: { playerId },
+      void persist(gameId, {
+        before,
+        summary: `games - update - ${gameId}`,
+        metadata: {
+          operation: 'unassign-player-from-game',
+          playerId,
+        },
       })
     }
   }
@@ -182,17 +187,16 @@ export const useGamesStore = defineStore('games', () => {
   function updateSlot(gameId, slotIndex, updates) {
     const game = games.value[gameId]
     if (!game || !game.slots[slotIndex]) return
+    const before = cloneForAudit(game)
     Object.assign(game.slots[slotIndex], updates)
     // Auto-derive optics from equipment
     const eq = game.slots[slotIndex].equipment || []
     game.slots[slotIndex].optics = eq.includes('Оптика')
-    persist(gameId)
-    void writeAuditLog({
-      action: 'update',
-      entityType: 'game',
-      entityId: gameId,
-      summary: `Обновлен слот ${gameId}`,
-      details: {
+    void persist(gameId, {
+      before,
+      summary: `games - update - ${gameId}`,
+      metadata: {
+        operation: 'update-slot',
         slotIndex,
         updates,
       },
@@ -200,19 +204,14 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function setTask(gameId, task) {
-    const existed = !!games.value[gameId]
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
-    }
-    games.value[gameId].task = task
-    persist(gameId)
-    void writeAuditLog({
-      action: existed ? 'update' : 'create',
-      entityType: 'game',
-      entityId: gameId,
-      summary: `${existed ? 'Обновлена' : 'Создана'} задача игры ${gameId}`,
-      details: {
-        taskLength: String(task || '').length,
+    const before = cloneForAudit(getGame(gameId))
+    const game = ensureGame(gameId)
+    game.task = task
+    void persist(gameId, {
+      before,
+      summary: `games - ${before ? 'update' : 'create'} - ${gameId}`,
+      metadata: {
+        operation: 'set-task',
       },
     })
   }
@@ -224,69 +223,68 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   function addSlotRequest(gameId, { playerId, slots, text }) {
-    const existed = !!games.value[gameId]
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
-    }
-    if (!games.value[gameId].slotRequests) games.value[gameId].slotRequests = []
+    const before = cloneForAudit(getGame(gameId))
+    const game = ensureGame(gameId)
+    if (!game.slotRequests) game.slotRequests = []
     // Replace existing request from same player
-    const idx = games.value[gameId].slotRequests.findIndex(r => r.playerId === playerId)
+    const idx = game.slotRequests.findIndex(r => r.playerId === playerId)
     const request = { playerId, slots, text, createdAt: new Date().toISOString() }
     if (idx !== -1) {
-      games.value[gameId].slotRequests[idx] = request
+      game.slotRequests[idx] = request
     } else {
-      games.value[gameId].slotRequests.push(request)
+      game.slotRequests.push(request)
     }
-    persist(gameId)
-    void writeAuditLog({
-      action: existed ? 'update' : 'create',
-      entityType: 'slot_request',
-      entityId: `${gameId}:${playerId}`,
-      summary: `Обновлен запрос слота ${gameId}`,
-      details: {
-        gameId,
+    void persist(gameId, {
+      before,
+      summary: `games - ${before ? 'update' : 'create'} - ${gameId}`,
+      metadata: {
+        operation: 'set-slot-request',
         playerId,
-        slots,
-        text,
       },
     })
   }
 
   function removeSlotRequest(gameId, index) {
     if (!games.value[gameId]?.slotRequests) return
-    const request = games.value[gameId].slotRequests[index]
+    const before = cloneForAudit(games.value[gameId])
     games.value[gameId].slotRequests.splice(index, 1)
-    persist(gameId)
-    void writeAuditLog({
-      action: 'delete',
-      entityType: 'slot_request',
-      entityId: `${gameId}:${request?.playerId || index}`,
-      summary: `Удален запрос слота ${gameId}`,
-      details: request || { index },
+    void persist(gameId, {
+      before,
+      summary: `games - update - ${gameId}`,
+      metadata: {
+        operation: 'remove-slot-request',
+        index,
+      },
     })
   }
 
   function setGameMeta(gameId, { date, sourceUrl, version }) {
-    const existed = !!games.value[gameId]
-    if (!games.value[gameId]) {
-      games.value[gameId] = { schedule: gameId, date: '', sourceUrl: '', version: '', slots: [], task: '' }
-    }
-    if (date !== undefined) games.value[gameId].date = date
-    if (sourceUrl !== undefined) games.value[gameId].sourceUrl = sourceUrl
-    if (version !== undefined) games.value[gameId].version = version
-    persist(gameId)
-    void writeAuditLog({
-      action: existed ? 'update' : 'create',
-      entityType: 'game',
-      entityId: gameId,
-      summary: `${existed ? 'Обновлены' : 'Созданы'} метаданные игры ${gameId}`,
-      details: { date, sourceUrl, version },
+    const before = cloneForAudit(getGame(gameId))
+    const game = ensureGame(gameId)
+    if (date !== undefined) game.date = date
+    if (sourceUrl !== undefined) game.sourceUrl = sourceUrl
+    if (version !== undefined) game.version = version
+    void persist(gameId, {
+      before,
+      summary: `games - ${before ? 'update' : 'create'} - ${gameId}`,
+      metadata: {
+        operation: 'set-game-meta',
+      },
     })
   }
 
   // --- Persist helper ---
-  function persist(gameId) {
-    saveGameFirestore(gameId, games.value[gameId])
+  async function persist(gameId, { before = null, summary = '', metadata = null } = {}) {
+    const after = games.value[gameId]
+    await saveGameFirestore(gameId, after)
+    await logEntitySnapshot({
+      entityType: 'games',
+      entityId: gameId,
+      before,
+      after,
+      summary: summary || `games - ${before ? 'update' : 'create'} - ${gameId}`,
+      metadata,
+    })
   }
 
   // --- Public API ---
@@ -302,30 +300,38 @@ export const useGamesStore = defineStore('games', () => {
   /** Clear a single game */
   async function clearGame(gameId) {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    const before = cloneForAudit(getGame(gameId))
     await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
     delete games.value[gameId]
     delete slotMemory.value[gameId]
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'game',
+    await logEntitySnapshot({
+      entityType: 'games',
       entityId: gameId,
-      summary: `Удалена игра ${gameId}`,
+      before,
+      after: null,
+      summary: `games - delete - ${gameId}`,
     })
   }
 
   /** Clear all games (new week reset) */
   async function clearGames() {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    const existingGames = GAME_IDS
+      .map(id => ({ id, before: cloneForAudit(getGame(id)) }))
+      .filter(entry => entry.before)
     await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
     games.value = {}
     slotMemory.value = {}
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'game',
-      entityId: 'all-current-games',
-      summary: 'Удалены все текущие игры недели',
-      details: { gameIds: GAME_IDS },
-    })
+    await Promise.all(existingGames.map(entry =>
+      logEntitySnapshot({
+        entityType: 'games',
+        entityId: entry.id,
+        before: entry.before,
+        after: null,
+        summary: `games - delete - ${entry.id}`,
+        metadata: { operation: 'clear-games' },
+      })
+    ))
   }
 
   function cleanup() {

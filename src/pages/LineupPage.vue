@@ -19,6 +19,7 @@ import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
+import { writeAuditLog } from '../utils/auditLog'
 
 const auth = useAuthStore()
 const roster = useRosterStore()
@@ -316,6 +317,17 @@ async function sendLineupToTelegram() {
   const msg = telegram.buildLineupSummaryMessage(gamesStore.games, roster.players, missionsData, gameDates)
   const result = await telegram.sendMessage(msg)
   if (result.ok) {
+    await writeAuditLog({
+      action: 'send',
+      entityType: 'telegram',
+      entityId: 'lineup-summary',
+      summary: 'telegram - send - lineup-summary',
+      after: {
+        gameIds: games.value.map(game => game.id),
+        missionIds: Object.keys(missionsData),
+        gameDates: gameDates.value,
+      },
+    })
     toast.success('Расстановка отправлена в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
@@ -587,7 +599,7 @@ function startEditSquadTask() {
   nextTick(() => resizeTextarea(squadTaskTextarea))
 }
 
-function saveSquadTask() {
+async function saveSquadTask() {
   gamesStore.setTask(activeTab.value, squadTaskDraft.value)
   editingSquadTask.value = false
 }
@@ -606,7 +618,7 @@ function startEditPersonalTask(slotIndex) {
   nextTick(() => resizeTextarea(personalTaskTextarea))
 }
 
-function savePersonalTask(slotIndex) {
+async function savePersonalTask(slotIndex) {
   if (slotIndex === null || slotIndex === undefined) return
   gamesStore.updateSlot(activeTab.value, slotIndex, { personalTask: personalTaskDraft.value })
   editingPersonalTask.value = null
@@ -742,6 +754,20 @@ async function sendSlotNotification(slot, slotIdx) {
 
   slotNotifSending.value[slotIdx] = false
   if (result.ok) {
+    await writeAuditLog({
+      action: 'send',
+      entityType: 'telegram',
+      entityId: `slot-notification:${activeTab.value}:${slotIdx}`,
+      summary: `telegram - send - slot-notification:${activeTab.value}:${slotIdx}`,
+      after: {
+        gameId: activeTab.value,
+        slotIndex: slotIdx,
+        slotNumber: slot.number,
+        playerId: slot.playerId,
+        telegramId,
+        missionTitle: mission?.title || '',
+      },
+    })
     slotNotifSent.value[slotIdx] = true
     setTimeout(() => { slotNotifSent.value[slotIdx] = false }, 2000)
     toast.success(`Уведомление отправлено — ${nickname}`)

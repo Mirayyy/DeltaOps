@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
-import { writeAuditLog } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 
 export const useArchiveStore = defineStore('archive', () => {
   const archives = ref([])  // [{ id, rotation, server, side, date, schedule, slots, records, ... }]
@@ -63,12 +63,12 @@ export const useArchiveStore = defineStore('archive', () => {
 
     const { doc, setDoc, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'rotations', id), rotation)
-    await writeAuditLog({
-      action: 'create',
-      entityType: 'rotation',
+    await logEntitySnapshot({
+      entityType: 'rotations',
       entityId: id,
-      summary: `Создана ротация "${name}"`,
-      details: rotation,
+      before: null,
+      after: rotation,
+      summary: `rotations - create - ${id}`,
     })
     return rotation
   }
@@ -76,30 +76,32 @@ export const useArchiveStore = defineStore('archive', () => {
   async function updateRotation(rotationId, updates) {
     const rotation = rotations.value.find(r => r.id === rotationId)
     if (!rotation) return
+    const before = cloneForAudit(rotation)
     Object.assign(rotation, updates)
 
     const { doc, updateDoc, db } = await import('../firebase/firestore')
     await updateDoc(doc(db, 'rotations', rotationId), updates)
-    await writeAuditLog({
-      action: 'update',
-      entityType: 'rotation',
+    await logEntitySnapshot({
+      entityType: 'rotations',
       entityId: rotationId,
-      summary: `Обновлена ротация "${rotation.name || rotationId}"`,
-      details: updates,
+      before,
+      after: rotation,
+      summary: `rotations - update - ${rotationId}`,
     })
   }
 
   async function deleteRotation(rotationId) {
     const rotation = rotations.value.find(r => r.id === rotationId)
+    const before = cloneForAudit(rotation)
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
     await deleteDoc(doc(db, 'rotations', rotationId))
     rotations.value = rotations.value.filter(r => r.id !== rotationId)
-    await writeAuditLog({
-      action: 'delete',
-      entityType: 'rotation',
+    await logEntitySnapshot({
+      entityType: 'rotations',
       entityId: rotationId,
-      summary: `Удалена ротация "${rotation?.name || rotationId}"`,
-      details: rotation || null,
+      before,
+      after: null,
+      summary: `rotations - delete - ${rotationId}`,
     })
   }
 
@@ -141,16 +143,13 @@ export const useArchiveStore = defineStore('archive', () => {
 
     archives.value.push(entry)
     archives.value = sortArchivedGames(archives.value)
-    await writeAuditLog({
-      action: 'archive',
+    await logEntitySnapshot({
       entityType: 'archive',
       entityId: id,
-      summary: `Игра ${schedule} отправлена в архив`,
-      details: {
-        date,
-        missionTitle,
-        rotation: entry.rotation,
-      },
+      action: 'archive',
+      before: null,
+      after: entry,
+      summary: `archive - archive - ${id}`,
     })
     return entry
   }
