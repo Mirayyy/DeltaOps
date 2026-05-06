@@ -6,6 +6,7 @@ import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
 export const useGamesStore = defineStore('games', () => {
   // { [gameId]: { schedule, date, sourceUrl, version, slots[], task, updatedAt, updatedBy } }
   const games = ref({})
+  const slotRequests = ref({})
   const loading = ref(false)
 
   // Slot memory: when a slot is removed and re-added, its data persists
@@ -43,8 +44,7 @@ export const useGamesStore = defineStore('games', () => {
   let unsubscribes = []
 
   async function loadFirestore() {
-    const { doc, getDoc, db, onSnapshot, collection } = await import('../firebase/firestore')
-    const { gamesRef } = await import('../firebase/firestore')
+    const { onSnapshot, gamesRef, slotRequestsRef } = await import('../firebase/firestore')
 
     const unsub = onSnapshot(gamesRef, (snapshot) => {
       const data = {}
@@ -52,11 +52,65 @@ export const useGamesStore = defineStore('games', () => {
       games.value = data
     })
     unsubscribes.push(unsub)
+
+    const requestsUnsub = onSnapshot(slotRequestsRef, (snapshot) => {
+      const data = {}
+      snapshot.docs.forEach((docSnap) => {
+        const request = { id: docSnap.id, ...docSnap.data() }
+        if (!request.gameId) return
+        if (!data[request.gameId]) data[request.gameId] = []
+        data[request.gameId].push(request)
+      })
+
+      Object.values(data).forEach((items) => {
+        items.sort((a, b) => {
+          const left = typeof a.createdAt?.toMillis === 'function' ? a.createdAt.toMillis() : 0
+          const right = typeof b.createdAt?.toMillis === 'function' ? b.createdAt.toMillis() : 0
+          return left - right
+        })
+      })
+
+      slotRequests.value = data
+    })
+    unsubscribes.push(requestsUnsub)
   }
 
   async function saveGameFirestore(gameId, data) {
     const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'games', gameId), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+  }
+
+  function buildSlotRequestId(gameId, playerId) {
+    return `${gameId}__${playerId}`
+  }
+
+  async function saveSlotRequestFirestore(gameId, playerId, data) {
+    const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
+    const createdAt = data.createdAt || serverTimestamp()
+    await setDoc(doc(db, 'slotRequests', buildSlotRequestId(gameId, playerId)), {
+      ...data,
+      gameId,
+      playerId,
+      createdAt,
+      updatedAt: serverTimestamp(),
+    }, { merge: true })
+  }
+
+  async function deleteSlotRequestFirestore(requestId) {
+    const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    await deleteDoc(doc(db, 'slotRequests', requestId))
+  }
+
+  async function deleteSlotRequestsForGames(gameIds) {
+    if (!gameIds.length) return
+
+    const { getDocs, slotRequestsRef } = await import('../firebase/firestore')
+    const snapshot = await getDocs(slotRequestsRef)
+    const staleRequests = snapshot.docs
+      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+      .filter(request => gameIds.includes(request.gameId))
+
+    await Promise.all(staleRequests.map(request => deleteSlotRequestFirestore(request.id)))
   }
 
   // --- Slot management ---
@@ -219,41 +273,70 @@ export const useGamesStore = defineStore('games', () => {
   // --- Slot Requests ---
 
   function getSlotRequests(gameId) {
-    return games.value[gameId]?.slotRequests || []
+    return slotRequests.value[gameId]?.length
+      ? slotRequests.value[gameId]
+      : (games.value[gameId]?.slotRequests || [])
   }
 
-  function addSlotRequest(gameId, { playerId, slots, text }) {
-    const before = cloneForAudit(getGame(gameId))
-    const game = ensureGame(gameId)
-    if (!game.slotRequests) game.slotRequests = []
-    // Replace existing request from same player
-    const idx = game.slotRequests.findIndex(r => r.playerId === playerId)
-    const request = { playerId, slots, text, createdAt: new Date().toISOString() }
-    if (idx !== -1) {
-      game.slotRequests[idx] = request
-    } else {
-      game.slotRequests.push(request)
+  async function addSlotRequest(gameId, { playerId, slots, text }) {
+    const before = cloneForAudit(getSlotRequests(gameId).find(r => r.playerId === playerId) || null)
+    const request = {
+      gameId,
+      playerId,
+      slots,
+      text,
+      createdAt: before?.createdAt || null,
     }
-    void persist(gameId, {
+
+    await saveSlotRequestFirestore(gameId, playerId, request)
+    await logEntitySnapshot({
+      entityType: 'slotRequests',
+      entityId: buildSlotRequestId(gameId, playerId),
       before,
-      summary: `games - ${before ? 'update' : 'create'} - ${gameId}`,
+      after: request,
+      summary: `slotRequests - ${before ? 'update' : 'create'} - ${buildSlotRequestId(gameId, playerId)}`,
       metadata: {
         operation: 'set-slot-request',
         playerId,
+        gameId,
       },
     })
   }
 
-  function removeSlotRequest(gameId, index) {
-    if (!games.value[gameId]?.slotRequests) return
-    const before = cloneForAudit(games.value[gameId])
-    games.value[gameId].slotRequests.splice(index, 1)
-    void persist(gameId, {
+  async function removeSlotRequest(gameId, requestIdOrIndex) {
+    const request = typeof requestIdOrIndex === 'number'
+      ? getSlotRequests(gameId)[requestIdOrIndex]
+      : getSlotRequests(gameId).find(item => item.id === requestIdOrIndex)
+
+    if (!request) return
+
+    if (!request.id) {
+      if (!games.value[gameId]?.slotRequests) return
+      const before = cloneForAudit(games.value[gameId])
+      games.value[gameId].slotRequests.splice(requestIdOrIndex, 1)
+      await persist(gameId, {
+        before,
+        summary: `games - update - ${gameId}`,
+        metadata: {
+          operation: 'remove-slot-request-legacy',
+          index: requestIdOrIndex,
+        },
+      })
+      return
+    }
+
+    const before = cloneForAudit(request)
+    await deleteSlotRequestFirestore(request.id)
+    await logEntitySnapshot({
+      entityType: 'slotRequests',
+      entityId: request.id,
       before,
-      summary: `games - update - ${gameId}`,
+      after: null,
+      summary: `slotRequests - delete - ${request.id}`,
       metadata: {
         operation: 'remove-slot-request',
-        index,
+        gameId,
+        playerId: request.playerId,
       },
     })
   }
@@ -302,7 +385,9 @@ export const useGamesStore = defineStore('games', () => {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
     const before = cloneForAudit(getGame(gameId))
     await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
+    await deleteSlotRequestsForGames([gameId])
     delete games.value[gameId]
+    delete slotRequests.value[gameId]
     delete slotMemory.value[gameId]
     await logEntitySnapshot({
       entityType: 'games',
@@ -320,7 +405,9 @@ export const useGamesStore = defineStore('games', () => {
       .map(id => ({ id, before: cloneForAudit(getGame(id)) }))
       .filter(entry => entry.before)
     await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
+    await deleteSlotRequestsForGames(GAME_IDS)
     games.value = {}
+    slotRequests.value = {}
     slotMemory.value = {}
     await Promise.all(existingGames.map(entry =>
       logEntitySnapshot({

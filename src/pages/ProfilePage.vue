@@ -19,6 +19,7 @@ import PlayerEditor from '../components/roster/PlayerEditor.vue'
 import ReadinessSelector from '../components/profile/ReadinessSelector.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import { useToast } from '../composables/useToast'
+import { normalizeHttpUrl } from '../utils/urls'
 
 const route = useRoute()
 const router = useRouter()
@@ -231,6 +232,9 @@ const canChangeAvatar = computed(() => {
   return isOwnProfile.value || auth.isUserAdmin
 })
 
+const playerAvatarSrc = computed(() => normalizeHttpUrl(player.value?.avatar))
+const avatarPreviewSrc = computed(() => normalizeHttpUrl(avatarUrl.value))
+
 function startEditAvatar() {
   avatarUrl.value = player.value?.avatar || ''
   editingAvatar.value = true
@@ -289,7 +293,7 @@ async function saveTelegramId() {
         <div class="flex items-center gap-5">
           <div class="relative group shrink-0">
             <div class="w-20 h-20 rounded-2xl bg-neutral-800 flex items-center justify-center overflow-hidden">
-              <img v-if="player.avatar" :src="player.avatar" :alt="player.nickname" class="w-full h-full object-cover" />
+              <img v-if="playerAvatarSrc" :src="playerAvatarSrc" :alt="player.nickname" class="w-full h-full object-cover" />
               <span v-else class="text-3xl font-bold text-neutral-500">{{ player.nickname?.[0] || '?' }}</span>
             </div>
             <button v-if="canChangeAvatar"
@@ -343,7 +347,7 @@ async function saveTelegramId() {
       </div>
       <div v-if="avatarUrl" class="mt-2 flex items-center gap-3">
         <div class="w-10 h-10 rounded-lg bg-neutral-800 overflow-hidden">
-          <img :src="avatarUrl" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+          <img v-if="avatarPreviewSrc" :src="avatarPreviewSrc" class="w-full h-full object-cover" />
         </div>
         <span class="text-[10px] text-neutral-600 truncate">{{ avatarUrl }}</span>
       </div>

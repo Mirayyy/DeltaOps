@@ -94,7 +94,7 @@ watch(() => missionsStore.getGroupedSides(props.mission, squadConfig.side), (gro
   activeSide.value = 0
 }, { immediate: true })
 
-function submit() {
+async function submit() {
   if (!canSubmit.value) return
 
   // Build slots array from selected keys
@@ -109,7 +109,7 @@ function submit() {
     }
   }
 
-  gamesStore.addSlotRequest(props.gameId, {
+  await gamesStore.addSlotRequest(props.gameId, {
     playerId: props.playerId,
     slots,
     text: text.value.trim(),

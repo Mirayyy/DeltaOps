@@ -5,6 +5,7 @@ import BaseSelect from '../common/BaseSelect.vue'
 import { GAMES, PLAYER_STATUSES, SKILL_LEVELS, POSITIONS } from '../../utils/constants'
 import { useAuthStore } from '../../stores/auth'
 import { useSquadConfig } from '../../stores/squadConfig'
+import { normalizeHttpUrl } from '../../utils/urls'
 
 const auth = useAuthStore()
 const squadConfig = useSquadConfig()
@@ -103,6 +104,8 @@ const statusOptions = computed(() => {
   const src = isAdmin ? PLAYER_STATUSES : memberStatuses
   return Object.entries(src).map(([key, cfg]) => ({ value: key, label: cfg.label }))
 })
+
+const avatarPreviewSrc = computed(() => normalizeHttpUrl(form.value.avatar))
 
 function handleSave() {
   if (isAdmin) {
@@ -203,12 +206,12 @@ function handleSave() {
 
       <!-- Avatar -->
       <div>
-        <label class="block text-xs text-neutral-400 mb-1">Аватар (ссылка)</label>
-        <div class="flex gap-2 items-center">
-          <div class="w-8 h-8 rounded-lg bg-neutral-800 overflow-hidden shrink-0 flex items-center justify-center">
-            <img v-if="form.avatar" :src="form.avatar" class="w-full h-full object-cover" @error="$event.target.style.display='none'" />
+          <label class="block text-xs text-neutral-400 mb-1">Аватар (ссылка)</label>
+          <div class="flex gap-2 items-center">
+            <div class="w-8 h-8 rounded-lg bg-neutral-800 overflow-hidden shrink-0 flex items-center justify-center">
+            <img v-if="avatarPreviewSrc" :src="avatarPreviewSrc" class="w-full h-full object-cover" />
             <span v-else class="text-xs text-neutral-600">—</span>
-          </div>
+            </div>
           <input v-model="form.avatar" type="url" placeholder="https://..."
             class="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
         </div>

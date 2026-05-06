@@ -18,6 +18,12 @@ service cloud.firestore {
       return isAuthenticated() && getUserDoc().role in ['admin', 'member'];
     }
 
+    function ownsPlayer(playerId) {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/players/$(playerId))
+        && get(/databases/$(database)/documents/players/$(playerId)).data.email == getUserDoc().email;
+    }
+
     // ─── Users ───
     match /users/{uid} {
       allow read: if isAuthenticated();
@@ -60,6 +66,32 @@ service cloud.firestore {
     match /games/{gameId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // ─── Slot requests ───
+    match /slotRequests/{requestId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAdmin() || (
+        isMember()
+        && request.resource.data.keys().hasOnly(['gameId', 'playerId', 'slots', 'text', 'createdAt', 'updatedAt'])
+        && request.resource.data.gameId is string
+        && request.resource.data.playerId is string
+        && ownsPlayer(request.resource.data.playerId)
+      );
+
+      allow update: if isAdmin() || (
+        isMember()
+        && ownsPlayer(resource.data.playerId)
+        && request.resource.data.playerId == resource.data.playerId
+        && request.resource.data.gameId == resource.data.gameId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slots', 'text', 'createdAt', 'updatedAt'])
+      );
+
+      allow delete: if isAdmin() || (
+        isMember()
+        && ownsPlayer(resource.data.playerId)
+      );
     }
 
     // ─── Attendance (current week) ───

@@ -115,9 +115,9 @@ export const useRosterStore = defineStore('roster', () => {
     return clean
   }
 
-  async function savePlayerFirestore(playerData) {
+  async function savePlayerFirestore(uid, playerData) {
     const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
-    const ref = doc(db, 'players', playerData.uid)
+    const ref = doc(db, 'players', uid)
     await setDoc(ref, { ...sanitizePlayerData(playerData), updatedAt: serverTimestamp() }, { merge: true })
   }
 
@@ -199,7 +199,7 @@ export const useRosterStore = defineStore('roster', () => {
       status: playerData.status || 'active',
     })
 
-    await savePlayerFirestore(newPlayer)
+    await savePlayerFirestore(uid, newPlayer)
     await setNicknameIndex(newPlayer.nickname, uid)
     players.value.push(newPlayer)
     await logEntitySnapshot({
@@ -231,7 +231,7 @@ export const useRosterStore = defineStore('roster', () => {
 
     const updated = buildPlayer(uid, { ...currentPlayer, ...updates })
 
-    await savePlayerFirestore(updated)
+    await savePlayerFirestore(uid, updates)
     // If nickname changed, atomic swap in nicknameIndex
     if (updates.nickname && updates.nickname !== oldNickname) {
       const { doc, writeBatch, db } = await import('../firebase/firestore')

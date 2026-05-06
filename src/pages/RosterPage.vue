@@ -7,6 +7,7 @@ import { useArchiveStore } from '../stores/archive'
 import { useStatsStore } from '../stores/stats'
 import { getTsgUrl, POSITIONS } from '../utils/constants'
 import { kpdColor } from '../utils/formatters'
+import { normalizeHttpUrl } from '../utils/urls'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import SkillBadge from '../components/common/SkillBadge.vue'
 import PlayerEditor from '../components/roster/PlayerEditor.vue'
@@ -215,6 +216,9 @@ function rateColor(rate) {
   return 'text-red-400'
 }
 
+function playerAvatarSrc(player) {
+  return normalizeHttpUrl(player?.avatar)
+}
 
 function openAdd() {
   editingPlayer.value = null
@@ -344,7 +348,7 @@ function goToProfile(uid) {
               <template v-if="col.key === 'nickname'">
                 <div class="flex items-center gap-2.5">
                   <div class="w-7 h-7 rounded-full bg-delta-green/20 flex items-center justify-center overflow-hidden shrink-0">
-                    <img v-if="player.avatar" :src="player.avatar" :alt="player.nickname" class="w-full h-full object-cover" />
+                    <img v-if="playerAvatarSrc(player)" :src="playerAvatarSrc(player)" :alt="player.nickname" class="w-full h-full object-cover" />
                     <span v-else class="text-xs font-bold text-delta-green">{{ (player.nickname || '?')[0] }}</span>
                   </div>
                   <span class="font-medium" :style="player.nicknameColor ? { color: player.nicknameColor } : {}">{{ player.nickname }}</span>

@@ -93,8 +93,11 @@ export const useAttendanceStore = defineStore('attendance', () => {
       records.push({ playerId, attendance: status })
     }
 
-    // Auto-unassign from slots when marked absent
-    if (status === 'absent') {
+    // Members cannot write into games; keep auto-unassign only for admin-side edits.
+    const { useAuthStore } = await import('./auth')
+    const auth = useAuthStore()
+
+    if (status === 'absent' && auth.isUserAdmin) {
       const { useGamesStore } = await import('./games')
       const gamesStore = useGamesStore()
       gamesStore.unassignPlayerFromGame(gameId, playerId)
