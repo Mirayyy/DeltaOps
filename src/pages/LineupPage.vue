@@ -36,6 +36,7 @@ const editingNotes = ref('')
 const showEquipmentMenu = ref(null)
 const showSlotConfigurator = ref(false)
 const showSlotRequestModal = ref(false)
+const slotRequestPlayerId = ref(null)
 const requestsCollapsed = ref(false)
 const slotRequestsSection = ref(null)
 const actionsExpanded = ref(false)
@@ -457,6 +458,7 @@ function selectTab(gameId) {
   squadTaskDraft.value = ''
   editingPersonalTask.value = null
   personalTaskDraft.value = ''
+  slotRequestPlayerId.value = null
 }
 
 function startAssign(slotIndex) {
@@ -672,8 +674,18 @@ const hasMyRequest = computed(() => {
   return slotRequests.value.some(r => r.playerId === uid)
 })
 
-function removeSlotRequest(index) {
-  gamesStore.removeSlotRequest(activeTab.value, index)
+function canManageSlotRequest(request) {
+  return isAdmin.value || request?.playerId === auth.player?.uid
+}
+
+function openSlotRequestModal(playerId = auth.player?.uid) {
+  slotRequestPlayerId.value = playerId || auth.player?.uid || null
+  showSlotRequestModal.value = true
+}
+
+async function removeSlotRequest(request) {
+  if (!request) return
+  await gamesStore.removeSlotRequest(activeTab.value, request.id ?? slotRequests.value.indexOf(request))
 }
 
 async function openSlotRequestsSection() {
@@ -809,7 +821,7 @@ async function sendSlotNotification(slot, slotIdx) {
           {{ telegram.sending.value ? '...' : 'Расстановка' }}
         </button>
         <button v-if="currentMission && auth.isUserMember && auth.player?.uid"
-          @click="showSlotRequestModal = true"
+          @click="openSlotRequestModal()"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-delta-green/30 hover:border-delta-green/60 text-delta-green hover:text-delta-green/80 rounded-lg transition-colors">
           {{ hasMyRequest ? 'Изменить запрос' : 'Запросить слот' }}
         </button>
@@ -1667,23 +1679,31 @@ async function sendSlotNotification(slot, slotIdx) {
             </div>
             <p v-if="req.text" class="text-xs text-neutral-500 whitespace-pre-line">{{ req.text }}</p>
           </div>
-          <button v-if="isAdmin" @click="removeSlotRequest(ri)"
-            class="shrink-0 p-1 text-neutral-600 hover:text-red-400 transition-colors" title="Удалить запрос">
-            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div v-if="canManageSlotRequest(req)" class="shrink-0 flex items-center gap-1">
+            <button @click="openSlotRequestModal(req.playerId)"
+              class="p-1 text-neutral-600 hover:text-delta-green transition-colors" title="Редактировать запрос">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+            <button @click="removeSlotRequest(req)"
+              class="p-1 text-neutral-600 hover:text-red-400 transition-colors" title="Удалить запрос">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Slot Request modal -->
     <SlotRequestModal
-      v-if="showSlotRequestModal && auth.player?.uid && currentMission"
+      v-if="showSlotRequestModal && slotRequestPlayerId && currentMission"
       :game-id="activeTab"
-      :player-id="auth.player.uid"
+      :player-id="slotRequestPlayerId"
       :mission="currentMission"
-      @close="showSlotRequestModal = false"
+      @close="showSlotRequestModal = false; slotRequestPlayerId = null"
     />
 
     <!-- Slot Configurator modal -->

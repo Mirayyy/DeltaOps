@@ -29,11 +29,12 @@ const existing = computed(() =>
   gamesStore.getSlotRequests(props.gameId).find(r => r.playerId === props.playerId)
 )
 
-// Pre-fill from existing request
-if (existing.value) {
-  text.value = existing.value.text || ''
-  existing.value.slots.forEach(s => {
-    selectedKeys.value.add(`${s.side}::${s.squad}::${s.number}`)
+function applyExistingRequest(request) {
+  selectedKeys.value = new Set()
+  text.value = request?.text || ''
+
+  ;(request?.slots || []).forEach((slot) => {
+    selectedKeys.value.add(`${slot.side}::${slot.squad}::${slot.number}`)
   })
 }
 
@@ -94,6 +95,10 @@ watch(() => missionsStore.getGroupedSides(props.mission, squadConfig.side), (gro
   activeSide.value = 0
 }, { immediate: true })
 
+watch(existing, (request) => {
+  applyExistingRequest(request)
+}, { immediate: true })
+
 async function submit() {
   if (!canSubmit.value) return
 
@@ -115,6 +120,13 @@ async function submit() {
     text: text.value.trim(),
   })
 
+  emit('close')
+}
+
+async function removeRequest() {
+  if (!existing.value) return
+  const requestKey = existing.value.id ?? gamesStore.getSlotRequests(props.gameId).findIndex(r => r.playerId === props.playerId)
+  await gamesStore.removeSlotRequest(props.gameId, requestKey)
   emit('close')
 }
 </script>
@@ -241,6 +253,10 @@ async function submit() {
         Выбрано: <span class="text-delta-green font-mono">{{ selectedKeys.size }}</span> слотов
       </div>
       <div class="flex gap-2">
+        <button v-if="existing" @click="removeRequest"
+          class="px-4 py-2 text-sm text-red-400 hover:text-red-300 transition-colors">
+          Удалить
+        </button>
         <button @click="emit('close')" class="px-4 py-2 text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
           Отмена
         </button>
