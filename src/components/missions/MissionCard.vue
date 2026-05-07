@@ -153,54 +153,47 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
         @click="emit('open-lineup', mission)"
         class="mt-auto border-t border-neutral-800/50 pt-2.5 text-left transition-colors hover:border-neutral-700/70"
       >
-        <div class="text-[11px] font-medium" :class="lineupStatus.configured ? 'text-delta-green' : 'text-neutral-500'">
+        <div class="text-xs font-medium" :class="lineupStatus.configured ? 'text-delta-green' : 'text-neutral-500'">
           {{ lineupStatus.configured ? 'Расстановка настроена' : 'Расстановка пуста' }}
         </div>
-        <div class="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
-          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
-            Слотов:
-            <span class="font-mono text-neutral-100">{{ lineupStatus.totalSlots }}</span>
+        <div class="mt-2 grid grid-cols-2 gap-1.5">
+          <div class="rounded-md border border-neutral-800 bg-neutral-950/60 px-2.5 py-1.5">
+            <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
+            <div class="mt-0.5 text-[15px] font-semibold font-mono text-neutral-100">{{ lineupStatus.totalSlots }}</div>
           </div>
-          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
-            Резерв:
-            <span class="font-mono text-amber-300">{{ lineupStatus.reserveSlots }}</span>
+          <div class="rounded-md border border-neutral-800 bg-neutral-950/60 px-2.5 py-1.5">
+            <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
+            <div class="mt-0.5 text-[15px] font-semibold font-mono text-amber-300">{{ lineupStatus.reserveSlots }}</div>
           </div>
-          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
-            Назначено:
-            <span class="font-mono text-delta-green">{{ lineupStatus.assignedSlots }}</span>
+          <div class="rounded-md border border-neutral-800 bg-neutral-950/60 px-2.5 py-1.5">
+            <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Назначено</div>
+            <div class="mt-0.5 text-[15px] font-semibold font-mono text-delta-green">{{ lineupStatus.assignedSlots }}</div>
           </div>
-          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
-            Свободно:
-            <span class="font-mono text-neutral-100">{{ lineupStatus.freeSlots }}</span>
+          <div class="rounded-md border border-neutral-800 bg-neutral-950/60 px-2.5 py-1.5">
+            <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Свободно</div>
+            <div class="mt-0.5 text-[15px] font-semibold font-mono text-neutral-100">{{ lineupStatus.freeSlots }}</div>
           </div>
-        </div>
-        <div class="mt-1.5 inline-flex max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-[10px] text-neutral-300">
-          <span class="text-neutral-400">Не расставлено:</span>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span class="inline-flex items-center gap-1.5 text-status-confirmed">
-              <span class="h-2 w-2 rounded-full bg-status-confirmed"></span>
-              <span class="font-mono">{{ lineupStatus.unassignedConfirmed }}</span>
-              <span class="text-neutral-400">Буду</span>
-            </span>
-            <span class="inline-flex items-center gap-1.5 text-status-tentative">
-              <span class="h-2 w-2 rounded-full bg-status-tentative"></span>
-              <span class="font-mono">{{ lineupStatus.unassignedTentative }}</span>
-              <span class="text-neutral-400">Возможно</span>
-            </span>
+          <div class="rounded-md border border-neutral-800 bg-neutral-950/60 px-2.5 py-1.5">
+            <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Не расставлено</div>
+            <div class="mt-0.5 flex items-center gap-2 text-[14px] font-semibold font-mono">
+              <span class="text-status-confirmed">{{ lineupStatus.unassignedConfirmed }}</span>
+              <span class="text-neutral-700">•</span>
+              <span class="text-status-tentative">{{ lineupStatus.unassignedTentative }}</span>
+            </div>
           </div>
-        </div>
-        <div
-          :class="[
-            'mt-1.5 inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[10px]',
-            lineupStatus.slotRequests > 0
-              ? 'border border-red-500/30 bg-red-500/10 text-red-200'
-              : 'border border-neutral-800 bg-neutral-950/60 text-neutral-500'
-          ]"
-        >
-          Запросы:
-          <span :class="lineupStatus.slotRequests > 0 ? 'font-mono text-red-300' : 'font-mono text-neutral-300'">
-            {{ lineupStatus.slotRequests }}
-          </span>
+          <div
+            :class="[
+              'rounded-md border px-2.5 py-1.5',
+              lineupStatus.slotRequests > 0
+                ? 'border-red-500/30 bg-red-500/10'
+                : 'border-neutral-800 bg-neutral-950/60'
+            ]"
+          >
+            <div :class="['text-[11px] uppercase tracking-[0.12em]', lineupStatus.slotRequests > 0 ? 'text-red-300/85' : 'text-neutral-600']">Запросы</div>
+            <div :class="['mt-0.5 text-[15px] font-semibold font-mono', lineupStatus.slotRequests > 0 ? 'text-red-200' : 'text-neutral-300']">
+              {{ lineupStatus.slotRequests }}
+            </div>
+          </div>
         </div>
       </button>
     </div>

@@ -840,8 +840,8 @@ function readinessDot(status) {
 
 function readinessPillClass(status) {
   const map = {
-    confirmed: 'border-status-confirmed/30 bg-status-confirmed/10 text-status-confirmed',
-    tentative: 'border-status-tentative/30 bg-status-tentative/10 text-status-tentative',
+    confirmed: 'border-status-confirmed/35 bg-status-confirmed/10 text-neutral-100',
+    tentative: 'border-status-tentative/35 bg-status-tentative/10 text-neutral-100',
   }
   return map[status] || 'border-neutral-700 bg-neutral-800/60 text-neutral-400'
 }
@@ -1154,46 +1154,39 @@ async function sendSlotNotification(slot, slotIdx) {
     </div>
 
     <!-- Stats bar -->
-    <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-6">
+    <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
       <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
-        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
-        <div class="mt-0.5 text-[15px] font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
+        <div class="mt-0.5 text-base font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
       </div>
       <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
-        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Назначено</div>
-        <div class="mt-0.5 text-[15px] font-semibold text-delta-green font-mono">{{ assignedCombatSlotsCount }}</div>
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Назначено</div>
+        <div class="mt-0.5 text-base font-semibold text-delta-green font-mono">{{ assignedCombatSlotsCount }}</div>
       </div>
       <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
-        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Свободно</div>
-        <div class="mt-0.5 text-[15px] font-semibold text-neutral-100 font-mono">{{ freeCombatSlotsCount }}</div>
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Свободно</div>
+        <div class="mt-0.5 text-base font-semibold text-neutral-100 font-mono">{{ freeCombatSlotsCount }}</div>
       </div>
       <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
-        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
-        <div class="mt-0.5 text-[15px] font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
+        <div class="mt-0.5 text-base font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
       </div>
       <button
         type="button"
         @click="openUnassignedPlayersSection"
         :disabled="!unassignedPlayers.length"
         :class="[
-          'col-span-2 rounded-xl border px-2.5 py-1.5 text-left transition-colors lg:col-span-3 2xl:col-span-1',
+          'rounded-xl border px-2.5 py-1.5 text-left transition-colors',
           unassignedPlayers.length
             ? 'border-neutral-800 bg-neutral-900/70 hover:border-neutral-700 hover:bg-neutral-900'
             : 'border-neutral-800 bg-neutral-900/50'
         ]"
       >
-        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Не назначено</div>
-        <div class="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
-          <span class="inline-flex items-center gap-1.5 text-status-confirmed">
-            <span class="w-2 h-2 rounded-full bg-status-confirmed"></span>
-            <span class="font-mono font-semibold">{{ unassignedReadyCount }}</span>
-            <span class="text-neutral-400">Буду</span>
-          </span>
-          <span class="inline-flex items-center gap-1.5 text-status-tentative">
-            <span class="w-2 h-2 rounded-full bg-status-tentative"></span>
-            <span class="font-mono font-semibold">{{ unassignedTentativeCount }}</span>
-            <span class="text-neutral-400">Возможно</span>
-          </span>
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Не назначено</div>
+        <div class="mt-0.5 flex items-center gap-2 text-base font-semibold font-mono">
+          <span class="text-status-confirmed">{{ unassignedReadyCount }}</span>
+          <span class="text-neutral-700">•</span>
+          <span class="text-status-tentative">{{ unassignedTentativeCount }}</span>
         </div>
       </button>
       <button
@@ -1207,8 +1200,8 @@ async function sendSlotNotification(slot, slotIdx) {
             : 'border-neutral-800 bg-neutral-900/50'
         ]"
       >
-        <div :class="['text-[10px] uppercase tracking-[0.12em]', slotRequests.length ? 'text-red-300/85' : 'text-neutral-600']">Запросы</div>
-        <div :class="['mt-0.5 text-[15px] font-semibold font-mono', slotRequests.length ? 'text-red-200' : 'text-neutral-300']">
+        <div :class="['text-[11px] uppercase tracking-[0.12em]', slotRequests.length ? 'text-red-300/85' : 'text-neutral-600']">Запросы</div>
+        <div :class="['mt-0.5 text-base font-semibold font-mono', slotRequests.length ? 'text-red-200' : 'text-neutral-300']">
           {{ slotRequests.length }}
         </div>
       </button>
@@ -1668,33 +1661,29 @@ async function sendSlotNotification(slot, slotIdx) {
       <div class="mb-3 flex items-center justify-between gap-3">
         <div>
           <h3 class="text-xs font-medium uppercase tracking-wider text-neutral-500">Не расставлены на слот</h3>
-          <p class="mt-1 text-[11px] text-neutral-600">
+          <p class="mt-1 text-sm text-neutral-400">
             Буду:
-            <span class="font-mono text-status-confirmed">{{ unassignedReadyCount }}</span>
-            <span class="mx-1 text-neutral-700">•</span>
+            <span class="font-mono font-semibold text-status-confirmed">{{ unassignedReadyCount }}</span>
+            <span class="mx-1.5 text-neutral-600">•</span>
             Возможно:
-            <span class="font-mono text-status-tentative">{{ unassignedTentativeCount }}</span>
+            <span class="font-mono font-semibold text-status-tentative">{{ unassignedTentativeCount }}</span>
           </p>
         </div>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         <div
           v-for="player in unassignedPlayers"
           :key="player.uid"
           :class="[
-            'inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+            'min-w-0 rounded-lg border px-3 py-2 text-sm transition-colors',
             readinessPillClass(player.readiness)
           ]"
         >
-          <span :class="[readinessDot(player.readiness), 'h-2.5 w-2.5 rounded-full shrink-0']"></span>
           <span
-            class="max-w-[12rem] truncate font-semibold"
+            class="block truncate text-[15px] font-semibold"
             :style="player.nicknameColor ? { color: player.nicknameColor } : {}"
           >
             {{ player.nickname }}
-          </span>
-          <span class="text-[11px] opacity-80">
-            {{ readinessLabel(player.readiness) }}
           </span>
         </div>
       </div>
