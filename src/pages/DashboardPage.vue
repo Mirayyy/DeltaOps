@@ -82,13 +82,28 @@ const missionLineupStatuses = computed(() => {
   const result = {}
   for (const game of games.value) {
     const slots = gamesStore.getSlots(game.id)
-    const assigned = slots.filter(slot => slot.playerId).length
+    const combatSlots = slots.filter(slot => slot.type !== 'reserve')
+    const reserveSlots = slots.filter(slot => slot.type === 'reserve')
+    const assignedCombatSlots = combatSlots.filter(slot => slot.playerId).length
+    const assignedIds = new Set(slots.filter(slot => slot.playerId).map(slot => slot.playerId))
+    let unassignedConfirmed = 0
+    let unassignedTentative = 0
+    for (const player of roster.activePlayers) {
+      if (assignedIds.has(player.uid)) continue
+      const status = attendance.getPlayerAttendance(game.id, player.uid)
+      if (status === 'confirmed') unassignedConfirmed++
+      else if (status === 'tentative') unassignedTentative++
+    }
     const requests = gamesStore.getSlotRequests(game.id).length
     result[game.id] = {
       configured: slots.length > 0,
-      totalSlots: slots.length,
-      assignedSlots: assigned,
-      freeSlots: Math.max(slots.length - assigned, 0),
+      totalSlots: combatSlots.length,
+      reserveSlots: reserveSlots.length,
+      assignedSlots: assignedCombatSlots,
+      freeSlots: Math.max(combatSlots.length - assignedCombatSlots, 0),
+      unassignedConfirmed,
+      unassignedTentative,
+      hasSideCommanderSlot: slots.some(slot => slot.type === 'sideCommander'),
       slotRequests: requests,
     }
   }

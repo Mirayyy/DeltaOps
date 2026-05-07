@@ -29,6 +29,7 @@ function sideColor(color) {
 }
 
 const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission, squadConfig.side))
+const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCommanderSlot))
 </script>
 
 <template>
@@ -42,7 +43,12 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
   <!-- Mission card -->
   <div v-else
     @click="emit('click', mission)"
-    class="group bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden hover:border-neutral-700 transition-all cursor-pointer">
+    :class="[
+      'group bg-neutral-900 border rounded-xl overflow-hidden transition-all cursor-pointer',
+      hasCommandHighlight
+        ? 'border-amber-500/50 shadow-[0_0_0_1px_rgba(245,158,11,0.2),0_0_28px_rgba(245,158,11,0.12)] hover:border-amber-400/70'
+        : 'border-neutral-800 hover:border-neutral-700'
+    ]">
 
     <!-- Top bar with side colors -->
     <div class="flex h-1">
@@ -136,19 +142,46 @@ const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission,
         {{ mission.description }}
       </div>
 
-      <div v-if="!compact && lineupStatus" class="mt-3 pt-3 border-t border-neutral-800/50 space-y-1.5">
+      <div v-if="!compact && lineupStatus" class="mt-3 pt-3 border-t border-neutral-800/50 space-y-2">
         <div class="text-[11px] font-medium" :class="lineupStatus.configured ? 'text-delta-green' : 'text-neutral-500'">
           {{ lineupStatus.configured ? 'Расстановка настроена' : 'Расстановка пуста' }}
         </div>
-        <div class="text-[11px] text-neutral-500">
-          Слотов:
-          <span class="font-mono text-neutral-300">{{ lineupStatus.totalSlots }}</span>
-          <span class="text-neutral-600">
-            (Назначено
-            <span class="font-mono text-delta-green">{{ lineupStatus.assignedSlots }}</span>
-            /
-            <span class="font-mono text-neutral-400">{{ lineupStatus.freeSlots }}</span>)
-          </span>
+        <div v-if="hasCommandHighlight" class="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+          Есть слот КС
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+            <div class="text-[10px] uppercase tracking-wider text-neutral-600">Слотов</div>
+            <div class="mt-1 font-mono text-base text-neutral-200">{{ lineupStatus.totalSlots }}</div>
+          </div>
+          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+            <div class="text-[10px] uppercase tracking-wider text-neutral-600">Резерв</div>
+            <div class="mt-1 font-mono text-base text-amber-300">{{ lineupStatus.reserveSlots }}</div>
+          </div>
+          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+            <div class="text-[10px] uppercase tracking-wider text-neutral-600">Назначено</div>
+            <div class="mt-1 font-mono text-base text-delta-green">{{ lineupStatus.assignedSlots }}</div>
+          </div>
+          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+            <div class="text-[10px] uppercase tracking-wider text-neutral-600">Свободно</div>
+            <div class="mt-1 font-mono text-base text-neutral-200">{{ lineupStatus.freeSlots }}</div>
+          </div>
+        </div>
+        <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2 text-[11px]">
+          <div class="text-[10px] uppercase tracking-wider text-neutral-600">Не расставлено</div>
+          <div class="mt-1 flex flex-wrap items-center gap-3">
+            <span class="inline-flex items-center gap-1.5 text-status-confirmed">
+              <span class="h-2 w-2 rounded-full bg-status-confirmed"></span>
+              <span class="font-mono">{{ lineupStatus.unassignedConfirmed }}</span>
+              <span class="text-neutral-400">Буду</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-status-tentative">
+              <span class="h-2 w-2 rounded-full bg-status-tentative"></span>
+              <span class="font-mono">{{ lineupStatus.unassignedTentative }}</span>
+              <span class="text-neutral-400">Возможно</span>
+            </span>
+          </div>
         </div>
         <div
           :class="[
