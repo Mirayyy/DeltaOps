@@ -17,6 +17,7 @@ const PLAYER_DEFAULTS = {
   telegramUsername: '', telegramId: null,
   discordId: '', discordUsername: '',
   skills: [], wishes: '', nicknameHistory: [],
+  deletedAt: null, deletedBy: '',
   attendancePreset: DEFAULT_ATTENDANCE_PRESET,
 }
 
@@ -40,6 +41,10 @@ export const useRosterStore = defineStore('roster', () => {
   const players = ref([])
   const loading = ref(false)
 
+  function isDeletedPlayer(player) {
+    return Boolean(player?.deletedAt)
+  }
+
   // --- Default sort: position rank → nickname ---
   function sortByPositionThenName(list) {
     return [...list].sort((a, b) => {
@@ -53,12 +58,12 @@ export const useRosterStore = defineStore('roster', () => {
   }
 
   // --- Computed ---
-  const activePlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'active')))
-  const reservePlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'reserve')))
-  const bannedPlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'banned')))
-  const leftPlayers = computed(() => sortByPositionThenName(players.value.filter(p => p.status === 'left')))
+  const activePlayers = computed(() => sortByPositionThenName(players.value.filter(p => !isDeletedPlayer(p) && p.status === 'active')))
+  const reservePlayers = computed(() => sortByPositionThenName(players.value.filter(p => !isDeletedPlayer(p) && p.status === 'reserve')))
+  const bannedPlayers = computed(() => sortByPositionThenName(players.value.filter(p => !isDeletedPlayer(p) && p.status === 'banned')))
+  const leftPlayers = computed(() => sortByPositionThenName(players.value.filter(p => !isDeletedPlayer(p) && p.status === 'left')))
   // Active + reserve + banned (full squad, excluding "left")
-  const squadMembers = computed(() => sortByPositionThenName(players.value.filter(p => p.status !== 'left')))
+  const squadMembers = computed(() => sortByPositionThenName(players.value.filter(p => !isDeletedPlayer(p) && p.status !== 'left')))
 
   // O(1) lookup
   const playerMap = computed(() => {
@@ -70,7 +75,7 @@ export const useRosterStore = defineStore('roster', () => {
   const nicknameMap = computed(() => {
     const map = {}
     for (const p of players.value) {
-      if (p.nickname) map[p.nickname] = p
+      if (!isDeletedPlayer(p) && p.nickname) map[p.nickname] = p
     }
     return map
   })
@@ -86,12 +91,16 @@ export const useRosterStore = defineStore('roster', () => {
 
   /** Resolve playerId → nickname (for UI display) */
   function resolveNickname(uid) {
-    return playerMap.value[uid]?.nickname || uid
+    const player = playerMap.value[uid]
+    if (isDeletedPlayer(player)) return 'Удален'
+    return player?.nickname || 'Удален'
   }
 
   /** Resolve playerId → nickname color (empty string = default) */
   function getNicknameColor(uid) {
-    return playerMap.value[uid]?.nicknameColor || ''
+    const player = playerMap.value[uid]
+    if (isDeletedPlayer(player)) return ''
+    return player?.nicknameColor || ''
   }
 
   async function loadFirestore() {
@@ -105,6 +114,7 @@ export const useRosterStore = defineStore('roster', () => {
     'nickname', 'email', 'position', 'status', 'avatar', 'nicknameColor', 'steamUrl',
     'telegramUsername', 'telegramId', 'discordId', 'discordUsername',
     'skills', 'wishes', 'nicknameHistory', 'attendancePreset', 'createdAt', 'updatedAt',
+    'deletedAt', 'deletedBy',
   ]
 
   function sanitizePlayerData(data) {
@@ -274,11 +284,78 @@ export const useRosterStore = defineStore('roster', () => {
     await updatePlayer(uid, { status: 'left' })
   }
 
+  async function markAsDeleted(uid, deletedBy = '') {
+    const idx = players.value.findIndex(p => p.uid === uid)
+    if (idx === -1) return
+
+    const currentPlayer = players.value[idx]
+    const before = cloneForAudit(currentPlayer)
+    const deletedAt = new Date().toISOString()
+
+    await downgradeLinkedUser(currentPlayer.email)
+
+    const deletedPlayer = buildPlayer(uid, {
+      ...currentPlayer,
+      nickname: 'Удален',
+      email: '',
+      status: 'left',
+      avatar: '',
+      nicknameColor: '',
+      steamUrl: '',
+      telegramUsername: '',
+      telegramId: null,
+      discordId: '',
+      discordUsername: '',
+      skills: [],
+      wishes: '',
+      attendancePreset: DEFAULT_ATTENDANCE_PRESET,
+      deletedAt,
+      deletedBy,
+    })
+
+    const { doc, writeBatch, db, serverTimestamp } = await import('../firebase/firestore')
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'players', uid), {
+      nickname: 'Удален',
+      email: '',
+      status: 'left',
+      avatar: '',
+      nicknameColor: '',
+      steamUrl: '',
+      telegramUsername: '',
+      telegramId: null,
+      discordId: '',
+      discordUsername: '',
+      skills: [],
+      wishes: '',
+      attendancePreset: DEFAULT_ATTENDANCE_PRESET,
+      deletedAt,
+      deletedBy,
+      updatedAt: serverTimestamp(),
+    }, { merge: true })
+    if (currentPlayer.nickname) {
+      batch.delete(doc(db, 'nicknameIndex', currentPlayer.nickname))
+    }
+    await batch.commit()
+
+    players.value[idx] = deletedPlayer
+    await logEntitySnapshot({
+      entityType: 'players',
+      entityId: uid,
+      before,
+      after: deletedPlayer,
+      summary: `players - delete-soft - ${uid}`,
+      metadata: {
+        operation: 'mark-as-deleted',
+      },
+    })
+  }
+
   return {
     players, loading,
     activePlayers, reservePlayers, bannedPlayers, leftPlayers, squadMembers,
     playerMap, nicknameMap,
     getPlayer, getPlayerByNickname, resolveNickname, getNicknameColor,
-    fetchPlayers, addPlayer, updatePlayer, removePlayer, markAsLeft,
+    fetchPlayers, addPlayer, updatePlayer, removePlayer, markAsLeft, markAsDeleted,
   }
 })

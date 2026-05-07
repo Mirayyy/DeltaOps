@@ -13,6 +13,7 @@ import SkillBadge from '../components/common/SkillBadge.vue'
 import PlayerEditor from '../components/roster/PlayerEditor.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
+import ConfirmModal from '../components/common/ConfirmModal.vue'
 
 const router = useRouter()
 const roster = useRosterStore()
@@ -28,6 +29,8 @@ const sortAsc = ref(true)
 const showEditor = ref(false)
 const editingPlayer = ref(null)
 const showColumnConfig = ref(false)
+const confirmAction = ref(null)
+const confirmBusy = ref(false)
 
 // --- Column definitions ---
 const ALL_COLUMNS = [
@@ -116,7 +119,7 @@ function getPlayerData(player) {
 
 // --- Filtering + sorting ---
 const filteredPlayers = computed(() => {
-  let list = roster.players
+  let list = roster.players.filter(p => !p.deletedAt)
 
   if (statusFilter.value === 'all') {
     list = list.filter(p => p.status !== 'left')
@@ -172,7 +175,7 @@ const filteredPlayers = computed(() => {
 })
 
 const statusCounts = computed(() => ({
-  all: roster.players.filter(p => p.status !== 'left').length,
+  all: roster.players.filter(p => !p.deletedAt && p.status !== 'left').length,
   active: roster.activePlayers.length,
   reserve: roster.reservePlayers.length,
   banned: roster.bannedPlayers.length,
@@ -230,14 +233,56 @@ function openEdit(player) {
   showEditor.value = true
 }
 
+function closeEditor() {
+  showEditor.value = false
+  editingPlayer.value = null
+}
+
 async function handleSave(data) {
   if (editingPlayer.value) {
     await roster.updatePlayer(editingPlayer.value.uid, data)
   } else {
     await roster.addPlayer(data)
   }
-  showEditor.value = false
-  editingPlayer.value = null
+  closeEditor()
+}
+
+function requestConfirmation(config) {
+  confirmAction.value = config
+}
+
+function closeConfirmation() {
+  if (confirmBusy.value) return
+  confirmAction.value = null
+}
+
+async function handleConfirm() {
+  if (!confirmAction.value?.onConfirm) return
+  confirmBusy.value = true
+  try {
+    await confirmAction.value.onConfirm()
+    confirmAction.value = null
+  } finally {
+    confirmBusy.value = false
+  }
+}
+
+function requestDeletePlayer(player) {
+  if (!player?.uid) return
+  requestConfirmation({
+    title: 'Удалить игрока',
+    message: 'Удалить игрока из состава?',
+    details: [
+      `Игрок: ${player.nickname || '—'}`,
+      'Игрок исчезнет из состава и активных выборок, а старые записи по uid будут отображаться как "Удален".',
+    ],
+    confirmLabel: 'Удалить',
+    tone: 'danger',
+    onConfirm: async () => {
+      await roster.markAsDeleted(player.uid, auth.user?.uid || '')
+      closeEditor()
+    },
+  })
 }
 
 function goToProfile(uid) {
@@ -484,7 +529,20 @@ function goToProfile(uid) {
       v-if="showEditor"
       :player="editingPlayer"
       @save="handleSave"
-      @close="showEditor = false"
+      @delete="requestDeletePlayer"
+      @close="closeEditor"
+    />
+
+    <ConfirmModal
+      v-if="confirmAction"
+      :title="confirmAction.title"
+      :message="confirmAction.message"
+      :details="confirmAction.details"
+      :confirm-label="confirmAction.confirmLabel"
+      :tone="confirmAction.tone"
+      :busy="confirmBusy"
+      @close="closeConfirmation"
+      @confirm="handleConfirm"
     />
 
     </template>

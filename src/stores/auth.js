@@ -79,7 +79,8 @@ export const useAuthStore = defineStore('auth', () => {
       const q = query(playersRef, where('email', '==', email))
       const snapshot = await getDocs(q)
       if (snapshot.empty) return null
-      const playerDoc = snapshot.docs[0]
+      const playerDoc = snapshot.docs.find(doc => !doc.data()?.deletedAt)
+      if (!playerDoc) return null
       return { uid: playerDoc.id, ...playerDoc.data() }
     } catch (e) {
       console.warn('fetchPlayerByEmail failed:', e.message)

@@ -74,8 +74,7 @@ const availableContactOptions = computed(() => {
 })
 
 function contactPlayerName(uid) {
-  const p = roster.getPlayer(uid)
-  return p ? p.nickname : uid
+  return roster.resolveNickname(uid)
 }
 
 function addContact() {

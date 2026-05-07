@@ -14,7 +14,7 @@ const props = defineProps({
   player: { type: Object, default: null },
 })
 
-const emit = defineEmits(['save', 'close'])
+const emit = defineEmits(['save', 'close', 'delete'])
 
 const isEdit = !!props.player
 const isAdmin = auth.isUserAdmin
@@ -289,7 +289,16 @@ function handleSave() {
       </div>
 
       <!-- Actions -->
-      <div class="flex justify-end gap-2 pt-2">
+      <div class="flex items-center justify-between gap-2 pt-2">
+        <button
+          v-if="isAdmin && isEdit"
+          type="button"
+          @click="emit('delete', props.player)"
+          class="px-4 py-2 text-sm text-red-400 hover:text-red-300 transition-colors"
+        >
+          Удалить игрока
+        </button>
+        <div class="ml-auto flex items-center gap-2">
         <button @click="emit('close')"
           class="px-4 py-2 text-sm text-neutral-400 hover:text-neutral-200 transition-colors">
           Отмена
@@ -299,6 +308,7 @@ function handleSave() {
           class="px-4 py-2 text-sm bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           {{ isEdit ? 'Сохранить' : 'Добавить' }}
         </button>
+        </div>
       </div>
     </div>
   </BaseModal>

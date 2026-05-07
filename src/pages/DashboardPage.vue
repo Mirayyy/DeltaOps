@@ -11,6 +11,7 @@ import { READINESS_STATUSES } from '../utils/constants'
 import { canEditReadiness } from '../utils/permissions'
 import StatusBadge from '../components/common/StatusBadge.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
+import ConfirmModal from '../components/common/ConfirmModal.vue'
 import WeekFinalizer from '../components/admin/WeekFinalizer.vue'
 import MissionCard from '../components/missions/MissionCard.vue'
 import MissionDetail from '../components/missions/MissionDetail.vue'
@@ -31,6 +32,8 @@ const weekState = useWeekStateStore()
 
 const showFinalizer = ref(false)
 const selectedMission = ref(null)
+const confirmAction = ref(null)
+const confirmBusy = ref(false)
 const squadConfig = useSquadConfig()
 const telegram = useTelegram()
 const toast = useToast()
@@ -198,6 +201,26 @@ async function sendMissionsToTelegram() {
   }
 }
 
+function requestConfirmation(config) {
+  confirmAction.value = config
+}
+
+function closeConfirmation() {
+  if (confirmBusy.value) return
+  confirmAction.value = null
+}
+
+async function handleConfirm() {
+  if (!confirmAction.value?.onConfirm) return
+  confirmBusy.value = true
+  try {
+    await confirmAction.value.onConfirm()
+    confirmAction.value = null
+  } finally {
+    confirmBusy.value = false
+  }
+}
+
 async function onWeekFinalized() {
   showFinalizer.value = false
   toast.success('Неделя завершена, архивы созданы')
@@ -215,7 +238,14 @@ async function onWeekFinalized() {
         <p class="text-sm text-neutral-500">Пт {{ gameDates.friday }} — Сб {{ gameDates.saturday }}</p>
       </div>
       <div class="flex items-center gap-3">
-        <button v-if="auth.isUserAdmin" @click="showFinalizer = true"
+        <button v-if="auth.isUserAdmin" @click="requestConfirmation({
+          title: 'Завершить неделю',
+          message: 'Открыть мастер завершения недели?',
+          details: ['Будут подготовлены архивы, перенос данных и очистка текущей недели.'],
+          confirmLabel: 'Продолжить',
+          tone: 'danger',
+          onConfirm: () => { showFinalizer.value = true },
+        })"
           class="text-xs px-3 py-1.5 border border-red-900/50 rounded-lg text-red-400 hover:text-red-300 hover:border-red-700 transition-colors">
           Завершить неделю
         </button>
@@ -274,7 +304,14 @@ async function onWeekFinalized() {
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Миссии недели</h3>
         <button v-if="auth.isUserAdmin && missionsStore.availableMissions.length"
-          @click="sendMissionsToTelegram" :disabled="telegram.sending.value"
+          @click="requestConfirmation({
+            title: 'Отправить миссии',
+            message: 'Отправить текущие миссии недели в Telegram?',
+            details: ['Будет отправлена сводка по всем доступным миссиям текущей недели.'],
+            confirmLabel: 'Отправить',
+            tone: 'warning',
+            onConfirm: sendMissionsToTelegram,
+          })" :disabled="telegram.sending.value"
           class="tg-btn">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
           {{ telegram.sending.value ? '...' : 'Миссии' }}
@@ -303,7 +340,14 @@ async function onWeekFinalized() {
       class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6">
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-sm font-medium text-amber-400">Не отметились ({{ allUnresponded.length }})</h3>
-        <button @click="sendReminder" :disabled="telegram.sending.value"
+        <button @click="requestConfirmation({
+          title: 'Отправить напоминание',
+          message: 'Отправить напоминание тем, кто не отметил посещаемость?',
+          details: [`Получат напоминание: ${allUnresponded.length}`],
+          confirmLabel: 'Напомнить',
+          tone: 'warning',
+          onConfirm: sendReminder,
+        })" :disabled="telegram.sending.value"
           class="tg-btn">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
           {{ telegram.sending.value ? '...' : 'Напомнить' }}
@@ -384,6 +428,17 @@ async function onWeekFinalized() {
     </div>
 
     <!-- Week finalizer modal -->
+    <ConfirmModal
+      v-if="confirmAction"
+      :title="confirmAction.title"
+      :message="confirmAction.message"
+      :details="confirmAction.details"
+      :confirm-label="confirmAction.confirmLabel"
+      :tone="confirmAction.tone"
+      :busy="confirmBusy"
+      @close="closeConfirmation"
+      @confirm="handleConfirm"
+    />
     <WeekFinalizer v-if="showFinalizer" @close="showFinalizer = false" @done="onWeekFinalized" />
     </template>
   </div>

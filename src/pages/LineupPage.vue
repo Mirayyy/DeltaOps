@@ -17,6 +17,7 @@ import SlotRequestModal from '../components/lineup/SlotRequestModal.vue'
 import ImageLightbox from '../components/common/ImageLightbox.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
+import ConfirmModal from '../components/common/ConfirmModal.vue'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
 import { writeAuditLog } from '../utils/auditLog'
@@ -39,6 +40,7 @@ const showSlotRequestModal = ref(false)
 const slotRequestPlayerId = ref(null)
 const requestsCollapsed = ref(false)
 const slotRequestsSection = ref(null)
+const unassignedPlayersSection = ref(null)
 const actionsExpanded = ref(false)
 const alliesExpanded = ref(false)
 const enemiesExpanded = ref(false)
@@ -65,6 +67,8 @@ const pageLoading = computed(() =>
 
 const currentMission = computed(() => missionsStore.getMission(activeTab.value))
 const currentGame = computed(() => gamesStore.getGame(activeTab.value))
+const confirmAction = ref(null)
+const confirmBusy = ref(false)
 
 const slots = computed(() => gamesStore.getSlots(activeTab.value))
 const isAdmin = computed(() => auth.isUserAdmin)
@@ -332,6 +336,26 @@ async function sendLineupToTelegram() {
     toast.success('Расстановка отправлена в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
+  }
+}
+
+function requestConfirmation(config) {
+  confirmAction.value = config
+}
+
+function closeConfirmation() {
+  if (confirmBusy.value) return
+  confirmAction.value = null
+}
+
+async function handleConfirm() {
+  if (!confirmAction.value?.onConfirm) return
+  confirmBusy.value = true
+  try {
+    await confirmAction.value.onConfirm()
+    confirmAction.value = null
+  } finally {
+    confirmBusy.value = false
   }
 }
 
@@ -706,6 +730,21 @@ async function removeSlotRequest(request) {
   await gamesStore.removeSlotRequest(activeTab.value, request.id ?? slotRequests.value.indexOf(request))
 }
 
+function requestRemoveSlotRequest(request) {
+  if (!request) return
+  requestConfirmation({
+    title: 'Удалить запрос',
+    message: 'Удалить этот запрос на слот?',
+    details: [
+      `Игрок: ${roster.resolveNickname(request.playerId)}`,
+      request.slots?.length ? `Слоты: ${request.slots.map(slot => `${slot.squad} #${slot.number}`).join(', ')}` : 'Слоты не указаны',
+    ],
+    confirmLabel: 'Удалить',
+    tone: 'danger',
+    onConfirm: () => removeSlotRequest(request),
+  })
+}
+
 async function openSlotRequestsSection() {
   requestsCollapsed.value = false
   await nextTick()
@@ -715,15 +754,38 @@ async function openSlotRequestsSection() {
   })
 }
 
+async function openUnassignedPlayersSection() {
+  if (!unassignedPlayers.value.length) return
+  await nextTick()
+  unassignedPlayersSection.value?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
+  })
+}
+
 async function confirmClearLineup() {
-  await gamesStore.clearGame(activeTab.value)
+  requestConfirmation({
+    title: 'Очистить расстановку',
+    message: 'Убрать все назначения и настройки текущей расстановки?',
+    details: ['Миссия останется, но слоты, назначения и запросы по текущей игре будут очищены.'],
+    confirmLabel: 'Очистить',
+    tone: 'danger',
+    onConfirm: () => gamesStore.clearGame(activeTab.value),
+  })
 }
 
 async function confirmClearGame() {
-  await Promise.all([
-    gamesStore.clearGame(activeTab.value),
-    missionsStore.clearMission(activeTab.value),
-  ])
+  requestConfirmation({
+    title: 'Удалить миссию',
+    message: 'Удалить текущую миссию вместе с расстановкой?',
+    details: ['Будут удалены миссия, слоты, назначения и связанные данные текущей игры.'],
+    confirmLabel: 'Удалить',
+    tone: 'danger',
+    onConfirm: () => Promise.all([
+      gamesStore.clearGame(activeTab.value),
+      missionsStore.clearMission(activeTab.value),
+    ]),
+  })
 }
 
 function sideColorForName(sideName) {
@@ -849,7 +911,14 @@ async function sendSlotNotification(slot, slotIdx) {
       <!-- Actions: wrap on tablet, collapse on mobile -->
       <div :class="['flex-wrap items-center justify-end gap-1.5', actionsExpanded ? 'flex' : 'hidden sm:flex']">
         <button v-if="isAdmin && slots.length"
-          @click="sendLineupToTelegram" :disabled="telegram.sending.value"
+          @click="requestConfirmation({
+            title: 'Отправить расстановку',
+            message: 'Отправить текущую расстановку недели в Telegram?',
+            details: ['Будет отправлена общая сводка по всем дням и миссиям с назначенными слотами.'],
+            confirmLabel: 'Отправить',
+            tone: 'warning',
+            onConfirm: sendLineupToTelegram,
+          })" :disabled="telegram.sending.value"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-sky-500/30 hover:border-sky-500/60 text-sky-400 hover:text-sky-300 rounded-lg transition-colors inline-flex items-center gap-1.5 disabled:opacity-50">
           <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
           {{ telegram.sending.value ? '...' : 'Расстановка' }}
@@ -1057,25 +1126,8 @@ async function sendSlotNotification(slot, slotIdx) {
       </div>
     </div>
 
-    <button
-      v-if="slotRequests.length"
-      @click="openSlotRequestsSection"
-      class="w-full mb-4 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-left transition-colors hover:bg-red-500/15 hover:border-red-500/50"
-    >
-      <div class="flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-xs font-medium uppercase tracking-wider text-red-300/80">Запросы слотов</p>
-          <p class="mt-1 text-sm text-red-100">Есть активные запросы. Нажмите, чтобы перейти к полному списку ниже.</p>
-        </div>
-        <div class="shrink-0 rounded-lg border border-red-400/30 bg-red-500/15 px-3 py-1 text-right">
-          <div class="text-[10px] uppercase tracking-wider text-red-300/70">Всего</div>
-          <div class="text-lg font-semibold leading-none text-red-200">{{ slotRequests.length }}</div>
-        </div>
-      </div>
-    </button>
-
     <!-- Stats bar -->
-    <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-5">
+    <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-6">
       <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
         <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
         <div class="mt-1 text-base font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
@@ -1092,7 +1144,17 @@ async function sendSlotNotification(slot, slotIdx) {
         <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
         <div class="mt-1 text-base font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
       </div>
-      <div class="col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2 lg:col-span-3 2xl:col-span-1">
+      <button
+        type="button"
+        @click="openUnassignedPlayersSection"
+        :disabled="!unassignedPlayers.length"
+        :class="[
+          'col-span-2 rounded-xl border px-3 py-2 text-left transition-colors lg:col-span-3 2xl:col-span-1',
+          unassignedPlayers.length
+            ? 'border-neutral-800 bg-neutral-900/70 hover:border-neutral-700 hover:bg-neutral-900'
+            : 'border-neutral-800 bg-neutral-900/50'
+        ]"
+      >
         <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Не назначено</div>
         <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
           <span class="inline-flex items-center gap-1.5 text-status-confirmed">
@@ -1106,7 +1168,23 @@ async function sendSlotNotification(slot, slotIdx) {
             <span class="text-neutral-400">Возможно</span>
           </span>
         </div>
-      </div>
+      </button>
+      <button
+        type="button"
+        @click="slotRequests.length ? openSlotRequestsSection() : null"
+        :disabled="!slotRequests.length"
+        :class="[
+          'rounded-xl border px-3 py-2 text-left transition-colors',
+          slotRequests.length
+            ? 'border-red-500/35 bg-red-500/10 hover:border-red-500/50 hover:bg-red-500/15'
+            : 'border-neutral-800 bg-neutral-900/50'
+        ]"
+      >
+        <div :class="['text-[11px] uppercase tracking-[0.12em]', slotRequests.length ? 'text-red-300/85' : 'text-neutral-600']">Запросы</div>
+        <div :class="['mt-1 text-base font-semibold font-mono', slotRequests.length ? 'text-red-200' : 'text-neutral-300']">
+          {{ slotRequests.length }}
+        </div>
+      </button>
     </div>
 
     <!-- Empty state -->
@@ -1559,7 +1637,7 @@ async function sendSlotNotification(slot, slotIdx) {
       </div>
     </div>
 
-    <div v-if="unassignedPlayers.length" class="mt-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+    <div v-if="unassignedPlayers.length" ref="unassignedPlayersSection" class="mt-4 rounded-xl border border-neutral-800 bg-neutral-900 p-4">
       <div class="mb-3 flex items-center justify-between gap-3">
         <div>
           <h3 class="text-xs font-medium uppercase tracking-wider text-neutral-500">Не расставлены на слот</h3>
@@ -1784,7 +1862,7 @@ async function sendSlotNotification(slot, slotIdx) {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
             </button>
-            <button @click="removeSlotRequest(req)"
+            <button @click="requestRemoveSlotRequest(req)"
               class="p-1 text-neutral-600 hover:text-red-400 transition-colors" title="Удалить запрос">
               <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1794,6 +1872,19 @@ async function sendSlotNotification(slot, slotIdx) {
         </div>
       </div>
     </div>
+
+    <!-- Slot Request modal -->
+    <ConfirmModal
+      v-if="confirmAction"
+      :title="confirmAction.title"
+      :message="confirmAction.message"
+      :details="confirmAction.details"
+      :confirm-label="confirmAction.confirmLabel"
+      :tone="confirmAction.tone"
+      :busy="confirmBusy"
+      @close="closeConfirmation"
+      @confirm="handleConfirm"
+    />
 
     <!-- Slot Request modal -->
     <SlotRequestModal

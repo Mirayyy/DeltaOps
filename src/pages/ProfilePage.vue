@@ -70,9 +70,11 @@ const player = computed(() => {
   if (isOwnProfile.value) return auth.player
   return roster.getPlayer(route.params.id)
 })
+const isDeletedPlayer = computed(() => Boolean(player.value?.deletedAt))
 
 const canEditReadiness = computed(() => {
   if (!player.value) return false
+  if (isDeletedPlayer.value) return false
   if (auth.isUserAdmin) return true
   return isOwnProfile.value && player.value.status === 'active'
 })
@@ -229,6 +231,7 @@ function attendanceColor(rate) {
 
 const canChangeAvatar = computed(() => {
   if (!player.value) return false
+  if (isDeletedPlayer.value) return false
   return isOwnProfile.value || auth.isUserAdmin
 })
 
@@ -309,8 +312,8 @@ async function saveTelegramId() {
               <h1 class="text-2xl font-bold" :style="player.nicknameColor ? { color: player.nicknameColor } : {}">{{ player.nickname }}</h1>
               <StatusBadge :status="player.status" />
             </div>
-            <p class="text-neutral-400 mb-1">{{ player.position }}</p>
-            <div class="flex items-center gap-3 flex-wrap">
+            <p class="text-neutral-400 mb-1">{{ isDeletedPlayer ? 'Запись удалена из состава' : player.position }}</p>
+            <div v-if="!isDeletedPlayer" class="flex items-center gap-3 flex-wrap">
               <a :href="getTsgUrl(player.nickname)" target="_blank"
                 class="text-xs text-delta-green hover:underline">TSG</a>
               <a v-if="player.steamUrl" :href="player.steamUrl" target="_blank"

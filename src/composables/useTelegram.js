@@ -209,7 +209,8 @@ export function useTelegram() {
 
     const resolveNick = (playerId) => {
       const p = rosterPlayers.find(r => r.uid === playerId)
-      return p ? p.nickname : '—'
+      if (!p?.uid) return 'Удален'
+      return p.deletedAt ? 'Удален' : (p.nickname || 'Удален')
     }
 
     const lines = [
