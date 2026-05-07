@@ -18,6 +18,7 @@ const emit = defineEmits(['save', 'close', 'delete'])
 
 const isEdit = !!props.player
 const isAdmin = auth.isUserAdmin
+const telegramBotUrl = import.meta.env.VITE_TELEGRAM_BOT_URL || 'https://t.me/TSGDeltaOps_bot'
 
 function createDefaultAttendancePreset() {
   return {
@@ -106,6 +107,7 @@ const statusOptions = computed(() => {
 })
 
 const avatarPreviewSrc = computed(() => normalizeHttpUrl(form.value.avatar))
+const isOwnProfileEditor = computed(() => Boolean(props.player?.uid) && props.player.uid === auth.player?.uid)
 
 function handleSave() {
   if (isAdmin) {
@@ -182,6 +184,27 @@ function handleSave() {
           <input v-model="form.telegramId" type="text" placeholder="123456789"
             class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
         </div>
+      </div>
+
+      <div v-if="isOwnProfileEditor" class="rounded-xl border border-neutral-800 bg-neutral-900/70 p-4">
+        <div v-if="form.telegramId" class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-sky-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+          </svg>
+          <div>
+            <div class="text-xs text-emerald-500">Уведомления в Telegram подключены</div>
+            <div class="text-[11px] text-neutral-500 mt-0.5">Можно обновить `Telegram ID` выше и сохранить изменения.</div>
+          </div>
+        </div>
+        <template v-else>
+          <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">Уведомления Telegram</h3>
+          <ol class="text-sm text-neutral-400 list-decimal list-inside space-y-1.5">
+            <li>Откройте чат с ботом <a :href="telegramBotUrl" target="_blank" class="text-sky-400 hover:underline">@TSGDeltaOps_bot</a></li>
+            <li>Напишите <code class="text-sky-400">/start</code> или любое сообщение</li>
+            <li>Получите свой ID у <a href="https://t.me/userinfobot" target="_blank" class="text-sky-400 hover:underline">@userinfobot</a></li>
+            <li>Вставьте его в поле `Telegram ID` выше и сохраните</li>
+          </ol>
+        </template>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
