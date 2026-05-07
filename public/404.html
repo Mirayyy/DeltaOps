@@ -7,7 +7,7 @@
       // GitHub Pages SPA redirect
       // Redirects all 404s to index.html with the path preserved in the query string.
       // index.html then restores the clean URL via history.replaceState().
-      var pathSegmentsToKeep = 1; // /DeltaOps/
+      var pathSegmentsToKeep = 0; // custom domain serves the app from /
       var l = window.location;
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
