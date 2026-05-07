@@ -52,9 +52,9 @@ export const SIDE_COLORS = {
 
 export const SLOT_TYPES = {
   vehicle: { label: 'Техника' },
-  reserve: { label: 'Запас' },
+  reserve: { label: 'Резерв' },
   squadCommander: { label: 'КО' },
-  sideCommander: { label: 'Командир стороны' },
+  sideCommander: { label: 'КС' },
 }
 
 // EQUIPMENT_LIST / EQUIPMENT_COLORS moved to config/squad.equipmentItems — managed via Settings CRUD
