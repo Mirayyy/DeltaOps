@@ -136,6 +136,10 @@ function statusLabel(status) {
   return READINESS_STATUSES[status]?.icon || '—'
 }
 
+function openMissionLineup(gameId) {
+  router.push({ name: 'lineup', query: { game: gameId } })
+}
+
 // Cycle: confirmed → tentative → absent → confirmed
 const CYCLE = ['confirmed', 'tentative', 'absent']
 
@@ -324,6 +328,7 @@ async function onWeekFinalized() {
           :game-label="game.label"
           :lineup-status="missionLineupStatuses[game.id]"
           @click="selectedMission = $event"
+          @open-lineup="openMissionLineup(game.id)"
         />
       </div>
     </div>

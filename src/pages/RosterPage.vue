@@ -67,6 +67,23 @@ function loadVisibleColumns() {
 watch(visibleKeys, v => localStorage.setItem(STORAGE_KEY, JSON.stringify(v)), { deep: true })
 
 const visibleColumns = computed(() => ALL_COLUMNS.filter(c => visibleKeys.value.includes(c.key)))
+const centeredColumns = new Set([
+  'status',
+  'attRotation',
+  'attAllTime',
+  'optRotation',
+  'optAllTime',
+  'kpd',
+  'steam',
+  'tsg',
+  'telegram',
+  'discord',
+  'linked',
+])
+
+function isCenteredColumn(key) {
+  return centeredColumns.has(key)
+}
 
 function toggleColumn(key) {
   const idx = visibleKeys.value.indexOf(key)
@@ -369,13 +386,14 @@ function goToProfile(uid) {
           <tr class="border-b border-neutral-800">
             <th v-for="col in visibleColumns" :key="col.key"
               :class="[
-                'text-left px-4 py-3 font-medium text-xs whitespace-nowrap select-none',
+                'px-4 py-3 font-medium text-xs whitespace-nowrap select-none',
+                isCenteredColumn(col.key) ? 'text-center' : 'text-left',
                 col.sortable ? 'cursor-pointer hover:text-white text-neutral-400' : 'text-neutral-500',
                 sortKey === col.key ? 'text-delta-green' : ''
               ]"
               :style="{ minWidth: col.minWidth }"
               @click="toggleSort(col.key)">
-              <span class="inline-flex items-center gap-1">
+              <span :class="['inline-flex items-center gap-1', isCenteredColumn(col.key) ? 'justify-center' : '']">
                 {{ col.label }}
                 <span v-if="sortIcon(col.key)" class="text-delta-green text-[10px]">{{ sortIcon(col.key) }}</span>
               </span>
@@ -388,7 +406,7 @@ function goToProfile(uid) {
             class="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
             @click="goToProfile(player.uid)">
 
-            <td v-for="col in visibleColumns" :key="col.key" class="px-4 py-2.5">
+            <td v-for="col in visibleColumns" :key="col.key" :class="['px-4 py-2.5', isCenteredColumn(col.key) ? 'text-center' : '']">
               <!-- Nickname -->
               <template v-if="col.key === 'nickname'">
                 <div class="flex items-center gap-2.5">
@@ -407,7 +425,9 @@ function goToProfile(uid) {
 
               <!-- Status -->
               <template v-else-if="col.key === 'status'">
-                <StatusBadge :status="player.status" />
+                <div class="flex justify-center">
+                  <StatusBadge :status="player.status" />
+                </div>
               </template>
 
               <!-- Skills -->
@@ -420,7 +440,7 @@ function goToProfile(uid) {
 
               <!-- Attendance rotation -->
               <template v-else-if="col.key === 'attRotation'">
-                <div class="text-right">
+                <div class="text-center">
                   <span :class="['font-mono font-medium', rateColor(player.attRotation)]">
                     {{ formatPercent(player.attRotation) }}
                   </span>
@@ -430,7 +450,7 @@ function goToProfile(uid) {
 
               <!-- Attendance all time -->
               <template v-else-if="col.key === 'attAllTime'">
-                <div class="text-right">
+                <div class="text-center">
                   <span :class="['font-mono font-medium', rateColor(player.attAllTime)]">
                     {{ formatPercent(player.attAllTime) }}
                   </span>
@@ -440,7 +460,7 @@ function goToProfile(uid) {
 
               <!-- Optics rotation -->
               <template v-else-if="col.key === 'optRotation'">
-                <div class="text-right">
+                <div class="text-center">
                   <span :class="['font-mono font-medium', rateColor(player.optRotation)]">
                     {{ formatPercent(player.optRotation) }}
                   </span>
@@ -450,7 +470,7 @@ function goToProfile(uid) {
 
               <!-- Optics all time -->
               <template v-else-if="col.key === 'optAllTime'">
-                <div class="text-right">
+                <div class="text-center">
                   <span :class="['font-mono font-medium', rateColor(player.optAllTime)]">
                     {{ formatPercent(player.optAllTime) }}
                   </span>

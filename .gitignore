@@ -1,13 +1,30 @@
-node_modules
+# Build / dependencies
 dist
+node_modules
+.vite
+coverage
+
+# Environment / local config
 .env
 .env.local
 .env.production
+.env.*.local
+*.local
+*.local.json
+
+# Logs
 *.log
+firebase-debug.log*
+
+# Editor / OS
 .DS_Store
 Thumbs.db
-*.local
 .claude
-*.local.json
+.idea/
+.vscode/
+
+# Local scripts / temp data
+scripts/local/
+scripts/backfill-archive-mission-titles.mjs
 tmp_*.json
 *tmp_*.json

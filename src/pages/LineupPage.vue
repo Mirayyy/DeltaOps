@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import DOMPurify from 'dompurify'
 import { marked } from 'marked'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
@@ -23,6 +24,8 @@ import { useToast } from '../composables/useToast'
 import { writeAuditLog } from '../utils/auditLog'
 
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
@@ -59,6 +62,11 @@ onMounted(async () => {
     gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
   ])
+  syncTabFromRoute()
+})
+
+watch(() => route.query.game, () => {
+  syncTabFromRoute()
 })
 
 const pageLoading = computed(() =>
@@ -88,6 +96,17 @@ const markdownToolbarButtons = [
   { id: 'code', label: '</>', title: 'Блок кода' },
   { id: 'quote', label: '>', title: 'Цитата' },
 ]
+
+function resolveGameId(gameId) {
+  if (typeof gameId !== 'string') return null
+  return games.value.some(game => game.id === gameId) ? gameId : null
+}
+
+function syncTabFromRoute() {
+  const routeGameId = resolveGameId(route.query.game)
+  if (!routeGameId || routeGameId === activeTab.value) return
+  selectTab(routeGameId, { syncRoute: false })
+}
 
 function resizeTextarea(target) {
   const element = target?.target ?? target?.value ?? target
@@ -492,7 +511,7 @@ const groupedRows = computed(() => {
   return rows
 })
 
-function selectTab(gameId) {
+function selectTab(gameId, { syncRoute = true } = {}) {
   activeTab.value = gameId
   editingSlot.value = null
   showEquipmentMenu.value = null
@@ -501,6 +520,14 @@ function selectTab(gameId) {
   editingPersonalTask.value = null
   personalTaskDraft.value = ''
   slotRequestPlayerId.value = null
+  if (syncRoute) {
+    router.replace({
+      query: {
+        ...route.query,
+        game: gameId,
+      },
+    })
+  }
 }
 
 function startAssign(slotIndex) {
@@ -1128,35 +1155,35 @@ async function sendSlotNotification(slot, slotIdx) {
 
     <!-- Stats bar -->
     <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-6">
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
-        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
-        <div class="mt-1 text-base font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
+        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
+        <div class="mt-0.5 text-[15px] font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
       </div>
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
-        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Назначено</div>
-        <div class="mt-1 text-base font-semibold text-delta-green font-mono">{{ assignedCombatSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
+        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Назначено</div>
+        <div class="mt-0.5 text-[15px] font-semibold text-delta-green font-mono">{{ assignedCombatSlotsCount }}</div>
       </div>
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
-        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Свободно</div>
-        <div class="mt-1 text-base font-semibold text-neutral-100 font-mono">{{ freeCombatSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
+        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Свободно</div>
+        <div class="mt-0.5 text-[15px] font-semibold text-neutral-100 font-mono">{{ freeCombatSlotsCount }}</div>
       </div>
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
-        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
-        <div class="mt-1 text-base font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-2.5 py-1.5">
+        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
+        <div class="mt-0.5 text-[15px] font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
       </div>
       <button
         type="button"
         @click="openUnassignedPlayersSection"
         :disabled="!unassignedPlayers.length"
         :class="[
-          'col-span-2 rounded-xl border px-3 py-2 text-left transition-colors lg:col-span-3 2xl:col-span-1',
+          'col-span-2 rounded-xl border px-2.5 py-1.5 text-left transition-colors lg:col-span-3 2xl:col-span-1',
           unassignedPlayers.length
             ? 'border-neutral-800 bg-neutral-900/70 hover:border-neutral-700 hover:bg-neutral-900'
             : 'border-neutral-800 bg-neutral-900/50'
         ]"
       >
-        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Не назначено</div>
-        <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <div class="text-[10px] uppercase tracking-[0.12em] text-neutral-600">Не назначено</div>
+        <div class="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
           <span class="inline-flex items-center gap-1.5 text-status-confirmed">
             <span class="w-2 h-2 rounded-full bg-status-confirmed"></span>
             <span class="font-mono font-semibold">{{ unassignedReadyCount }}</span>
@@ -1174,14 +1201,14 @@ async function sendSlotNotification(slot, slotIdx) {
         @click="slotRequests.length ? openSlotRequestsSection() : null"
         :disabled="!slotRequests.length"
         :class="[
-          'rounded-xl border px-3 py-2 text-left transition-colors',
+          'rounded-xl border px-2.5 py-1.5 text-left transition-colors',
           slotRequests.length
             ? 'border-red-500/35 bg-red-500/10 hover:border-red-500/50 hover:bg-red-500/15'
             : 'border-neutral-800 bg-neutral-900/50'
         ]"
       >
-        <div :class="['text-[11px] uppercase tracking-[0.12em]', slotRequests.length ? 'text-red-300/85' : 'text-neutral-600']">Запросы</div>
-        <div :class="['mt-1 text-base font-semibold font-mono', slotRequests.length ? 'text-red-200' : 'text-neutral-300']">
+        <div :class="['text-[10px] uppercase tracking-[0.12em]', slotRequests.length ? 'text-red-300/85' : 'text-neutral-600']">Запросы</div>
+        <div :class="['mt-0.5 text-[15px] font-semibold font-mono', slotRequests.length ? 'text-red-200' : 'text-neutral-300']">
           {{ slotRequests.length }}
         </div>
       </button>

@@ -11,7 +11,7 @@ const props = defineProps({
   lineupStatus: { type: Object, default: null },
 })
 
-const emit = defineEmits(['click'])
+const emit = defineEmits(['click', 'open-lineup'])
 
 const stats = computed(() => {
   if (!props.mission) return null
@@ -42,9 +42,8 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
 
   <!-- Mission card -->
   <div v-else
-    @click="emit('click', mission)"
     :class="[
-      'group flex h-full flex-col bg-neutral-900 border rounded-xl overflow-hidden transition-all cursor-pointer',
+      'group flex h-full flex-col bg-neutral-900 border rounded-xl overflow-hidden transition-all',
       hasCommandHighlight
         ? 'border-amber-500/50 shadow-[0_0_0_1px_rgba(245,158,11,0.2),0_0_28px_rgba(245,158,11,0.12)] hover:border-amber-400/70'
         : 'border-neutral-800 hover:border-neutral-700'
@@ -59,6 +58,11 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
     </div>
 
       <div class="flex min-h-0 flex-1 flex-col p-4 min-w-0">
+      <button
+        type="button"
+        @click="emit('click', mission)"
+        class="flex min-h-0 flex-1 flex-col text-left"
+      >
       <!-- Header -->
       <div class="flex items-start justify-between gap-2 mb-2 min-w-0">
         <div class="min-w-0 flex-1">
@@ -141,30 +145,36 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
       <div v-if="!compact && mission.description" class="mt-2 text-xs text-neutral-500 line-clamp-3 leading-relaxed break-words">
         {{ mission.description }}
       </div>
+      </button>
 
-      <div v-if="!compact && lineupStatus" class="mt-auto pt-3 border-t border-neutral-800/50 space-y-2">
+      <button
+        v-if="!compact && lineupStatus"
+        type="button"
+        @click="emit('open-lineup', mission)"
+        class="mt-auto border-t border-neutral-800/50 pt-2.5 text-left transition-colors hover:border-neutral-700/70"
+      >
         <div class="text-[11px] font-medium" :class="lineupStatus.configured ? 'text-delta-green' : 'text-neutral-500'">
           {{ lineupStatus.configured ? 'Расстановка настроена' : 'Расстановка пуста' }}
         </div>
-        <div class="flex flex-wrap gap-2 text-[11px]">
-          <div class="inline-flex items-center gap-1.5 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-neutral-300">
+        <div class="mt-1.5 flex flex-wrap gap-1.5 text-[10px]">
+          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
             Слотов:
             <span class="font-mono text-neutral-100">{{ lineupStatus.totalSlots }}</span>
           </div>
-          <div class="inline-flex items-center gap-1.5 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-neutral-300">
+          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
             Резерв:
             <span class="font-mono text-amber-300">{{ lineupStatus.reserveSlots }}</span>
           </div>
-          <div class="inline-flex items-center gap-1.5 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-neutral-300">
+          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
             Назначено:
             <span class="font-mono text-delta-green">{{ lineupStatus.assignedSlots }}</span>
           </div>
-          <div class="inline-flex items-center gap-1.5 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-neutral-300">
+          <div class="inline-flex items-center gap-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-neutral-300">
             Свободно:
             <span class="font-mono text-neutral-100">{{ lineupStatus.freeSlots }}</span>
           </div>
         </div>
-        <div class="inline-flex max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-[11px] text-neutral-300">
+        <div class="mt-1.5 inline-flex max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-0.5 text-[10px] text-neutral-300">
           <span class="text-neutral-400">Не расставлено:</span>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span class="inline-flex items-center gap-1.5 text-status-confirmed">
@@ -181,18 +191,18 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
         </div>
         <div
           :class="[
-            'inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px]',
+            'mt-1.5 inline-flex max-w-full items-center gap-1 rounded-md px-2 py-0.5 text-[10px]',
             lineupStatus.slotRequests > 0
               ? 'border border-red-500/30 bg-red-500/10 text-red-200'
               : 'border border-neutral-800 bg-neutral-950/60 text-neutral-500'
           ]"
         >
-          Запросы слотов:
+          Запросы:
           <span :class="lineupStatus.slotRequests > 0 ? 'font-mono text-red-300' : 'font-mono text-neutral-300'">
             {{ lineupStatus.slotRequests }}
           </span>
         </div>
-      </div>
+      </button>
     </div>
   </div>
 </template>
