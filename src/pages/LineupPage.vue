@@ -567,6 +567,29 @@ function slotPlayerColor(slot) {
   return slot.playerId ? roster.getNicknameColor(slot.playerId) : ''
 }
 
+function slotPlayerFrameClass(slot, interactive = false) {
+  if (!slot?.playerId) {
+    return interactive
+      ? 'border-dashed border-neutral-700 hover:border-neutral-500 text-neutral-500'
+      : 'border-dashed border-neutral-700 text-neutral-600'
+  }
+
+  const status = attendance.getPlayerAttendance(activeTab.value, slot.playerId)
+  if (status === 'confirmed') {
+    return interactive
+      ? 'border-status-confirmed/45 hover:border-status-confirmed/70 text-neutral-200'
+      : 'border-status-confirmed/45 text-neutral-200'
+  }
+  if (status === 'tentative') {
+    return interactive
+      ? 'border-status-tentative/45 hover:border-status-tentative/70 text-neutral-200'
+      : 'border-status-tentative/45 text-neutral-200'
+  }
+  return interactive
+    ? 'border-neutral-700 hover:border-neutral-500 text-neutral-200'
+    : 'border-neutral-700 text-neutral-200'
+}
+
 const SLOT_TYPE_STYLES = {
   squadCommander: 'bg-delta-green/20 text-delta-green border-delta-green/30',
   sideCommander: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -1347,14 +1370,16 @@ async function sendSlotNotification(slot, slotIdx) {
                     @click.stop="openDropdown(row.idx, 'player')"
                     :class="[
                       'w-full text-left px-2 py-1 rounded-lg text-sm transition-all border truncate',
-                      resolveSlotPlayer(row.slot)
-                        ? 'border-neutral-700 hover:border-neutral-500 text-neutral-200'
-                        : 'border-dashed border-neutral-700 hover:border-neutral-500 text-neutral-500'
+                      slotPlayerFrameClass(row.slot, true)
                     ]"
                     :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                     {{ resolveSlotPlayer(row.slot) || '—' }}
                   </button>
-                  <span v-else :class="resolveSlotPlayer(row.slot) ? 'text-neutral-200' : 'text-neutral-600'"
+                  <span v-else
+                    :class="[
+                      'inline-flex max-w-full rounded-lg border px-2 py-1 text-sm truncate',
+                      slotPlayerFrameClass(row.slot, false)
+                    ]"
                     :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                     {{ resolveSlotPlayer(row.slot) || '—' }}
                   </span>
@@ -1499,14 +1524,15 @@ async function sendSlotNotification(slot, slotIdx) {
               </div>
               <button v-if="isAdmin" @click="startAssign(row.idx)"
                 :class="['text-sm px-2.5 py-1 rounded-lg transition-all shrink-0 max-w-[45%] truncate border',
-                  resolveSlotPlayer(row.slot)
-                    ? 'border-neutral-700 hover:border-neutral-500 text-neutral-200'
-                    : 'border-dashed border-neutral-700 hover:border-neutral-500 text-neutral-500']"
+                  slotPlayerFrameClass(row.slot, true)]"
                 :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                 {{ resolveSlotPlayer(row.slot) || '— свободно —' }}
               </button>
               <span v-else
-                :class="['text-sm shrink-0', resolveSlotPlayer(row.slot) ? 'text-neutral-200' : 'text-neutral-600']"
+                :class="[
+                  'text-sm shrink-0 rounded-lg border px-2.5 py-1',
+                  slotPlayerFrameClass(row.slot, false)
+                ]"
                 :style="slotPlayerColor(row.slot) ? { color: slotPlayerColor(row.slot) } : {}">
                 {{ resolveSlotPlayer(row.slot) || '—' }}
               </span>
@@ -1670,12 +1696,12 @@ async function sendSlotNotification(slot, slotIdx) {
           </p>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div class="flex flex-wrap gap-2">
         <div
           v-for="player in unassignedPlayers"
           :key="player.uid"
           :class="[
-            'min-w-0 rounded-lg border px-3 py-2 text-sm transition-colors',
+            'inline-flex min-w-0 max-w-full rounded-lg border px-3 py-2 text-sm transition-colors',
             readinessPillClass(player.readiness)
           ]"
         >

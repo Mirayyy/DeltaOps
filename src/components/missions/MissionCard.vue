@@ -133,11 +133,11 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
 
       <!-- Vehicles preview (compact) -->
       <div v-if="!compact && mission.sides.some(s => s.vehicles)" class="mt-3 pt-3 border-t border-neutral-800/50">
-        <div class="flex items-center gap-1 text-[10px] text-neutral-600">
-          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <div class="flex items-center gap-1.5 text-[11px] text-neutral-500">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
-          <span>Техника задействована</span>
+          <span class="font-medium">Техника задействована</span>
         </div>
       </div>
 
