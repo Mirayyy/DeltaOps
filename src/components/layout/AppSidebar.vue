@@ -2,8 +2,10 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useAppConfig } from '../../stores/appConfig'
 
 const auth = useAuthStore()
+const appConfig = useAppConfig()
 const route = useRoute()
 const collapsed = ref(true)
 const manualToggle = ref(false)
@@ -21,6 +23,7 @@ function onBreakpointChange(e) {
 onMounted(() => {
   collapsed.value = !wideQuery.matches
   wideQuery.addEventListener('change', onBreakpointChange)
+  appConfig.fetch()
 })
 
 onBeforeUnmount(() => {
@@ -45,6 +48,10 @@ const adminItems = computed(() =>
 )
 
 const expanded = computed(() => !collapsed.value || hovered.value)
+const quickLinks = computed(() => ([
+  { key: 'github', label: 'GitHub', icon: 'github', href: appConfig.githubUrl },
+  { key: 'firebase', label: 'Firebase', icon: 'firebase', href: appConfig.firestoreUrl },
+]).filter(link => link.href))
 
 function isActive(item) {
   return route.name === item.name
@@ -61,6 +68,8 @@ const ICON_PATHS = {
   archive: ['M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4'],
   logs: ['M9 12h6M9 16h6M9 8h6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z'],
   settings: ['M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z'],
+  github: ['M12 2C6.477 2 2 6.589 2 12.133c0 4.435 2.865 8.198 6.839 9.526.5.094.683-.22.683-.488 0-.24-.009-.876-.014-1.72-2.782.61-3.369-1.357-3.369-1.357-.454-1.167-1.11-1.477-1.11-1.477-.908-.628.069-.615.069-.615 1.004.072 1.532 1.04 1.532 1.04.892 1.548 2.341 1.1 2.91.841.091-.656.349-1.1.635-1.353-2.22-.256-4.555-1.127-4.555-5.017 0-1.108.39-2.015 1.029-2.725-.103-.257-.446-1.29.098-2.69 0 0 .84-.274 2.75 1.04A9.45 9.45 0 0112 6.836c.85.004 1.705.116 2.504.34 1.909-1.314 2.748-1.04 2.748-1.04.546 1.4.203 2.433.1 2.69.64.71 1.028 1.617 1.028 2.725 0 3.9-2.339 4.758-4.566 5.01.359.313.678.931.678 1.876 0 1.355-.012 2.449-.012 2.782 0 .27.18.586.688.487A10.03 10.03 0 0022 12.133C22 6.59 17.523 2 12 2z'],
+  firebase: ['M5.752 15.313l1.77-11.352c.068-.436.52-.61.828-.32l1.68 1.59 1.882-3.614c.175-.336.654-.337.83-.001l1.002 1.913-7.992 11.784zm.083.988L12.633 5.95l1.63 3.118.193.37-8.621 6.863zm.9.5l10.762-8.568 1.683 1.594c.308.292.274.802-.062 1.045L12.96 20.2a.671.671 0 01-.82-.004l-5.405-3.395z'],
   chevron: ['M9 5l7 7-7 7'],
 }
 </script>
@@ -138,11 +147,37 @@ const ICON_PATHS = {
       </div>
     </template>
 
+    <div v-if="quickLinks.length" class="mt-auto pt-4">
+      <div v-if="expanded" class="mb-2 px-3">
+        <div class="h-px bg-neutral-800/80"></div>
+      </div>
+      <div class="flex flex-col gap-0.5">
+        <a
+          v-for="link in quickLinks"
+          :key="link.key"
+          :href="link.href"
+          target="_blank"
+          rel="noopener noreferrer"
+          :class="[
+            'group flex items-center rounded-lg text-sm text-neutral-400 transition-all duration-150 whitespace-nowrap hover:text-neutral-100 hover:bg-neutral-800/50',
+            expanded ? 'gap-3 px-3 py-2' : 'justify-center px-2 py-2',
+          ]"
+        >
+          <span class="w-7 h-7 rounded-md bg-neutral-800/60 flex items-center justify-center shrink-0 text-neutral-500 transition-colors group-hover:text-neutral-300 group-hover:bg-neutral-700/50">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path v-for="(d, i) in ICON_PATHS[link.icon]" :key="i" :d="d" />
+            </svg>
+          </span>
+          <span v-show="expanded" class="text-[13px]">{{ link.label }}</span>
+        </a>
+      </div>
+    </div>
+
     <!-- Collapse toggle -->
     <button
       @click="collapsed = !collapsed; manualToggle = true"
       :class="[
-        'mt-auto flex items-center rounded-lg text-sm text-neutral-600 hover:text-neutral-400 transition-colors whitespace-nowrap',
+        'flex items-center rounded-lg text-sm text-neutral-600 hover:text-neutral-400 transition-colors whitespace-nowrap',
         expanded ? 'gap-3 px-3 py-2' : 'justify-center px-2 py-2',
       ]"
     >
