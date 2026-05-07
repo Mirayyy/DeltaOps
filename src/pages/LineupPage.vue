@@ -1406,7 +1406,7 @@ async function sendSlotNotification(slot, slotIdx) {
                 <!-- Equipment -->
                 <td class="px-3 py-2.5">
                   <div class="flex flex-wrap gap-1 items-center">
-                    <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
+                                  <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" size="md" />
                     <button v-if="isAdmin"
                       @click.stop="openDropdown(row.idx, 'eq')"
                       class="w-5 h-5 rounded text-[10px] bg-neutral-800 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors flex items-center justify-center">
@@ -1605,7 +1605,7 @@ async function sendSlotNotification(slot, slotIdx) {
 
             <!-- Row 3: Equipment -->
             <div v-if="isAdmin || (row.slot.equipment && row.slot.equipment.length)" class="flex flex-wrap items-center gap-1">
-              <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" />
+                              <EquipmentTag v-for="eq in (row.slot.equipment || [])" :key="eq" :name="eq" size="md" />
               <button v-if="isAdmin"
                 @click.stop="openDropdown(row.idx, 'eq')"
                 class="w-5 h-5 rounded text-[10px] bg-neutral-800 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-700 transition-colors flex items-center justify-center">
