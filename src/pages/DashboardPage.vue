@@ -6,6 +6,7 @@ import { useRosterStore } from '../stores/roster'
 import { useAttendanceStore } from '../stores/attendance'
 import { useMissionsStore } from '../stores/missions'
 import { useGamesStore } from '../stores/games'
+import { useArchiveStore } from '../stores/archive'
 import { useGameWeek } from '../composables/useGameWeek'
 import { READINESS_STATUSES } from '../utils/constants'
 import { canEditReadiness } from '../utils/permissions'
@@ -27,6 +28,7 @@ const roster = useRosterStore()
 const attendance = useAttendanceStore()
 const missionsStore = useMissionsStore()
 const gamesStore = useGamesStore()
+const archiveStore = useArchiveStore()
 const { games, gameDates } = useGameWeek()
 const weekState = useWeekStateStore()
 
@@ -45,10 +47,11 @@ onMounted(async () => {
     attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
+    archiveStore.fetchArchives(),
   ])
 })
 
-const pageLoading = computed(() => roster.loading || attendance.loading || gamesStore.loading || weekState.loading)
+const pageLoading = computed(() => roster.loading || attendance.loading || gamesStore.loading || weekState.loading || archiveStore.loading)
 
 const summaryRows = computed(() => {
   const activeIds = new Set(roster.activePlayers.map(p => p.uid))
@@ -115,12 +118,35 @@ const missionLineupStatuses = computed(() => {
 })
 
 // Per-player readiness table
+const activeRotation = computed(() => archiveStore.getActiveRotation())
+
 const playerRows = computed(() => {
   return roster.activePlayers.map(p => {
     const r = attendance.getPlayerReadiness(p.uid)
-    return { ...p, readiness: r }
+    const rotationAttendance = activeRotation.value
+      ? archiveStore.getPlayerAttendanceStats(p.uid, activeRotation.value.id)
+      : { totalGames: 0, attendedGames: 0, attendanceRate: 0 }
+    return { ...p, readiness: r, rotationAttendance }
   })
 })
+
+function formatRotationAttendance(stats) {
+  if (!stats?.totalGames) return '—'
+  return `${Math.round((stats.attendanceRate || 0) * 100)}%`
+}
+
+function formatRotationAttendanceDetail(stats) {
+  if (!stats?.totalGames) return '0/0'
+  return `${stats.attendedGames}/${stats.totalGames}`
+}
+
+function rotationAttendanceClass(stats) {
+  const rate = stats?.attendanceRate || 0
+  if (!stats?.totalGames) return 'text-neutral-500'
+  if (rate >= 0.7) return 'text-emerald-400'
+  if (rate >= 0.4) return 'text-amber-400'
+  return 'text-red-400'
+}
 
 function statusClass(status) {
   const map = {
@@ -379,20 +405,31 @@ async function onWeekFinalized() {
 
       <!-- Desktop table -->
       <div class="hidden md:block overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-neutral-800 text-neutral-500 text-xs">
-              <th class="text-left px-4 py-2.5 font-medium">Позывной</th>
-              <th v-for="game in games" :key="game.id" class="text-center px-3 py-2.5 font-medium">
-                {{ game.label }}
-              </th>
-            </tr>
-          </thead>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-neutral-800 text-neutral-500 text-xs">
+                <th class="text-left px-4 py-2.5 font-medium">Позывной</th>
+                <th class="text-center px-3 py-2.5 font-medium">
+                  {{ activeRotation?.name || 'Ротация' }}
+                </th>
+                <th v-for="game in games" :key="game.id" class="text-center px-3 py-2.5 font-medium">
+                  {{ game.label }}
+                </th>
+              </tr>
+            </thead>
           <tbody>
             <tr v-for="row in playerRows" :key="row.uid"
               class="border-b border-neutral-800/50 hover:bg-neutral-800/30 cursor-pointer transition-colors"
               @click="router.push({ name: 'player-profile', params: { id: row.uid } })">
               <td class="px-4 py-2.5 font-medium" :style="row.nicknameColor ? { color: row.nicknameColor } : {}">{{ row.nickname }}</td>
+              <td class="px-3 py-2.5 text-center">
+                <div :class="['text-sm font-semibold font-mono', rotationAttendanceClass(row.rotationAttendance)]">
+                  {{ formatRotationAttendance(row.rotationAttendance) }}
+                </div>
+                <div class="text-[11px] text-neutral-600 font-mono">
+                  {{ formatRotationAttendanceDetail(row.rotationAttendance) }}
+                </div>
+              </td>
               <td v-for="game in games" :key="game.id" class="text-center px-3 py-2.5">
                 <button
                   @click.stop="cycleReadiness(game.id, row.uid, row.readiness[game.id])"
@@ -415,7 +452,17 @@ async function onWeekFinalized() {
         <div v-for="row in playerRows" :key="row.uid"
           class="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-neutral-800/30"
           @click="router.push({ name: 'player-profile', params: { id: row.uid } })">
-          <span class="text-sm font-medium" :style="row.nicknameColor ? { color: row.nicknameColor } : {}">{{ row.nickname }}</span>
+          <div class="min-w-0 flex items-center gap-3">
+            <span class="truncate text-sm font-medium" :style="row.nicknameColor ? { color: row.nicknameColor } : {}">{{ row.nickname }}</span>
+            <div class="shrink-0 text-right">
+              <div :class="['text-xs font-semibold font-mono', rotationAttendanceClass(row.rotationAttendance)]">
+                {{ formatRotationAttendance(row.rotationAttendance) }}
+              </div>
+              <div class="text-[10px] text-neutral-600 font-mono">
+                {{ formatRotationAttendanceDetail(row.rotationAttendance) }}
+              </div>
+            </div>
+          </div>
           <div class="flex gap-1">
             <button v-for="game in games" :key="game.id"
               @click.stop="cycleReadiness(game.id, row.uid, row.readiness[game.id])"
