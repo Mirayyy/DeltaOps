@@ -40,10 +40,10 @@ onMounted(() => {
     <div class="flex flex-1">
       <AppSidebar v-if="auth.viewMode === 'member'" class="hidden md:flex" />
 
-      <main class="flex-1 p-4 pb-16 md:p-6 md:pb-6 overflow-auto relative">
+      <main class="min-w-0 flex-1 p-4 pb-16 md:p-6 md:pb-6 overflow-auto relative">
         <!-- Subtle ambient glow -->
         <div v-if="auth.viewMode === 'member'" class="pointer-events-none fixed top-0 right-0 w-[500px] h-[500px] bg-orange-600/[0.02] rounded-full blur-[150px]"></div>
-        <div class="relative z-10">
+        <div class="relative z-10 min-w-0">
           <router-view />
         </div>
       </main>

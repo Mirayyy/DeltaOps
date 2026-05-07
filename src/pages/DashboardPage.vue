@@ -60,7 +60,8 @@ const summaryRows = computed(() => {
       else if (r.attendance === 'absent') counts.absent++
     }
     const no_response = totalActive - counts.confirmed - counts.tentative - counts.absent
-    return { ...game, ...counts, no_response, total: totalActive }
+    const ready_total = counts.confirmed + counts.tentative
+    return { ...game, ...counts, ready_total, no_response, total: totalActive }
   })
 })
 
@@ -229,6 +230,13 @@ async function onWeekFinalized() {
         <div class="text-sm text-neutral-400 mb-3">{{ row.date }}</div>
 
         <div class="space-y-1.5">
+          <div class="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5">
+            <span class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span class="text-xs font-medium text-neutral-200">Суммарно</span>
+            </span>
+            <span class="text-sm font-bold text-emerald-300 font-mono">{{ row.ready_total }}</span>
+          </div>
           <div class="flex items-center justify-between">
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-status-confirmed"></span>
@@ -272,7 +280,7 @@ async function onWeekFinalized() {
           {{ telegram.sending.value ? '...' : 'Миссии' }}
         </button>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-3">
         <MissionCard
           v-for="game in games" :key="game.id"
           :mission="missionsStore.getMission(game.id)"

@@ -9,8 +9,8 @@ const collapsed = ref(true)
 const manualToggle = ref(false)
 const hovered = ref(false)
 
-// Responsive: lg+ → expanded, md–lg → collapsed
-const lgQuery = window.matchMedia('(min-width: 1024px)')
+// Responsive: expand only on wide desktop; windowed layouts stay collapsed by default
+const wideQuery = window.matchMedia('(min-width: 1440px)')
 
 function onBreakpointChange(e) {
   if (!manualToggle.value) {
@@ -19,12 +19,12 @@ function onBreakpointChange(e) {
 }
 
 onMounted(() => {
-  collapsed.value = !lgQuery.matches
-  lgQuery.addEventListener('change', onBreakpointChange)
+  collapsed.value = !wideQuery.matches
+  wideQuery.addEventListener('change', onBreakpointChange)
 })
 
 onBeforeUnmount(() => {
-  lgQuery.removeEventListener('change', onBreakpointChange)
+  wideQuery.removeEventListener('change', onBreakpointChange)
 })
 
 const navItems = [

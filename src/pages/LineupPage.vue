@@ -1075,26 +1075,26 @@ async function sendSlotNotification(slot, slotIdx) {
     </button>
 
     <!-- Stats bar -->
-    <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 md:grid-cols-5">
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2.5">
-        <div class="text-[10px] uppercase tracking-[0.14em] text-neutral-600">Слотов</div>
-        <div class="mt-1 text-lg font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
+    <div v-if="slots.length" class="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-3 2xl:grid-cols-5">
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Слотов</div>
+        <div class="mt-1 text-base font-semibold text-neutral-100 font-mono">{{ combatSlotsCount }}</div>
       </div>
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2.5">
-        <div class="text-[10px] uppercase tracking-[0.14em] text-neutral-600">Назначено</div>
-        <div class="mt-1 text-lg font-semibold text-delta-green font-mono">{{ assignedCombatSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Назначено</div>
+        <div class="mt-1 text-base font-semibold text-delta-green font-mono">{{ assignedCombatSlotsCount }}</div>
       </div>
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2.5">
-        <div class="text-[10px] uppercase tracking-[0.14em] text-neutral-600">Свободно</div>
-        <div class="mt-1 text-lg font-semibold text-neutral-100 font-mono">{{ freeCombatSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Свободно</div>
+        <div class="mt-1 text-base font-semibold text-neutral-100 font-mono">{{ freeCombatSlotsCount }}</div>
       </div>
-      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2.5">
-        <div class="text-[10px] uppercase tracking-[0.14em] text-neutral-600">Резерв</div>
-        <div class="mt-1 text-lg font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
+      <div class="rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2">
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Резерв</div>
+        <div class="mt-1 text-base font-semibold text-amber-300 font-mono">{{ reserveSlotsCount }}</div>
       </div>
-      <div class="col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2.5 md:col-span-1">
-        <div class="text-[10px] uppercase tracking-[0.14em] text-neutral-600">Не назначено</div>
-        <div class="mt-1 flex items-center gap-3 text-sm">
+      <div class="col-span-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-3 py-2 lg:col-span-3 2xl:col-span-1">
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Не назначено</div>
+        <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
           <span class="inline-flex items-center gap-1.5 text-status-confirmed">
             <span class="w-2 h-2 rounded-full bg-status-confirmed"></span>
             <span class="font-mono font-semibold">{{ unassignedReadyCount }}</span>
@@ -1572,27 +1572,25 @@ async function sendSlotNotification(slot, slotIdx) {
           </p>
         </div>
       </div>
-      <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div class="flex flex-wrap gap-2">
         <div
           v-for="player in unassignedPlayers"
           :key="player.uid"
           :class="[
-            'rounded-xl border px-3 py-2.5 transition-colors',
+            'inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
             readinessPillClass(player.readiness)
           ]"
         >
-          <div class="flex items-center gap-2">
-            <span :class="[readinessDot(player.readiness), 'h-2.5 w-2.5 rounded-full shrink-0']"></span>
-            <span
-              class="min-w-0 truncate text-sm font-semibold"
-              :style="player.nicknameColor ? { color: player.nicknameColor } : {}"
-            >
-              {{ player.nickname }}
-            </span>
-          </div>
-          <div class="mt-1 text-[11px] font-medium">
+          <span :class="[readinessDot(player.readiness), 'h-2.5 w-2.5 rounded-full shrink-0']"></span>
+          <span
+            class="max-w-[12rem] truncate font-semibold"
+            :style="player.nicknameColor ? { color: player.nicknameColor } : {}"
+          >
+            {{ player.nickname }}
+          </span>
+          <span class="text-[11px] opacity-80">
             {{ readinessLabel(player.readiness) }}
-          </div>
+          </span>
         </div>
       </div>
     </div>

@@ -44,7 +44,7 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
   <div v-else
     @click="emit('click', mission)"
     :class="[
-      'group bg-neutral-900 border rounded-xl overflow-hidden transition-all cursor-pointer',
+      'group flex h-full flex-col bg-neutral-900 border rounded-xl overflow-hidden transition-all cursor-pointer',
       hasCommandHighlight
         ? 'border-amber-500/50 shadow-[0_0_0_1px_rgba(245,158,11,0.2),0_0_28px_rgba(245,158,11,0.12)] hover:border-amber-400/70'
         : 'border-neutral-800 hover:border-neutral-700'
@@ -58,12 +58,12 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
       </div>
     </div>
 
-    <div class="p-4">
+      <div class="flex min-h-0 flex-1 flex-col p-4 min-w-0">
       <!-- Header -->
-      <div class="flex items-start justify-between gap-2 mb-2">
-        <div class="min-w-0">
+      <div class="flex items-start justify-between gap-2 mb-2 min-w-0">
+        <div class="min-w-0 flex-1">
           <div class="text-[10px] tracking-wider uppercase text-neutral-500 mb-0.5">{{ gameLabel }}</div>
-          <h3 class="text-sm font-bold text-white truncate group-hover:text-delta-green transition-colors">
+          <h3 class="text-base font-bold text-white break-words leading-tight group-hover:text-delta-green transition-colors">
             {{ mission.title }}
           </h3>
         </div>
@@ -73,7 +73,7 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
       </div>
 
       <!-- Map + type -->
-      <div class="flex items-center gap-2 mb-3 text-xs text-neutral-400">
+      <div class="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-400 min-w-0">
         <span class="flex items-center gap-1">
           <svg class="w-3 h-3 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -90,26 +90,26 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
           <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Союзники</div>
           <div v-for="side in groupedSides.ally" :key="side.name"
             class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-1.5">
+            <div class="min-w-0 flex flex-1 items-center gap-1.5">
               <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
-              <span :class="sideColor(side.color).text">{{ side.name }}</span>
-              <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
-              <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
+              <span :class="[sideColor(side.color).text, 'shrink-0']">{{ side.name }}</span>
+              <span v-if="missionsStore.getSideFaction(mission, side.color)" class="min-w-0 break-words text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
+              <span v-if="side.role && side.role !== 'Неопределено'" class="shrink-0 text-neutral-600">({{ side.role }})</span>
             </div>
-            <span class="font-mono text-neutral-500">{{ side.players }}</span>
+            <span class="shrink-0 pl-2 font-mono text-neutral-500">{{ side.players }}</span>
           </div>
         </div>
         <div v-if="groupedSides.enemy.length">
           <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1">Противники</div>
           <div v-for="side in groupedSides.enemy" :key="side.name"
             class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-1.5">
+            <div class="min-w-0 flex flex-1 items-center gap-1.5">
               <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
-              <span :class="sideColor(side.color).text">{{ side.name }}</span>
-              <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
-              <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
+              <span :class="[sideColor(side.color).text, 'shrink-0']">{{ side.name }}</span>
+              <span v-if="missionsStore.getSideFaction(mission, side.color)" class="min-w-0 break-words text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
+              <span v-if="side.role && side.role !== 'Неопределено'" class="shrink-0 text-neutral-600">({{ side.role }})</span>
             </div>
-            <span class="font-mono text-neutral-500">{{ side.players }}</span>
+            <span class="shrink-0 pl-2 font-mono text-neutral-500">{{ side.players }}</span>
           </div>
         </div>
       </div>
@@ -117,13 +117,13 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
       <div v-else class="space-y-1.5">
         <div v-for="side in mission.sides" :key="side.name"
           class="flex items-center justify-between text-xs">
-          <div class="flex items-center gap-1.5">
+          <div class="min-w-0 flex flex-1 items-center gap-1.5">
             <span :class="[sideColor(side.color).dot, 'w-2 h-2 rounded-full shrink-0']"></span>
-            <span :class="sideColor(side.color).text">{{ side.name }}</span>
-            <span v-if="missionsStore.getSideFaction(mission, side.color)" class="text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
-            <span v-if="side.role && side.role !== 'Неопределено'" class="text-neutral-600">({{ side.role }})</span>
+            <span :class="[sideColor(side.color).text, 'shrink-0']">{{ side.name }}</span>
+            <span v-if="missionsStore.getSideFaction(mission, side.color)" class="min-w-0 break-words text-neutral-500">{{ missionsStore.getSideFaction(mission, side.color) }}</span>
+            <span v-if="side.role && side.role !== 'Неопределено'" class="shrink-0 text-neutral-600">({{ side.role }})</span>
           </div>
-          <span class="font-mono text-neutral-500">{{ side.players }}</span>
+          <span class="shrink-0 pl-2 font-mono text-neutral-500">{{ side.players }}</span>
         </div>
       </div>
 
@@ -138,39 +138,35 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
       </div>
 
       <!-- Description (compact omits) -->
-      <div v-if="!compact && mission.description" class="mt-2 text-[11px] text-neutral-500 line-clamp-2 leading-relaxed">
+      <div v-if="!compact && mission.description" class="mt-2 text-xs text-neutral-500 line-clamp-3 leading-relaxed break-words">
         {{ mission.description }}
       </div>
 
-      <div v-if="!compact && lineupStatus" class="mt-3 pt-3 border-t border-neutral-800/50 space-y-2">
+      <div v-if="!compact && lineupStatus" class="mt-auto pt-3 border-t border-neutral-800/50 space-y-2">
         <div class="text-[11px] font-medium" :class="lineupStatus.configured ? 'text-delta-green' : 'text-neutral-500'">
           {{ lineupStatus.configured ? 'Расстановка настроена' : 'Расстановка пуста' }}
         </div>
-        <div v-if="hasCommandHighlight" class="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
-          <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
-          Есть слот КС
-        </div>
-        <div class="grid grid-cols-2 gap-2 text-[11px]">
-          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+        <div class="flex flex-wrap gap-2 text-[11px]">
+          <div class="min-w-[5.5rem] flex-1 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
             <div class="text-[10px] uppercase tracking-wider text-neutral-600">Слотов</div>
-            <div class="mt-1 font-mono text-base text-neutral-200">{{ lineupStatus.totalSlots }}</div>
+            <div class="mt-1 font-mono text-lg leading-none text-neutral-200">{{ lineupStatus.totalSlots }}</div>
           </div>
-          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+          <div class="min-w-[5.5rem] flex-1 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
             <div class="text-[10px] uppercase tracking-wider text-neutral-600">Резерв</div>
-            <div class="mt-1 font-mono text-base text-amber-300">{{ lineupStatus.reserveSlots }}</div>
+            <div class="mt-1 font-mono text-lg leading-none text-amber-300">{{ lineupStatus.reserveSlots }}</div>
           </div>
-          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+          <div class="min-w-[5.5rem] flex-1 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
             <div class="text-[10px] uppercase tracking-wider text-neutral-600">Назначено</div>
-            <div class="mt-1 font-mono text-base text-delta-green">{{ lineupStatus.assignedSlots }}</div>
+            <div class="mt-1 font-mono text-lg leading-none text-delta-green">{{ lineupStatus.assignedSlots }}</div>
           </div>
-          <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
+          <div class="min-w-[5.5rem] flex-1 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2">
             <div class="text-[10px] uppercase tracking-wider text-neutral-600">Свободно</div>
-            <div class="mt-1 font-mono text-base text-neutral-200">{{ lineupStatus.freeSlots }}</div>
+            <div class="mt-1 font-mono text-lg leading-none text-neutral-200">{{ lineupStatus.freeSlots }}</div>
           </div>
         </div>
         <div class="rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-2 text-[11px]">
           <div class="text-[10px] uppercase tracking-wider text-neutral-600">Не расставлено</div>
-          <div class="mt-1 flex flex-wrap items-center gap-3">
+          <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
             <span class="inline-flex items-center gap-1.5 text-status-confirmed">
               <span class="h-2 w-2 rounded-full bg-status-confirmed"></span>
               <span class="font-mono">{{ lineupStatus.unassignedConfirmed }}</span>
@@ -185,10 +181,10 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
         </div>
         <div
           :class="[
-            'text-[11px]',
+            'inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px]',
             lineupStatus.slotRequests > 0
-              ? 'inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-200'
-              : 'text-neutral-500'
+              ? 'border border-red-500/30 bg-red-500/10 text-red-200'
+              : 'border border-neutral-800 bg-neutral-950/60 text-neutral-500'
           ]"
         >
           Запросы слотов:
