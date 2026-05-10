@@ -274,7 +274,7 @@ async function onWeekFinalized() {
           details: ['Будут подготовлены архивы, перенос данных и очистка текущей недели.'],
           confirmLabel: 'Продолжить',
           tone: 'danger',
-          onConfirm: () => { showFinalizer.value = true },
+          onConfirm: () => { showFinalizer = true },
         })"
           class="text-xs px-3 py-1.5 border border-red-900/50 rounded-lg text-red-400 hover:text-red-300 hover:border-red-700 transition-colors">
           Завершить неделю
