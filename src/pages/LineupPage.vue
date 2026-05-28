@@ -141,6 +141,8 @@ function applyMarkdownAction(kind, textareaRef, actionId) {
 const hasSquadTask = computed(() => Boolean(currentGame.value?.task?.trim()))
 const showSquadTaskEditor = computed(() => isAdmin.value && (editingSquadTask.value || !hasSquadTask.value))
 const squadTaskHtml = computed(() => renderRichMarkdown(currentGame.value?.task || ''))
+const squadTaskPreviewHtml = computed(() => renderRichMarkdown(squadTaskDraft.value || ''))
+const personalTaskPreviewHtml = computed(() => renderRichMarkdown(personalTaskDraft.value || ''))
 
 async function sendLineupToTelegram() {
   const missionsData = {}
@@ -1563,6 +1565,18 @@ async function sendSlotNotification(slot, slotIdx) {
         <p class="mt-2 text-[11px] text-neutral-600">
           Можно использовать Markdown и HTML-вставки вроде ссылок, изображений и цветного текста через `style="color: ..."`. Для ссылок и изображений используйте полный `https://...` URL.
         </p>
+        <div class="mt-2 rounded-xl border border-neutral-800 bg-neutral-950/60">
+          <div class="border-b border-neutral-800 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-neutral-600">
+            Предпросмотр
+          </div>
+          <div
+            v-if="squadTaskPreviewHtml"
+            class="task-markdown px-4 py-3 text-sm text-neutral-300"
+            @click="openMarkdownImagePreview"
+            v-html="squadTaskPreviewHtml"
+          ></div>
+          <p v-else class="px-4 py-3 text-sm text-neutral-600">Нет содержимого для предпросмотра.</p>
+        </div>
         <div class="flex justify-end gap-2 mt-3">
           <button
             v-if="hasSquadTask"
@@ -1625,6 +1639,18 @@ async function sendSlotNotification(slot, slotIdx) {
         <p class="mt-2 text-[11px] text-neutral-600">
           Поддерживаются ссылки, списки, изображения и базовое цветовое оформление текста. Для ссылок и изображений используйте полный `https://...` URL.
         </p>
+        <div class="mt-2 rounded-xl border border-neutral-700 bg-neutral-900/60">
+          <div class="border-b border-neutral-700 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+            Предпросмотр
+          </div>
+          <div
+            v-if="personalTaskPreviewHtml"
+            class="task-markdown px-4 py-3 text-sm text-neutral-300"
+            @click="openMarkdownImagePreview"
+            v-html="personalTaskPreviewHtml"
+          ></div>
+          <p v-else class="px-4 py-3 text-sm text-neutral-600">Нет содержимого для предпросмотра.</p>
+        </div>
         <div class="flex justify-end gap-2 mt-2">
           <button @click="cancelEditPersonalTask"
             class="px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 transition-colors">

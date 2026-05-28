@@ -15,7 +15,7 @@ export const MARKDOWN_TOOLBAR_BUTTONS = Object.freeze([
   { id: 'quote', label: '>', title: 'Цитата' },
 ])
 
-const COLOR_MAP = Object.freeze({
+export const MARKDOWN_COLOR_MAP = Object.freeze({
   orange: '#fb923c',
   green: '#4ade80',
   red: '#f87171',
@@ -75,7 +75,7 @@ function sanitizeInlineStyles(root) {
 
 function transformColorShortcodes(content) {
   return content.replace(/\{(\w+)\}([\s\S]*?)\{\/\1\}/g, (_, color, text) => {
-    const hex = COLOR_MAP[color.toLowerCase()]
+    const hex = MARKDOWN_COLOR_MAP[color.toLowerCase()]
     if (!hex) return text
     return `<span style="color:${hex}">${text}</span>`
   })

@@ -11,7 +11,7 @@ import { useAppConfig } from '../stores/appConfig'
 import { useToast } from '../composables/useToast'
 import BaseSelect from '../components/common/BaseSelect.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
-import { MARKDOWN_TOOLBAR_BUTTONS, applyMarkdownToolbarAction, renderRichMarkdown } from '../utils/markdown'
+import { MARKDOWN_COLOR_MAP, MARKDOWN_TOOLBAR_BUTTONS, applyMarkdownToolbarAction, renderRichMarkdown } from '../utils/markdown'
 
 const archive = useArchiveStore()
 const gamesStore = useGamesStore()
@@ -24,6 +24,7 @@ const appConfig = useAppConfig()
 const pageReady = ref(false)
 const activeTab = ref('squad')
 const markdownToolbarButtons = MARKDOWN_TOOLBAR_BUTTONS
+const markdownColorMap = MARKDOWN_COLOR_MAP
 
 const settingsTabs = computed(() => [
   {
@@ -1100,10 +1101,10 @@ function formatDate(ts) {
               </div>
               <div class="border-t border-neutral-700/50 pt-1.5 mt-1.5">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mb-1.5">
-                  <div><code class="text-neutral-400">{orange}текст{/orange}</code> → <span class="text-orange-400">текст</span></div>
-                  <div><code class="text-neutral-400">{green}текст{/green}</code> → <span class="text-green-400">текст</span></div>
-                  <div><code class="text-neutral-400">{delta}текст{/delta}</code> → <span class="text-delta-green">текст</span></div>
-                  <div><code class="text-neutral-400">{red}текст{/red}</code> → <span class="text-red-400">текст</span></div>
+                  <div><code class="text-neutral-400">{orange}текст{/orange}</code> → <span :style="{ color: markdownColorMap.orange }">текст</span></div>
+                  <div><code class="text-neutral-400">{green}текст{/green}</code> → <span :style="{ color: markdownColorMap.green }">текст</span></div>
+                  <div><code class="text-neutral-400">{delta}текст{/delta}</code> → <span :style="{ color: markdownColorMap.delta }">текст</span></div>
+                  <div><code class="text-neutral-400">{red}текст{/red}</code> → <span :style="{ color: markdownColorMap.red }">текст</span></div>
                 </div>
                 <p>Для ссылок и изображений используйте полный <code class="text-neutral-400">https://...</code> URL.</p>
                 <p>Также поддерживаются безопасные inline-стили из расстановки, например <code class="text-neutral-400">&lt;span style="color:#fb923c"&gt;текст&lt;/span&gt;</code>.</p>
