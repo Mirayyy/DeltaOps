@@ -1019,26 +1019,6 @@ async function sendSlotNotification(slot, slotIdx) {
       </button>
     </div>
 
-    <div v-if="lineupResponsiblePlayers.length || isAdmin" class="mb-4 rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3">
-      <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Ответственные за расстановку</div>
-      <div v-if="lineupResponsiblePlayers.length" class="mt-2 flex flex-wrap gap-2">
-        <template v-for="player in lineupResponsiblePlayers" :key="player.uid">
-          <a v-if="player.telegramUsername"
-            :href="`https://t.me/${player.telegramUsername.replace(/^@/, '')}`"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/15">
-            {{ player.nickname }}
-          </a>
-          <span v-else
-            class="inline-flex items-center rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-200">
-            {{ player.nickname }}
-          </span>
-        </template>
-      </div>
-      <p v-else class="mt-1 text-sm text-neutral-500">Не назначены</p>
-    </div>
-
     <!-- Mission info card -->
     <div v-if="currentMission" class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mb-4">
       <!-- Color bar -->
@@ -1892,6 +1872,26 @@ async function sendSlotNotification(slot, slotIdx) {
       <p v-if="!visiblePersonalTasks.length && editingPersonalTask === null" class="text-xs text-neutral-600">
         Нет личных задач
       </p>
+    </div>
+
+    <div v-if="lineupResponsiblePlayers.length || isAdmin" class="mt-4 rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3">
+      <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Ответственные за расстановку</div>
+      <div v-if="lineupResponsiblePlayers.length" class="mt-2 flex flex-wrap gap-2">
+        <template v-for="player in lineupResponsiblePlayers" :key="player.uid">
+          <a v-if="player.telegramUsername"
+            :href="`https://t.me/${player.telegramUsername.replace(/^@/, '')}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/15">
+            {{ player.nickname }}
+          </a>
+          <span v-else
+            class="inline-flex items-center rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-200">
+            {{ player.nickname }}
+          </span>
+        </template>
+      </div>
+      <p v-else class="mt-1 text-sm text-neutral-500">Не назначены</p>
     </div>
 
     <!-- Slot Requests block -->
