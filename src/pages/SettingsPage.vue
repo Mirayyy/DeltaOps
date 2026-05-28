@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useArchiveStore } from '../stores/archive'
 import { useGamesStore } from '../stores/games'
 import { useAttendanceStore } from '../stores/attendance'
@@ -11,6 +11,7 @@ import { useAppConfig } from '../stores/appConfig'
 import { useToast } from '../composables/useToast'
 import BaseSelect from '../components/common/BaseSelect.vue'
 import BaseCheckbox from '../components/common/BaseCheckbox.vue'
+import { MARKDOWN_TOOLBAR_BUTTONS, applyMarkdownToolbarAction, renderRichMarkdown } from '../utils/markdown'
 
 const archive = useArchiveStore()
 const gamesStore = useGamesStore()
@@ -21,6 +22,50 @@ const toast = useToast()
 const squadConfig = useSquadConfig()
 const appConfig = useAppConfig()
 const pageReady = ref(false)
+const activeTab = ref('squad')
+const markdownToolbarButtons = MARKDOWN_TOOLBAR_BUTTONS
+
+const settingsTabs = computed(() => [
+  {
+    id: 'squad',
+    label: 'Отряд',
+    description: 'Базовые параметры отряда, контакты и публичное описание.',
+    badge: squadForm.value.contacts?.length || 0,
+  },
+  {
+    id: 'lineup',
+    label: 'Расстановка',
+    description: 'Ответственные, список навыков и набор доступного снаряжения.',
+    badge: (siteForm.value.lineupResponsibleIds?.length || 0) + (squadConfig.config.skillNames?.length || 0),
+  },
+  {
+    id: 'content',
+    label: 'Контент',
+    description: 'Награды и другие публичные материалы, которые видят игроки.',
+    badge: webContent.awards.length || 0,
+  },
+  {
+    id: 'site',
+    label: 'Сайт',
+    description: 'Ссылки, название проекта и технические интеграции.',
+    badge: [siteForm.value.siteUrl, siteForm.value.githubUrl, siteForm.value.firestoreUrl].filter(Boolean).length,
+  },
+  {
+    id: 'rotations',
+    label: 'Ротации',
+    description: 'Операционные настройки цикла игр и архивных периодов.',
+    badge: archive.rotations.length || 0,
+  },
+])
+
+const activeTabMeta = computed(() =>
+  settingsTabs.value.find(tab => tab.id === activeTab.value) || settingsTabs.value[0]
+)
+
+function selectSettingsTab(tabId) {
+  activeTab.value = tabId
+  colorPickerOpen.value = null
+}
 
 // ═══════════════════════════════════════
 // SQUAD FORM
@@ -28,6 +73,8 @@ const pageReady = ref(false)
 
 const squadForm = ref({})
 const savingSquad = ref(false)
+const aboutMarkdownTextarea = ref(null)
+const aboutMarkdownPreviewHtml = computed(() => renderRichMarkdown(webContent.aboutMarkdown || ''))
 
 function initSquadForm() {
   const c = squadConfig.config
@@ -110,6 +157,27 @@ async function saveSquadConfig() {
     toast.error('Ошибка: ' + e.message)
   }
   savingSquad.value = false
+}
+
+function applyAboutMarkdownAction(actionId) {
+  const textarea = aboutMarkdownTextarea.value
+  if (!textarea) return
+
+  applyMarkdownToolbarAction({
+    actionId,
+    textarea,
+    value: webContent.aboutMarkdown || '',
+    setValue: (value) => {
+      webContent.aboutMarkdown = value
+    },
+    afterUpdate: (callback) => {
+      nextTick(() => {
+        callback()
+        textarea.style.height = 'auto'
+        textarea.style.height = `${textarea.scrollHeight}px`
+      })
+    },
+  })
 }
 
 // ═══════════════════════════════════════
@@ -231,11 +299,42 @@ async function saveEditRotation() {
 // ═══════════════════════════════════════
 
 const savingContent = ref(false)
+const expandedAwardIds = ref([])
 
 const playerOptions = computed(() => [
   { value: null, label: '— Не выбран —' },
   ...roster.squadMembers.map(p => ({ value: p.uid, label: p.nickname })),
 ])
+
+function isAwardExpanded(awardId) {
+  return expandedAwardIds.value.includes(awardId)
+}
+
+function toggleAward(awardId) {
+  if (isAwardExpanded(awardId)) {
+    expandedAwardIds.value = expandedAwardIds.value.filter(id => id !== awardId)
+  } else {
+    expandedAwardIds.value = [...expandedAwardIds.value, awardId]
+  }
+}
+
+function expandAward(awardId) {
+  if (!awardId || isAwardExpanded(awardId)) return
+  expandedAwardIds.value = [...expandedAwardIds.value, awardId]
+}
+
+function addAward() {
+  webContent.addAward()
+  const added = webContent.awards[webContent.awards.length - 1]
+  expandAward(added?._id)
+}
+
+function awardTargetLabel(award) {
+  if (award.type === 'player') {
+    return award.playerUid ? roster.resolveNickname(award.playerUid) : 'Игрок не выбран'
+  }
+  return 'Весь отряд'
+}
 
 async function saveWebContent() {
   savingContent.value = true
@@ -444,8 +543,26 @@ function formatDate(ts) {
 </script>
 
 <template>
-  <div class="pb-20 md:pb-0 max-w-4xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Настройки</h1>
+  <div class="pb-20 md:pb-0 max-w-6xl mx-auto">
+    <div class="mb-6 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">Настройки</h1>
+        <p class="mt-1 text-sm text-neutral-500">
+          Разделы сгруппированы по задачам, чтобы сократить длинный скролл и упростить навигацию.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2 text-[11px] text-neutral-500">
+        <span class="rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-1.5">
+          Ротаций: <span class="font-mono text-neutral-300">{{ archive.rotations.length }}</span>
+        </span>
+        <span class="rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-1.5">
+          Достижений: <span class="font-mono text-neutral-300">{{ webContent.awards.length }}</span>
+        </span>
+        <span class="rounded-lg border border-neutral-800 bg-neutral-900/70 px-3 py-1.5">
+          Навыков: <span class="font-mono text-neutral-300">{{ squadConfig.config.skillNames?.length || 0 }}</span>
+        </span>
+      </div>
+    </div>
 
     <!-- Loading -->
     <div v-if="!pageReady" class="flex items-center justify-center py-20">
@@ -453,6 +570,33 @@ function formatDate(ts) {
     </div>
 
     <template v-else>
+
+    <div class="mb-6 rounded-xl border border-neutral-800 bg-neutral-900/80 p-3">
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="tab in settingsTabs"
+          :key="tab.id"
+          @click="selectSettingsTab(tab.id)"
+          :class="[
+            'inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+            activeTab === tab.id
+              ? 'border-delta-green/40 bg-delta-green/10 text-white'
+              : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'
+          ]"
+        >
+          <span>{{ tab.label }}</span>
+          <span class="rounded-md bg-black/20 px-1.5 py-0.5 font-mono text-[10px]">
+            {{ tab.badge }}
+          </span>
+        </button>
+      </div>
+      <div class="mt-3 rounded-lg border border-neutral-800/80 bg-neutral-950/40 px-4 py-3">
+        <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">{{ activeTabMeta.label }}</div>
+        <p class="mt-1 text-sm text-neutral-400">{{ activeTabMeta.description }}</p>
+      </div>
+    </div>
+
+    <div v-if="activeTab === 'rotations'" class="space-y-8">
 
     <!-- ═══ 1. ROTATIONS ═══ -->
     <div class="mb-8">
@@ -568,6 +712,9 @@ function formatDate(ts) {
         </div>
       </div>
     </div>
+    </div>
+
+    <div v-if="activeTab === 'content'" class="space-y-8">
 
     <!-- ═══ 2. AWARDS ═══ -->
     <div class="mb-8">
@@ -582,7 +729,7 @@ function formatDate(ts) {
       <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-sm font-medium text-neutral-300">Список достижений</h3>
-          <button @click="webContent.addAward"
+          <button @click="addAward"
             class="text-xs px-3 py-1 border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors">
             + Добавить
           </button>
@@ -592,13 +739,50 @@ function formatDate(ts) {
 
         <div class="space-y-3">
           <div v-for="(award, idx) in webContent.awards" :key="award._id"
-            class="bg-neutral-800/50 rounded-lg p-4">
-            <div class="flex items-start gap-4">
+            class="overflow-hidden rounded-lg border border-neutral-800 bg-neutral-800/40">
+            <div class="flex items-center gap-3 px-4 py-3">
               <div class="w-14 h-14 bg-neutral-800 rounded-lg flex items-center justify-center border border-neutral-700 shrink-0 overflow-hidden">
                 <img v-if="award.icon" :src="award.icon" :alt="award.title" class="w-10 h-10 object-contain" />
                 <span v-else class="text-neutral-600 text-xl">?</span>
               </div>
-              <div class="flex-1 space-y-2">
+              <button @click="toggleAward(award._id)" class="min-w-0 flex-1 text-left">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium text-neutral-200">{{ award.title || 'Новое достижение' }}</span>
+                  <span :class="[
+                    'rounded border px-1.5 py-0.5 text-[10px]',
+                    award.type === 'player'
+                      ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                      : 'border-delta-green/30 bg-delta-green/10 text-delta-green'
+                  ]">
+                    {{ award.type === 'player' ? 'Игрок' : 'Отряд' }}
+                  </span>
+                  <span v-if="award.showOnLanding" class="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                    Главная
+                  </span>
+                </div>
+                <div class="mt-1 text-xs text-neutral-500">
+                  {{ awardTargetLabel(award) }}
+                  <span v-if="award.description"> · {{ award.description }}</span>
+                </div>
+              </button>
+              <div class="flex items-center gap-2 shrink-0">
+                <button @click="webContent.moveAward(idx, -1)" :disabled="idx === 0"
+                  class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▲</button>
+                <button @click="webContent.moveAward(idx, 1)" :disabled="idx === webContent.awards.length - 1"
+                  class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▼</button>
+                <button @click="webContent.removeAward(idx)"
+                  class="text-red-600 hover:text-red-400 text-xs transition-colors">✕</button>
+                <button @click="toggleAward(award._id)"
+                  class="rounded p-1 text-neutral-500 hover:text-neutral-300 transition-colors">
+                  <svg :class="['w-4 h-4 transition-transform', isAwardExpanded(award._id) ? 'rotate-180' : '']"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div v-if="isAwardExpanded(award._id)" class="border-t border-neutral-800 px-4 py-4">
+              <div class="space-y-2">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label class="block text-[10px] text-neutral-500 mb-0.5">Иконка (URL)</label>
@@ -637,16 +821,43 @@ function formatDate(ts) {
                   </BaseCheckbox>
                 </div>
               </div>
-              <div class="flex flex-col gap-1 shrink-0">
-                <button @click="webContent.moveAward(idx, -1)" :disabled="idx === 0"
-                  class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▲</button>
-                <button @click="webContent.moveAward(idx, 1)" :disabled="idx === webContent.awards.length - 1"
-                  class="text-neutral-600 hover:text-neutral-300 disabled:opacity-30 text-xs transition-colors">▼</button>
-                <button @click="webContent.removeAward(idx)"
-                  class="text-red-600 hover:text-red-400 text-xs transition-colors mt-1">✕</button>
-              </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div v-if="activeTab === 'lineup'" class="space-y-8">
+
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Ответственные</h2>
+        <button @click="saveSiteConfig" :disabled="savingSite"
+          class="px-4 py-1.5 text-xs bg-delta-green hover:bg-delta-green/90 text-white rounded-lg transition-colors disabled:opacity-50">
+          {{ savingSite ? 'Сохранение...' : 'Сохранить' }}
+        </button>
+      </div>
+
+      <div class="bg-neutral-900 rounded-xl border border-neutral-800 p-5 space-y-4">
+        <p class="text-sm text-neutral-500">
+          Эти игроки получают личные уведомления в Telegram, когда кто-то создаёт или меняет запрос на слот.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <div v-for="uid in siteForm.lineupResponsibleIds" :key="uid"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm">
+            <span class="text-white">{{ lineupResponsibleName(uid) }}</span>
+            <button @click="removeLineupResponsible(uid)"
+              class="text-neutral-500 hover:text-red-400 transition-colors text-xs ml-1">&times;</button>
+          </div>
+          <div v-if="!siteForm.lineupResponsibleIds.length" class="text-neutral-600 text-xs py-1.5">Не выбраны</div>
+        </div>
+        <div class="flex gap-2">
+          <BaseSelect v-model="lineupResponsibleToAdd" :options="availableLineupResponsibleOptions" size="sm" class="flex-1" />
+          <button @click="addLineupResponsible" :disabled="!lineupResponsibleToAdd"
+            class="px-3 py-1 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
+            + Добавить
+          </button>
         </div>
       </div>
     </div>
@@ -761,6 +972,9 @@ function formatDate(ts) {
         </div>
       </div>
     </div>
+    </div>
+
+    <div v-if="activeTab === 'squad'" class="space-y-8">
 
     <!-- ═══ 4. SQUAD ═══ -->
     <div class="mb-8">
@@ -876,23 +1090,55 @@ function formatDate(ts) {
                 <div><code class="text-neutral-400">- элемент</code> — список</div>
                 <div><code class="text-neutral-400"># Заголовок</code> — заголовок</div>
                 <div><code class="text-neutral-400">> цитата</code> — цитата</div>
+                <div><code class="text-neutral-400">![alt](url)</code> — изображение</div>
+                <div><code class="text-neutral-400">@@@ Заголовок ... @@@</code> — спойлер</div>
               </div>
               <div class="border-t border-neutral-700/50 pt-1.5 mt-1.5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mb-1.5">
                   <div><code class="text-neutral-400">{orange}текст{/orange}</code> → <span class="text-orange-400">текст</span></div>
                   <div><code class="text-neutral-400">{green}текст{/green}</code> → <span class="text-green-400">текст</span></div>
                   <div><code class="text-neutral-400">{delta}текст{/delta}</code> → <span class="text-delta-green">текст</span></div>
                   <div><code class="text-neutral-400">{red}текст{/red}</code> → <span class="text-red-400">текст</span></div>
                 </div>
+                <p>Также поддерживаются безопасные inline-стили из расстановки, например <code class="text-neutral-400">&lt;span style="color:#fb923c"&gt;текст&lt;/span&gt;</code>.</p>
               </div>
             </div>
           </details>
 
-          <textarea v-model="webContent.aboutMarkdown"
-            rows="8"
-            placeholder="Текст об отряде на главной странице..."
-            class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-sm text-neutral-300 focus:outline-none focus:border-delta-green resize-y font-mono leading-relaxed">
-          </textarea>
+          <div class="rounded-xl border border-neutral-800 bg-neutral-900/70">
+            <div class="flex flex-wrap gap-1 border-b border-neutral-800 px-3 py-2">
+              <button
+                v-for="button in markdownToolbarButtons"
+                :key="button.id"
+                type="button"
+                :title="button.title"
+                class="min-w-9 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition-colors hover:border-neutral-600 hover:bg-neutral-800"
+                @click="applyAboutMarkdownAction(button.id)"
+              >
+                {{ button.label }}
+              </button>
+            </div>
+
+            <textarea
+              ref="aboutMarkdownTextarea"
+              v-model="webContent.aboutMarkdown"
+              rows="8"
+              placeholder="Текст об отряде на главной странице..."
+              class="w-full resize-y bg-neutral-900 px-4 py-3 font-mono text-sm leading-relaxed text-neutral-300 focus:outline-none"
+            ></textarea>
+          </div>
+
+          <div class="mt-2 rounded-xl border border-neutral-800 bg-neutral-950/60">
+            <div class="border-b border-neutral-800 px-4 py-2 text-[11px] uppercase tracking-[0.12em] text-neutral-600">
+              Предпросмотр
+            </div>
+            <div
+              v-if="aboutMarkdownPreviewHtml"
+              class="task-markdown px-4 py-3 text-sm text-neutral-300"
+              v-html="aboutMarkdownPreviewHtml"
+            ></div>
+            <p v-else class="px-4 py-3 text-sm text-neutral-600">Нет содержимого для предпросмотра.</p>
+          </div>
         </div>
 
         <!-- Roster link -->
@@ -903,6 +1149,9 @@ function formatDate(ts) {
         </div>
       </div>
     </div>
+    </div>
+
+    <div v-if="activeTab === 'site'" class="space-y-8">
 
     <!-- ═══ 4. SITE ═══ -->
     <div class="mb-8">
@@ -938,29 +1187,6 @@ function formatDate(ts) {
           </div>
         </div>
 
-        <div class="pt-4 border-t border-neutral-800">
-          <label class="block text-xs text-neutral-500 mb-2">Ответственные за расстановку</label>
-          <div class="flex flex-wrap gap-2 mb-3">
-            <div v-for="uid in siteForm.lineupResponsibleIds" :key="uid"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm">
-              <span class="text-white">{{ lineupResponsibleName(uid) }}</span>
-              <button @click="removeLineupResponsible(uid)"
-                class="text-neutral-500 hover:text-red-400 transition-colors text-xs ml-1">&times;</button>
-            </div>
-            <div v-if="!siteForm.lineupResponsibleIds.length" class="text-neutral-600 text-xs py-1.5">Не выбраны</div>
-          </div>
-          <div class="flex gap-2">
-            <BaseSelect v-model="lineupResponsibleToAdd" :options="availableLineupResponsibleOptions" size="sm" class="flex-1" />
-            <button @click="addLineupResponsible" :disabled="!lineupResponsibleToAdd"
-              class="px-3 py-1 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
-              + Добавить
-            </button>
-          </div>
-          <p class="mt-2 text-[11px] text-neutral-600">
-            Эти игроки получат ЛС в Telegram, когда кто-то создаст или изменит запрос на слот.
-          </p>
-        </div>
-
         <!-- Quick links -->
         <div class="pt-4 border-t border-neutral-800">
           <div class="flex items-center gap-2 mb-2">
@@ -977,6 +1203,7 @@ function formatDate(ts) {
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     </template>

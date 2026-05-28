@@ -1,7 +1,5 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import { useAuthStore } from '../stores/auth'
 import { useRosterStore } from '../stores/roster'
 import { useWebContentStore } from '../stores/webContent'
@@ -11,6 +9,7 @@ import { kpdColor } from '../utils/formatters'
 import { useSquadConfig } from '../stores/squadConfig'
 import { useAppConfig } from '../stores/appConfig'
 import { getTsgUrl } from '../utils/constants'
+import { renderRichMarkdown } from '../utils/markdown'
 
 const squad = useSquadConfig()
 const app = useAppConfig()
@@ -142,29 +141,8 @@ function awardPlayerName(award) {
 
 const awards = computed(() => webContent.landingAwards)
 
-// Color map for {color}text{/color} syntax
-const COLOR_MAP = {
-  orange: '#fb923c',
-  green: '#4ade80',
-  red: '#f87171',
-  blue: '#60a5fa',
-  yellow: '#facc15',
-  white: '#ffffff',
-  delta: '#8a9a4e',
-}
-
-function processColors(md) {
-  return md.replace(/\{(\w+)\}([\s\S]*?)\{\/\1\}/g, (_, color, text) => {
-    const hex = COLOR_MAP[color]
-    if (!hex) return text
-    return `<span style="color:${hex}">${text}</span>`
-  })
-}
-
 const aboutHtml = computed(() => {
-  if (!webContent.aboutMarkdown) return ''
-  const processed = processColors(webContent.aboutMarkdown)
-  return DOMPurify.sanitize(marked.parse(processed, { breaks: true }))
+  return renderRichMarkdown(webContent.aboutMarkdown)
 })
 </script>
 
@@ -413,7 +391,7 @@ const aboutHtml = computed(() => {
           <div class="h-px flex-1 bg-gradient-to-l from-orange-600/50 to-transparent"></div>
         </div>
 
-        <div class="about-content space-y-4 text-neutral-300 leading-relaxed" v-html="aboutHtml"></div>
+              <div class="about-content task-markdown text-neutral-300 leading-relaxed" v-html="aboutHtml"></div>
 
         <!-- Info cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10">
