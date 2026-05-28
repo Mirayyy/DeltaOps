@@ -1561,7 +1561,7 @@ async function sendSlotNotification(slot, slotIdx) {
           @keydown.ctrl.enter.prevent="saveSquadTask"
         ></textarea>
         <p class="mt-2 text-[11px] text-neutral-600">
-          Можно использовать Markdown и HTML-вставки вроде ссылок, изображений и цветного текста через `style="color: ..."`.
+          Можно использовать Markdown и HTML-вставки вроде ссылок, изображений и цветного текста через `style="color: ..."`. Для ссылок и изображений используйте полный `https://...` URL.
         </p>
         <div class="flex justify-end gap-2 mt-3">
           <button
@@ -1623,7 +1623,7 @@ async function sendSlotNotification(slot, slotIdx) {
           @keydown.ctrl.enter.prevent="savePersonalTask(editingPersonalTask)"
         ></textarea>
         <p class="mt-2 text-[11px] text-neutral-600">
-          Поддерживаются ссылки, списки, изображения и базовое цветовое оформление текста.
+          Поддерживаются ссылки, списки, изображения и базовое цветовое оформление текста. Для ссылок и изображений используйте полный `https://...` URL.
         </p>
         <div class="flex justify-end gap-2 mt-2">
           <button @click="cancelEditPersonalTask"

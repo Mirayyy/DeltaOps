@@ -230,7 +230,7 @@ export function applyMarkdownToolbarAction({ actionId, textarea, value, setValue
       wrapSelection(context, '[', '](https://example.com)', 'текст ссылки')
       break
     case 'image':
-      insertTemplate(context, '![Описание](https://i.ibb.co/example/image.png)', 2, 10)
+      insertTemplate(context, '![Описание](https://placehold.co/1200x630/png)', 2, 10)
       break
     case 'spoiler':
       insertTemplate(context, '@@@ Заголовок\nСодержимое спойлера\n@@@', 4, 13)

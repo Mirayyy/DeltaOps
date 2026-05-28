@@ -1086,12 +1086,17 @@ function formatDate(ts) {
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                 <div><code class="text-neutral-400">**жирный**</code> → <strong class="text-white">жирный</strong></div>
                 <div><code class="text-neutral-400">*курсив*</code> → <em class="text-neutral-300 italic">курсив</em></div>
-                <div><code class="text-neutral-400">[текст](url)</code> → ссылка</div>
+                <div><code class="text-neutral-400">[текст](https://example.com)</code> → ссылка</div>
                 <div><code class="text-neutral-400">- элемент</code> — список</div>
-                <div><code class="text-neutral-400"># Заголовок</code> — заголовок</div>
+                <div><code class="text-neutral-400">## Заголовок</code> — заголовок</div>
                 <div><code class="text-neutral-400">> цитата</code> — цитата</div>
-                <div><code class="text-neutral-400">![alt](url)</code> — изображение</div>
-                <div><code class="text-neutral-400">@@@ Заголовок ... @@@</code> — спойлер</div>
+                <div><code class="text-neutral-400">![alt](https://placehold.co/1200x630/png)</code> — изображение</div>
+                <div class="sm:col-span-2">
+                  <div class="mb-1 text-neutral-600">Спойлер:</div>
+                  <pre class="overflow-x-auto rounded border border-neutral-700/60 bg-neutral-900/70 px-2 py-1 text-[10px] text-neutral-400"><code>@@@ Заголовок
+Содержимое
+@@@</code></pre>
+                </div>
               </div>
               <div class="border-t border-neutral-700/50 pt-1.5 mt-1.5">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mb-1.5">
@@ -1100,6 +1105,7 @@ function formatDate(ts) {
                   <div><code class="text-neutral-400">{delta}текст{/delta}</code> → <span class="text-delta-green">текст</span></div>
                   <div><code class="text-neutral-400">{red}текст{/red}</code> → <span class="text-red-400">текст</span></div>
                 </div>
+                <p>Для ссылок и изображений используйте полный <code class="text-neutral-400">https://...</code> URL.</p>
                 <p>Также поддерживаются безопасные inline-стили из расстановки, например <code class="text-neutral-400">&lt;span style="color:#fb923c"&gt;текст&lt;/span&gt;</code>.</p>
               </div>
             </div>
