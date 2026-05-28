@@ -11,6 +11,21 @@ import { useAppConfig } from '../stores/appConfig'
 const botToken = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || ''
 const chatId = import.meta.env.VITE_TELEGRAM_CHAT_ID || ''
 
+const GAME_LABELS = {
+  friday_1: 'Пятница 1',
+  friday_2: 'Пятница 2',
+  saturday_1: 'Суббота 1',
+  saturday_2: 'Суббота 2',
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export function useTelegram() {
   const sending = ref(false)
   const lastError = ref(null)
@@ -60,6 +75,10 @@ export function useTelegram() {
       return `@${player.telegramUsername.replace(/^@/, '')}`
     }
     return player.nickname
+  }
+
+  function gameLabel(gameId) {
+    return GAME_LABELS[gameId] || gameId || 'Игра'
   }
 
   // ─── Message builders ────────────────────────────────
@@ -292,6 +311,53 @@ export function useTelegram() {
     ].join('\n')
   }
 
+  function buildLineupRequestNotification({
+    gameId,
+    gameDate,
+    missionTitle,
+    requesterName,
+    actorName,
+    slots,
+    text,
+    isUpdate,
+  }) {
+    const lines = [
+      `<b>${isUpdate ? 'Запрос на слот обновлён' : 'Новый запрос на слот'}</b>`,
+      '',
+      `<b>${escapeHtml(gameLabel(gameId))}</b>${gameDate ? ` — ${escapeHtml(gameDate)}` : ''}`,
+    ]
+
+    if (missionTitle) {
+      lines.push(escapeHtml(missionTitle))
+    }
+
+    lines.push('')
+    lines.push(`Игрок: <b>${escapeHtml(requesterName)}</b>`)
+
+    if (actorName && actorName !== requesterName) {
+      lines.push(`Изменил: ${escapeHtml(actorName)}`)
+    }
+
+    if (slots?.length) {
+      lines.push('')
+      lines.push('<b>Запрошенные слоты:</b>')
+      for (const slot of slots) {
+        lines.push(`• ${escapeHtml(slot.side)} — ${escapeHtml(slot.squad)} #${slot.number} — ${escapeHtml(slot.name)}`)
+      }
+    }
+
+    if (text) {
+      lines.push('')
+      lines.push('<b>Комментарий:</b>')
+      lines.push(escapeHtml(text))
+    }
+
+    lines.push('')
+    lines.push(`<a href="${app.siteUrl}lineup?game=${encodeURIComponent(gameId)}">Открыть расстановку</a>`)
+
+    return lines.join('\n')
+  }
+
 
   return {
     isConfigured, sending, lastError,
@@ -300,5 +366,6 @@ export function useTelegram() {
     buildSlotNotification,
     buildLineupSummaryMessage,
     buildReminderMessage,
+    buildLineupRequestNotification,
   }
 }

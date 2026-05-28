@@ -348,6 +348,7 @@ async function saveEquipment() {
 
 const siteForm = ref({})
 const savingSite = ref(false)
+const lineupResponsibleToAdd = ref(null)
 
 function initSiteForm() {
   const c = appConfig.config
@@ -356,7 +357,34 @@ function initSiteForm() {
     siteUrl: appConfig.siteUrl || '',
     githubUrl: c.githubUrl || '',
     firestoreUrl: c.firestoreUrl || '',
+    lineupResponsibleIds: Array.isArray(c.lineupResponsibleIds) ? [...c.lineupResponsibleIds] : [],
   }
+}
+
+const availableLineupResponsibleOptions = computed(() => {
+  const selected = new Set(siteForm.value.lineupResponsibleIds || [])
+  return [
+    { value: null, label: '— Выберите игрока —' },
+    ...roster.squadMembers
+      .filter(player => !selected.has(player.uid))
+      .map(player => ({ value: player.uid, label: player.nickname })),
+  ]
+})
+
+function lineupResponsibleName(uid) {
+  return roster.resolveNickname(uid)
+}
+
+function addLineupResponsible() {
+  if (!lineupResponsibleToAdd.value) return
+  if (!siteForm.value.lineupResponsibleIds.includes(lineupResponsibleToAdd.value)) {
+    siteForm.value.lineupResponsibleIds.push(lineupResponsibleToAdd.value)
+  }
+  lineupResponsibleToAdd.value = null
+}
+
+function removeLineupResponsible(uid) {
+  siteForm.value.lineupResponsibleIds = siteForm.value.lineupResponsibleIds.filter(id => id !== uid)
 }
 
 async function saveSiteConfig() {
@@ -908,6 +936,29 @@ function formatDate(ts) {
             <input v-model="siteForm.firestoreUrl" type="url" placeholder="https://console.firebase.google.com/..."
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
+        </div>
+
+        <div class="pt-4 border-t border-neutral-800">
+          <label class="block text-xs text-neutral-500 mb-2">Ответственные за расстановку</label>
+          <div class="flex flex-wrap gap-2 mb-3">
+            <div v-for="uid in siteForm.lineupResponsibleIds" :key="uid"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm">
+              <span class="text-white">{{ lineupResponsibleName(uid) }}</span>
+              <button @click="removeLineupResponsible(uid)"
+                class="text-neutral-500 hover:text-red-400 transition-colors text-xs ml-1">&times;</button>
+            </div>
+            <div v-if="!siteForm.lineupResponsibleIds.length" class="text-neutral-600 text-xs py-1.5">Не выбраны</div>
+          </div>
+          <div class="flex gap-2">
+            <BaseSelect v-model="lineupResponsibleToAdd" :options="availableLineupResponsibleOptions" size="sm" class="flex-1" />
+            <button @click="addLineupResponsible" :disabled="!lineupResponsibleToAdd"
+              class="px-3 py-1 text-xs border border-neutral-700 rounded-lg text-neutral-400 hover:text-white hover:border-neutral-500 transition-colors disabled:opacity-30">
+              + Добавить
+            </button>
+          </div>
+          <p class="mt-2 text-[11px] text-neutral-600">
+            Эти игроки получат ЛС в Telegram, когда кто-то создаст или изменит запрос на слот.
+          </p>
         </div>
 
         <!-- Quick links -->

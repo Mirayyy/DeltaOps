@@ -9,6 +9,7 @@ import { useAttendanceStore } from '../stores/attendance'
 import { useGamesStore } from '../stores/games'
 import { useMissionsStore } from '../stores/missions'
 import { useSquadConfig } from '../stores/squadConfig'
+import { useAppConfig } from '../stores/appConfig'
 import { useWeekStateStore } from '../stores/weekState'
 import { useGameWeek } from '../composables/useGameWeek'
 import { SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
@@ -31,6 +32,7 @@ const attendance = useAttendanceStore()
 const gamesStore = useGamesStore()
 const missionsStore = useMissionsStore()
 const squadConfig = useSquadConfig()
+const appConfig = useAppConfig()
 const { games, gameDates } = useGameWeek()
 const weekState = useWeekStateStore()
 
@@ -61,6 +63,7 @@ onMounted(async () => {
     attendance.fetchAttendance(),
     gamesStore.fetchGames(),
     missionsStore.fetchMissions(),
+    appConfig.fetch(),
   ])
   syncTabFromRoute()
 })
@@ -82,6 +85,12 @@ const slots = computed(() => gamesStore.getSlots(activeTab.value))
 const isAdmin = computed(() => auth.isUserAdmin)
 const telegram = useTelegram()
 const toast = useToast()
+const lineupResponsiblePlayers = computed(() => {
+  const ids = Array.isArray(appConfig.config.lineupResponsibleIds) ? appConfig.config.lineupResponsibleIds : []
+  return ids
+    .map(playerId => roster.getPlayer(playerId))
+    .filter(Boolean)
+})
 
 const markdownToolbarButtons = [
   { id: 'bold', label: 'B', title: 'Жирный текст' },
@@ -1008,6 +1017,26 @@ async function sendSlotNotification(slot, slotIdx) {
         ]">
         {{ game.label }}
       </button>
+    </div>
+
+    <div v-if="lineupResponsiblePlayers.length || isAdmin" class="mb-4 rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3">
+      <div class="text-[11px] uppercase tracking-[0.12em] text-neutral-600">Ответственные за расстановку</div>
+      <div v-if="lineupResponsiblePlayers.length" class="mt-2 flex flex-wrap gap-2">
+        <template v-for="player in lineupResponsiblePlayers" :key="player.uid">
+          <a v-if="player.telegramUsername"
+            :href="`https://t.me/${player.telegramUsername.replace(/^@/, '')}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-sm text-sky-300 transition-colors hover:border-sky-500/40 hover:bg-sky-500/15">
+            {{ player.nickname }}
+          </a>
+          <span v-else
+            class="inline-flex items-center rounded-lg border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-sm text-neutral-200">
+            {{ player.nickname }}
+          </span>
+        </template>
+      </div>
+      <p v-else class="mt-1 text-sm text-neutral-500">Не назначены</p>
     </div>
 
     <!-- Mission info card -->

@@ -64,6 +64,7 @@ Firestore:   https://firestore.googleapis.com/v1/projects/<your-project-id>/data
 |---|---|---|
 | `siteUrl` | `string` | URL сайта (используется в Telegram-сообщениях) |
 | `siteName` | `string` | Название сайта (заголовки Telegram, footer) |
+| `lineupResponsibleIds` | `string[]` | Список `playerId`, которым приходят ЛС о новых и изменённых запросах на слот |
 
 **ВАЖНО:** Extension использует `updateFields()` с updateMask, НЕ `writeDocument()`. Это сохраняет App-only поля (siteUrl, siteName).
 

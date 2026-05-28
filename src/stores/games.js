@@ -2,15 +2,101 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { GAME_IDS } from '../utils/constants'
 import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { useAppConfig } from './appConfig'
+import { useAuthStore } from './auth'
+import { useMissionsStore } from './missions'
+import { useRosterStore } from './roster'
+import { useTelegram } from '../composables/useTelegram'
 
 export const useGamesStore = defineStore('games', () => {
   // { [gameId]: { schedule, date, sourceUrl, version, slots[], task, updatedAt, updatedBy } }
   const games = ref({})
   const slotRequests = ref({})
   const loading = ref(false)
+  const appConfig = useAppConfig()
+  const auth = useAuthStore()
+  const missionsStore = useMissionsStore()
+  const roster = useRosterStore()
+  const telegram = useTelegram()
 
   // Slot memory: when a slot is removed and re-added, its data persists
   const slotMemory = ref({}) // { [gameId]: { [slotKey]: slotData } }
+
+  function normalizeSlotRequest(request = {}) {
+    const slots = Array.isArray(request.slots)
+      ? request.slots
+          .map(slot => ({
+            side: slot.side || '',
+            squad: slot.squad || '',
+            number: Number(slot.number) || 0,
+            name: slot.name || '',
+          }))
+          .sort((left, right) =>
+            `${left.side}::${left.squad}::${left.number}::${left.name}`.localeCompare(
+              `${right.side}::${right.squad}::${right.number}::${right.name}`,
+              'ru'
+            )
+          )
+      : []
+
+    return {
+      text: String(request.text || '').trim(),
+      slots,
+    }
+  }
+
+  function isSlotRequestChanged(previous, next) {
+    if (!previous) return true
+    return JSON.stringify(normalizeSlotRequest(previous)) !== JSON.stringify(normalizeSlotRequest(next))
+  }
+
+  async function notifyLineupResponsibles(gameId, request, previousRequest) {
+    if (!telegram.isConfigured) return
+
+    if (!appConfig.loaded) {
+      await appConfig.fetch()
+    }
+    if (!roster.players.length) {
+      await roster.fetchPlayers()
+    }
+    if (!missionsStore.getMission(gameId)) {
+      await missionsStore.fetchMissions()
+    }
+
+    const responsibleIds = Array.isArray(appConfig.config.lineupResponsibleIds)
+      ? [...new Set(appConfig.config.lineupResponsibleIds.filter(Boolean))]
+      : []
+    if (!responsibleIds.length) return
+
+    const actorPlayerId = auth.player?.uid || null
+    const recipientIds = responsibleIds.filter(playerId => playerId !== actorPlayerId)
+    if (!recipientIds.length) return
+
+    const mission = missionsStore.getMission(gameId)
+    const requesterName = roster.resolveNickname(request.playerId)
+    const actorName = actorPlayerId ? roster.resolveNickname(actorPlayerId) : ''
+    const message = telegram.buildLineupRequestNotification({
+      gameId,
+      gameDate: games.value[gameId]?.date || '',
+      missionTitle: mission?.title || '',
+      requesterName,
+      actorName,
+      slots: request.slots || [],
+      text: request.text || '',
+      isUpdate: Boolean(previousRequest),
+    })
+
+    for (const responsibleId of recipientIds) {
+      const responsiblePlayer = roster.getPlayer(responsibleId)
+      const responsibleTelegramId = responsiblePlayer?.telegramId
+      if (!responsibleTelegramId) continue
+
+      const result = await telegram.sendMessage(message, { chatId: responsibleTelegramId })
+      if (!result.ok) {
+        console.warn(`Failed to notify lineup responsible ${responsibleId}:`, result.error)
+      }
+    }
+  }
 
   function ensureGame(gameId) {
     if (!games.value[gameId]) {
@@ -288,7 +374,12 @@ export const useGamesStore = defineStore('games', () => {
       createdAt: before?.createdAt || null,
     }
 
+    const changed = isSlotRequestChanged(before, request)
+
     await saveSlotRequestFirestore(gameId, playerId, request)
+    if (changed) {
+      await notifyLineupResponsibles(gameId, request, before)
+    }
     await logEntitySnapshot({
       entityType: 'slotRequests',
       entityId: buildSlotRequestId(gameId, playerId),

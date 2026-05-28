@@ -14,6 +14,12 @@ const DEFAULTS = {
   siteUrl: '',
   githubUrl: '',
   firestoreUrl: '',
+  lineupResponsibleIds: [],
+}
+
+function normalizePlayerIds(value) {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter(id => typeof id === 'string' && id.trim()))]
 }
 
 function getBasePath() {
@@ -69,6 +75,7 @@ export const useAppConfig = defineStore('appConfig', () => {
       if (snap.exists()) {
         config.value = { ...DEFAULTS, ...snap.data() }
         config.value.siteUrl = normalizeSiteUrl(config.value.siteUrl)
+        config.value.lineupResponsibleIds = normalizePlayerIds(config.value.lineupResponsibleIds)
       }
     } catch (e) {
       console.warn('App config load failed, using defaults:', e.message)
@@ -79,6 +86,7 @@ export const useAppConfig = defineStore('appConfig', () => {
   async function save(data) {
     const next = { ...data }
     if ('siteUrl' in next) next.siteUrl = normalizeSiteUrl(next.siteUrl)
+    if ('lineupResponsibleIds' in next) next.lineupResponsibleIds = normalizePlayerIds(next.lineupResponsibleIds)
 
     const previous = cloneForAudit(config.value)
     config.value = { ...config.value, ...next }
