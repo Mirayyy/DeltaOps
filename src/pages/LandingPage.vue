@@ -10,6 +10,7 @@ import { useSquadConfig } from '../stores/squadConfig'
 import { useAppConfig } from '../stores/appConfig'
 import { getTsgUrl } from '../utils/constants'
 import { renderRichMarkdown } from '../utils/markdown'
+import BrandWordmark from '../components/common/BrandWordmark.vue'
 
 const squad = useSquadConfig()
 const app = useAppConfig()
@@ -188,9 +189,9 @@ const aboutHtml = computed(() => {
 
         <!-- Title block -->
         <div class="text-center mb-8">
-          <h1 class="text-5xl md:text-7xl font-black tracking-[0.15em] text-white mb-5 hero-title">
-            DELTA
-          </h1>
+          <div class="mb-5 hero-title">
+            <BrandWordmark variant="hero" centered />
+          </div>
           <div class="flex items-center justify-center gap-4 mb-0">
             <div class="h-px w-12 bg-gradient-to-r from-transparent to-orange-500/60"></div>
             <p class="text-neutral-500 text-xs tracking-[0.35em] uppercase">
@@ -453,13 +454,13 @@ const aboutHtml = computed(() => {
           <img v-if="squad.logo"
             :src="squad.logo"
             :alt="squad.name"
-            class="w-6 h-6 object-contain opacity-40"
+            class="w-6 h-6 object-contain opacity-70"
             @error="$event.target.style.display='none'"
           />
-          <svg v-else class="w-6 h-6 text-neutral-700 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <svg v-else class="w-6 h-6 text-neutral-700 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
           </svg>
-          <span class="text-neutral-600 text-sm">{{ squad.name }} &bull; {{ app.siteName }}</span>
+          <BrandWordmark variant="footer" />
         </div>
         <div class="text-neutral-700 text-xs tracking-wide">
           Tushino Serious Games &bull; Arma 3
