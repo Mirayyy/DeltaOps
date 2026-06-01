@@ -974,13 +974,6 @@ async function sendSlotNotification(slot, slotIdx) {
                   <span class="font-medium">{{ stat.sideName }}</span>
                   <span class="font-mono opacity-80">{{ formatPercent(stat.rate) }}</span>
                 </div>
-                <div
-                  v-if="currentMission.winStats?.totalGames"
-                  class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-xs text-neutral-400"
-                >
-                  <span class="font-medium">Игр</span>
-                  <span class="font-mono opacity-80">{{ currentMission.winStats.totalGames }}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -1086,13 +1079,6 @@ async function sendSlotNotification(slot, slotIdx) {
               >
                 <span class="font-medium">{{ stat.sideName }}</span>
                 <span class="font-mono opacity-80">{{ formatPercent(stat.rate) }}</span>
-              </div>
-              <div
-                v-if="currentMission.winStats?.totalGames"
-                class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-xs text-neutral-400"
-              >
-                <span class="font-medium">Игр</span>
-                <span class="font-mono opacity-80">{{ currentMission.winStats.totalGames }}</span>
               </div>
             </div>
           </div>
