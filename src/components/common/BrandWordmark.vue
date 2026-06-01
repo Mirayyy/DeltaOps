@@ -44,14 +44,14 @@ const secondaryLabel = computed(() => {
   return withoutPrefix
     .replace(/^[^A-Za-zА-Яа-я0-9]+/, '')
     .trim()
-    .toLowerCase()
+    .toUpperCase()
 })
 
 const wrapperClass = computed(() => {
   const align = props.centered ? 'justify-center text-center' : 'justify-start text-left'
 
   if (props.variant === 'hero') {
-    return `flex flex-wrap items-end gap-x-3 gap-y-1 ${align}`
+    return `flex flex-wrap items-end gap-x-2 gap-y-1 ${align}`
   }
 
   if (props.variant === 'footer') {
@@ -63,26 +63,26 @@ const wrapperClass = computed(() => {
 
 const primaryClass = computed(() => {
   if (props.variant === 'hero') {
-    return 'text-5xl md:text-7xl font-black tracking-[0.18em] text-white leading-none'
+    return 'text-5xl md:text-7xl font-black tracking-[0.08em] text-white leading-none'
   }
 
   if (props.variant === 'footer') {
-    return 'text-sm md:text-base font-black tracking-[0.14em] text-white leading-none'
+    return 'text-sm md:text-base font-black tracking-[0.08em] text-white leading-none'
   }
 
-  return 'text-lg md:text-xl font-black tracking-[0.16em] text-white leading-none'
+  return 'text-lg md:text-xl font-black tracking-[0.08em] text-white leading-none'
 })
 
 const secondaryClass = computed(() => {
   if (props.variant === 'hero') {
-    return 'pb-1 md:pb-1.5 text-sm md:text-xl font-light tracking-[0.28em] text-neutral-500 leading-none'
+    return 'pb-1 md:pb-1.5 text-sm md:text-xl font-light tracking-[0.16em] text-neutral-500 leading-none'
   }
 
   if (props.variant === 'footer') {
-    return 'pb-0.5 text-[9px] md:text-[10px] font-light tracking-[0.2em] text-neutral-500 leading-none'
+    return 'pb-0.5 text-[9px] md:text-[10px] font-light tracking-[0.12em] text-neutral-500 leading-none'
   }
 
-  return 'pb-0.5 text-[10px] md:text-xs font-light tracking-[0.24em] text-neutral-500 leading-none'
+  return 'pb-0.5 text-[10px] md:text-xs font-light tracking-[0.14em] text-neutral-500 leading-none'
 })
 </script>
 
