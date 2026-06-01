@@ -30,6 +30,31 @@ function sideColor(color) {
 
 const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission, squadConfig.side))
 const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCommanderSlot))
+
+const orderedWinStats = computed(() => {
+  const winStats = props.mission?.winStats
+  if (!winStats?.sideWins?.length) return []
+
+  const statsByKey = new Map(winStats.sideWins.map(stat => [stat.sideKey, stat]))
+  const ordered = []
+
+  for (const side of props.mission?.sides || []) {
+    const stat = statsByKey.get(side.color)
+    if (stat) ordered.push(stat)
+  }
+
+  for (const stat of winStats.sideWins) {
+    if (!ordered.some(item => item.sideKey === stat.sideKey)) {
+      ordered.push(stat)
+    }
+  }
+
+  return ordered
+})
+
+function formatPercent(rate) {
+  return `${Math.round((rate || 0) * 100)}%`
+}
 </script>
 
 <template>
@@ -128,6 +153,34 @@ const hasCommandHighlight = computed(() => Boolean(props.lineupStatus?.hasSideCo
             <span v-if="side.role && side.role !== 'Неопределено'" class="shrink-0 text-neutral-600">({{ side.role }})</span>
           </div>
           <span class="shrink-0 pl-2 font-mono text-neutral-500">{{ side.players }}</span>
+        </div>
+      </div>
+
+      <div v-if="mission.winStats && (orderedWinStats.length || mission.winStats.totalGames)" class="mt-3 pt-3 border-t border-neutral-800/50">
+        <div class="text-[10px] uppercase tracking-wider text-neutral-500 mb-1.5">Вероятность побед</div>
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="stat in orderedWinStats"
+            :key="stat.sideKey"
+            :class="[
+              'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium',
+              sideColor(stat.sideKey).bg,
+              sideColor(stat.sideKey).text,
+              sideColor(stat.sideKey).border,
+            ]"
+          >
+            <span>{{ stat.sideName }}</span>
+            <span class="font-mono opacity-80">{{ formatPercent(stat.rate) }}</span>
+          </span>
+          <span class="inline-flex items-center rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-[10px] font-medium text-neutral-400">
+            Игр {{ mission.winStats.totalGames || 0 }}
+          </span>
+          <span
+            v-if="mission.winStats.unknownWins"
+            class="inline-flex items-center rounded-md border border-neutral-800 bg-neutral-950/60 px-2 py-1 text-[10px] font-medium text-neutral-500"
+          >
+            Неизв. {{ mission.winStats.unknownWins }}
+          </span>
         </div>
       </div>
 

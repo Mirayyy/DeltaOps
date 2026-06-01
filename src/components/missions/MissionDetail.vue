@@ -39,6 +39,27 @@ function sideColor(color) {
 
 const groupedSides = computed(() => missionsStore.getGroupedSides(props.mission, squadConfig.side))
 
+const orderedWinStats = computed(() => {
+  const winStats = props.mission?.winStats
+  if (!winStats?.sideWins?.length) return []
+
+  const statsByKey = new Map(winStats.sideWins.map(stat => [stat.sideKey, stat]))
+  const ordered = []
+
+  for (const side of props.mission?.sides || []) {
+    const stat = statsByKey.get(side.color)
+    if (stat) ordered.push(stat)
+  }
+
+  for (const stat of winStats.sideWins) {
+    if (!ordered.some(item => item.sideKey === stat.sideKey)) {
+      ordered.push(stat)
+    }
+  }
+
+  return ordered
+})
+
 watch(groupedSides, (groups) => {
   if (groups?.ally?.length) {
     const allyIndex = props.mission.sides.indexOf(groups.ally[0])
@@ -55,6 +76,10 @@ function formatDate(dateStr) {
   if (dateStr.includes('.')) return dateStr
   // ISO → locale
   return new Date(dateStr).toLocaleString('ru-RU')
+}
+
+function formatPercent(rate) {
+  return `${Math.round((rate || 0) * 100)}%`
 }
 </script>
 
@@ -102,6 +127,33 @@ function formatDate(dateStr) {
     <div v-if="mission.additionalConditions" class="flex items-center gap-2 mb-5 text-xs text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
       <span class="font-medium">Доп. условия:</span>
       <span>{{ mission.additionalConditions }}</span>
+    </div>
+
+    <div v-if="mission.winStats && (orderedWinStats.length || mission.winStats.totalGames)" class="mb-5 rounded-lg border border-neutral-800 bg-neutral-800/30 p-4">
+      <div class="flex items-center justify-between gap-3 mb-3">
+        <div class="text-[10px] uppercase tracking-wider text-neutral-500">Вероятность побед</div>
+        <div class="text-[10px] text-neutral-600">
+          Игр: {{ mission.winStats.totalGames || 0 }}
+          <span v-if="mission.winStats.unknownWins"> · неизвестно: {{ mission.winStats.unknownWins }}</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div
+          v-for="stat in orderedWinStats"
+          :key="stat.sideKey"
+          :class="[
+            'rounded-lg border px-3 py-2',
+            sideColor(stat.sideKey).bg,
+            sideColor(stat.sideKey).border,
+          ]"
+        >
+          <div :class="[sideColor(stat.sideKey).text, 'text-xs font-medium mb-1']">{{ stat.sideName }}</div>
+          <div class="flex items-end justify-between gap-3">
+            <span :class="[sideColor(stat.sideKey).text, 'text-lg font-bold font-mono']">{{ formatPercent(stat.rate) }}</span>
+            <span class="text-[10px] text-neutral-500">{{ stat.wins }} побед</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Side tabs: grouped when rotation data available -->
