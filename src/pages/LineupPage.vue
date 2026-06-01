@@ -202,6 +202,16 @@ const enemySides = computed(() => {
 const allyGalleryImages = computed(() => allySides.value.flatMap(s => s.gallery || []))
 const enemyGalleryImages = computed(() => enemySides.value.flatMap(s => s.gallery || []))
 const galleryImages = computed(() => [...allyGalleryImages.value, ...enemyGalleryImages.value])
+const missionBarSides = computed(() => {
+  const mission = currentMission.value
+  if (!mission?.sides?.length) return []
+
+  const groupedSides = missionsStore.getGroupedSides(mission, squadConfig.side)
+  if (!groupedSides) return mission.sides
+
+  const ordered = [...groupedSides.ally, ...groupedSides.enemy]
+  return ordered.length ? ordered : mission.sides
+})
 const orderedWinStats = computed(() => {
   const winStats = currentMission.value?.winStats
   if (!winStats?.sideWins?.length) return []
@@ -869,7 +879,7 @@ async function sendSlotNotification(slot, slotIdx) {
     <div v-if="currentMission" class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden mb-4">
       <!-- Color bar -->
       <div class="flex h-1">
-        <div v-for="side in currentMission.sides" :key="'bar-'+side.name"
+        <div v-for="side in missionBarSides" :key="'bar-'+side.name"
           :class="[SIDE_COLORS[side.color]?.dot || 'bg-neutral-500', 'flex-1']"
           :style="{ flex: side.players }">
         </div>
@@ -940,17 +950,17 @@ async function sendSlotNotification(slot, slotIdx) {
                   <span class="leading-relaxed">{{ side.vehicles }}</span>
                 </div>
               </div>
-              <button v-if="allyGalleryImages.length"
-                @click="openGallery(allyGalleryImages, 0, 'Союзники')"
-                :style="galleryBtnStyle(allySides)"
-                class="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80 text-xs">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span class="font-medium">Галерея</span>
-                <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
-              </button>
-              <div v-if="allyWinStats.length || currentMission.winStats?.totalGames" class="mt-2 flex flex-wrap gap-1.5">
+              <div v-if="allyGalleryImages.length || allyWinStats.length || currentMission.winStats?.totalGames" class="mt-2 flex flex-wrap items-center gap-1.5">
+                <button v-if="allyGalleryImages.length"
+                  @click="openGallery(allyGalleryImages, 0, 'Союзники')"
+                  :style="galleryBtnStyle(allySides)"
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80 text-xs">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span class="font-medium">Галерея</span>
+                  <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
+                </button>
                 <div
                   v-for="stat in allyWinStats"
                   :key="'ally-win-' + stat.sideKey"
@@ -1010,17 +1020,17 @@ async function sendSlotNotification(slot, slotIdx) {
                   <span class="leading-relaxed">{{ side.vehicles }}</span>
                 </div>
               </div>
-              <button v-if="enemyGalleryImages.length"
-                @click="openGallery(enemyGalleryImages, 0, 'Противники')"
-                :style="galleryBtnStyle(enemySides)"
-                class="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80 text-xs">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span class="font-medium">Галерея</span>
-                <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
-              </button>
-              <div v-if="enemyWinStats.length" class="mt-2 flex flex-wrap gap-1.5">
+              <div v-if="enemyGalleryImages.length || enemyWinStats.length" class="mt-2 flex flex-wrap items-center gap-1.5">
+                <button v-if="enemyGalleryImages.length"
+                  @click="openGallery(enemyGalleryImages, 0, 'Противники')"
+                  :style="galleryBtnStyle(enemySides)"
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-opacity hover:opacity-80 text-xs">
+                  <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span class="font-medium">Галерея</span>
+                  <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
+                </button>
                 <div
                   v-for="stat in enemyWinStats"
                   :key="'enemy-win-' + stat.sideKey"
@@ -1054,16 +1064,16 @@ async function sendSlotNotification(slot, slotIdx) {
                 </div>
               </div>
             </div>
-            <button v-if="galleryImages.length"
-              @click="openGallery(galleryImages)"
-              class="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-delta-green/15 text-delta-green hover:bg-delta-green/25 border border-delta-green/30 transition-colors text-xs">
-              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span class="font-medium">Галерея</span>
-              <span class="text-[10px] font-mono opacity-70">{{ galleryImages.length }}</span>
-            </button>
-            <div v-if="orderedWinStats.length || currentMission.winStats?.totalGames" class="mt-2 flex flex-wrap gap-1.5">
+            <div v-if="galleryImages.length || orderedWinStats.length || currentMission.winStats?.totalGames" class="mt-2 flex flex-wrap items-center gap-1.5">
+              <button v-if="galleryImages.length"
+                @click="openGallery(galleryImages)"
+                class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-delta-green/15 text-delta-green hover:bg-delta-green/25 border border-delta-green/30 transition-colors text-xs">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="font-medium">Галерея</span>
+                <span class="text-[10px] font-mono opacity-70">{{ galleryImages.length }}</span>
+              </button>
               <div
                 v-for="stat in orderedWinStats"
                 :key="'mission-win-' + stat.sideKey"
