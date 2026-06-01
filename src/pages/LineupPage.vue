@@ -202,6 +202,37 @@ const enemySides = computed(() => {
 const allyGalleryImages = computed(() => allySides.value.flatMap(s => s.gallery || []))
 const enemyGalleryImages = computed(() => enemySides.value.flatMap(s => s.gallery || []))
 const galleryImages = computed(() => [...allyGalleryImages.value, ...enemyGalleryImages.value])
+const orderedWinStats = computed(() => {
+  const winStats = currentMission.value?.winStats
+  if (!winStats?.sideWins?.length) return []
+
+  const statsByKey = new Map(winStats.sideWins.map(stat => [stat.sideKey, stat]))
+  const ordered = []
+
+  for (const side of currentMission.value?.sides || []) {
+    const stat = statsByKey.get(side.color)
+    if (stat) ordered.push(stat)
+  }
+
+  for (const stat of winStats.sideWins) {
+    if (!ordered.some(item => item.sideKey === stat.sideKey)) {
+      ordered.push(stat)
+    }
+  }
+
+  return ordered
+})
+const winStatsBySide = computed(() => new Map(orderedWinStats.value.map(stat => [stat.sideKey, stat])))
+const allyWinStats = computed(() =>
+  allySides.value
+    .map(side => winStatsBySide.value.get(side.color))
+    .filter(Boolean)
+)
+const enemyWinStats = computed(() =>
+  enemySides.value
+    .map(side => winStatsBySide.value.get(side.color))
+    .filter(Boolean)
+)
 const showGallery = ref(false)
 const galleryStartIndex = ref(0)
 const galleryLabel = ref('')
@@ -225,6 +256,18 @@ function galleryBtnStyle(sides) {
     borderColor: `rgba(${colors[0]}, 0.3)`,
     color: `rgba(${colors[0]}, 0.85)`,
   }
+}
+
+function sideColorMeta(color) {
+  return SIDE_COLORS[color] || {
+    bg: 'bg-neutral-950/60',
+    border: 'border-neutral-700',
+    text: 'text-neutral-300',
+  }
+}
+
+function formatPercent(rate) {
+  return `${Math.round((rate || 0) * 100)}%`
 }
 
 const activeGalleryImages = ref([])
@@ -907,6 +950,28 @@ async function sendSlotNotification(slot, slotIdx) {
                 <span class="font-medium">Галерея</span>
                 <span class="text-[10px] font-mono opacity-70">{{ allyGalleryImages.length }}</span>
               </button>
+              <div v-if="allyWinStats.length || currentMission.winStats?.totalGames" class="mt-2 flex flex-wrap gap-1.5">
+                <div
+                  v-for="stat in allyWinStats"
+                  :key="'ally-win-' + stat.sideKey"
+                  :class="[
+                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs',
+                    sideColorMeta(stat.sideKey).bg,
+                    sideColorMeta(stat.sideKey).border,
+                    sideColorMeta(stat.sideKey).text,
+                  ]"
+                >
+                  <span class="font-medium">{{ stat.sideName }}</span>
+                  <span class="font-mono opacity-80">{{ formatPercent(stat.rate) }}</span>
+                </div>
+                <div
+                  v-if="currentMission.winStats?.totalGames"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-xs text-neutral-400"
+                >
+                  <span class="font-medium">Игр</span>
+                  <span class="font-mono opacity-80">{{ currentMission.winStats.totalGames }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -955,6 +1020,21 @@ async function sendSlotNotification(slot, slotIdx) {
                 <span class="font-medium">Галерея</span>
                 <span class="text-[10px] font-mono opacity-70">{{ enemyGalleryImages.length }}</span>
               </button>
+              <div v-if="enemyWinStats.length" class="mt-2 flex flex-wrap gap-1.5">
+                <div
+                  v-for="stat in enemyWinStats"
+                  :key="'enemy-win-' + stat.sideKey"
+                  :class="[
+                    'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs',
+                    sideColorMeta(stat.sideKey).bg,
+                    sideColorMeta(stat.sideKey).border,
+                    sideColorMeta(stat.sideKey).text,
+                  ]"
+                >
+                  <span class="font-medium">{{ stat.sideName }}</span>
+                  <span class="font-mono opacity-80">{{ formatPercent(stat.rate) }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </template>
@@ -983,6 +1063,28 @@ async function sendSlotNotification(slot, slotIdx) {
               <span class="font-medium">Галерея</span>
               <span class="text-[10px] font-mono opacity-70">{{ galleryImages.length }}</span>
             </button>
+            <div v-if="orderedWinStats.length || currentMission.winStats?.totalGames" class="mt-2 flex flex-wrap gap-1.5">
+              <div
+                v-for="stat in orderedWinStats"
+                :key="'mission-win-' + stat.sideKey"
+                :class="[
+                  'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs',
+                  sideColorMeta(stat.sideKey).bg,
+                  sideColorMeta(stat.sideKey).border,
+                  sideColorMeta(stat.sideKey).text,
+                ]"
+              >
+                <span class="font-medium">{{ stat.sideName }}</span>
+                <span class="font-mono opacity-80">{{ formatPercent(stat.rate) }}</span>
+              </div>
+              <div
+                v-if="currentMission.winStats?.totalGames"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-800 bg-neutral-950/60 px-2.5 py-1 text-xs text-neutral-400"
+              >
+                <span class="font-medium">Игр</span>
+                <span class="font-mono opacity-80">{{ currentMission.winStats.totalGames }}</span>
+              </div>
+            </div>
           </div>
         </template>
       </div>
