@@ -280,7 +280,7 @@ const aboutHtml = computed(() => {
       <div class="relative z-10 max-w-3xl mx-auto">
         <div class="flex items-center gap-3 mb-12">
           <div class="h-px flex-1 bg-gradient-to-r from-amber-600/50 to-transparent"></div>
-          <h2 class="text-xs tracking-[0.3em] uppercase text-amber-500 font-semibold">Достижения</h2>
+          <h2 class="text-xs tracking-[0.3em] uppercase text-amber-500 font-semibold">Награды</h2>
           <div class="h-px flex-1 bg-gradient-to-l from-amber-600/50 to-transparent"></div>
         </div>
 
