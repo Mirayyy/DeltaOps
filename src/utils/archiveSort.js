@@ -23,6 +23,29 @@ function toDateStamp(date = '') {
   return parsed.getFullYear() * 10000 + (parsed.getMonth() + 1) * 100 + parsed.getDate()
 }
 
+function toTimeStamp(value) {
+  if (!value) return Number.NEGATIVE_INFINITY
+
+  if (value instanceof Date) {
+    return value.getTime()
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? Number.NEGATIVE_INFINITY : parsed.getTime()
+  }
+
+  if (typeof value.toMillis === 'function') {
+    return value.toMillis()
+  }
+
+  if (typeof value.seconds === 'number') {
+    return value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1000000)
+  }
+
+  return Number.NEGATIVE_INFINITY
+}
+
 export function compareArchiveDates(dateA, dateB) {
   return toDateStamp(dateB) - toDateStamp(dateA)
 }
@@ -34,7 +57,7 @@ export function compareArchivedGames(a, b) {
   const scheduleCompare = scheduleRank(b?.schedule) - scheduleRank(a?.schedule)
   if (scheduleCompare !== 0) return scheduleCompare
 
-  return (b?.archivedAt || '').localeCompare(a?.archivedAt || '')
+  return toTimeStamp(b?.archivedAt) - toTimeStamp(a?.archivedAt)
 }
 
 export function sortArchivedGames(list = []) {
