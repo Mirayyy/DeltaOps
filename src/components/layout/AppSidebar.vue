@@ -42,9 +42,12 @@ const navItems = [
   { name: 'settings', label: 'Настройки', icon: 'settings', roles: ['admin'] },
 ]
 
-const mainItems = computed(() => navItems.filter(item => item.roles.includes('member')))
+const visibleNavItems = computed(() =>
+  navItems.filter(item => item.name !== 'stats' || (appConfig.loaded && appConfig.showStats))
+)
+const mainItems = computed(() => visibleNavItems.value.filter(item => item.roles.includes('member')))
 const adminItems = computed(() =>
-  auth.isUserAdmin ? navItems.filter(item => !item.roles.includes('member')) : []
+  auth.isUserAdmin ? visibleNavItems.value.filter(item => !item.roles.includes('member')) : []
 )
 
 const expanded = computed(() => !collapsed.value || hovered.value)

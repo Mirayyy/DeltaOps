@@ -458,6 +458,7 @@ function initSiteForm() {
     githubUrl: c.githubUrl || '',
     firestoreUrl: c.firestoreUrl || '',
     lineupResponsibleIds: Array.isArray(c.lineupResponsibleIds) ? [...c.lineupResponsibleIds] : [],
+    showStats: c.showStats !== false,
   }
 }
 
@@ -1192,6 +1193,15 @@ function formatDate(ts) {
             <input v-model="siteForm.firestoreUrl" type="url" placeholder="https://console.firebase.google.com/..."
               class="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-delta-green" />
           </div>
+        </div>
+
+        <div class="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4">
+          <BaseCheckbox v-model="siteForm.showStats">
+            <span class="text-sm text-neutral-200">Показывать статистику</span>
+          </BaseCheckbox>
+          <p class="mt-1 pl-5 text-xs text-neutral-600">
+            Если выключено, сайт скрывает разделы статистики и не запрашивает данные TSG API.
+          </p>
         </div>
 
         <!-- Quick links -->

@@ -15,6 +15,7 @@ const DEFAULTS = {
   githubUrl: '',
   firestoreUrl: '',
   lineupResponsibleIds: [],
+  showStats: true,
 }
 
 function normalizePlayerIds(value) {
@@ -67,6 +68,7 @@ export const useAppConfig = defineStore('appConfig', () => {
     config.value.firestoreUrl ||
     (firebaseProjectId ? `https://console.firebase.google.com/project/${firebaseProjectId}/firestore` : '')
   )
+  const showStats = computed(() => config.value.showStats !== false)
 
   async function fetch() {
     if (loaded.value) return
@@ -107,6 +109,7 @@ export const useAppConfig = defineStore('appConfig', () => {
   return {
     config, loaded,
     siteName, siteUrl, githubUrl, firestoreUrl,
+    showStats,
     fetch, save,
   }
 })

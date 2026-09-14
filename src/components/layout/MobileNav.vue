@@ -1,8 +1,11 @@
 <script setup>
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useAppConfig } from '../../stores/appConfig'
 
 const auth = useAuthStore()
+const appConfig = useAppConfig()
 const route = useRoute()
 
 const navItems = [
@@ -17,9 +20,16 @@ const navItems = [
   { name: 'settings', label: 'Настр.', icon: 'settings', roles: ['admin'] },
 ]
 
-function visibleItems() {
-  return navItems.filter(item => item.roles.includes(auth.userRole))
-}
+onMounted(() => {
+  appConfig.fetch()
+})
+
+const visibleItems = computed(() =>
+  navItems.filter(item =>
+    item.roles.includes(auth.userRole) &&
+    (item.name !== 'stats' || (appConfig.loaded && appConfig.showStats))
+  )
+)
 
 const ICON_PATHS = {
   user: ['M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'],
@@ -38,7 +48,7 @@ const ICON_PATHS = {
   <nav class="fixed bottom-0 left-0 right-0 mobile-nav-glass border-t border-neutral-800/60 z-50">
     <div class="flex justify-around py-1.5">
       <router-link
-        v-for="item in visibleItems()"
+        v-for="item in visibleItems"
         :key="item.name"
         :to="{ name: item.name }"
         :class="[

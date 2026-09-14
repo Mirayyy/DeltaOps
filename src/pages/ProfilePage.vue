@@ -9,6 +9,7 @@ import { useStatsStore } from '../stores/stats'
 import { useArchiveStore } from '../stores/archive'
 import { useWebContentStore } from '../stores/webContent'
 import { useWeekStateStore } from '../stores/weekState'
+import { useAppConfig } from '../stores/appConfig'
 import { useGameWeek } from '../composables/useGameWeek'
 import { getTsgUrl, SIDE_COLORS, SLOT_TYPES } from '../utils/constants'
 import { kpdColor } from '../utils/formatters'
@@ -31,6 +32,7 @@ const statsStore = useStatsStore()
 const archiveStore = useArchiveStore()
 const webContent = useWebContentStore()
 const weekState = useWeekStateStore()
+const appConfig = useAppConfig()
 const { games } = useGameWeek()
 const toast = useToast()
 
@@ -40,6 +42,7 @@ const editingAvatar = ref(false)
 const avatarUrl = ref('')
 
 onMounted(async () => {
+  await appConfig.fetch()
   if (!roster.players.length) await roster.fetchPlayers()
 
   await Promise.all([
@@ -49,7 +52,7 @@ onMounted(async () => {
   ])
 
   // Secondary blocks should not prevent the profile from opening.
-  statsStore.fetchStats()
+  if (appConfig.showStats) statsStore.fetchStats()
   archiveStore.fetchArchives()
   webContent.fetchContent()
 })
@@ -98,6 +101,7 @@ const playerAwards = computed(() => {
 })
 
 const playerKpd = computed(() => {
+  if (!appConfig.showStats) return null
   if (!player.value) return null
   return statsStore.getPlayerStats(player.value.nickname)
 })
@@ -391,7 +395,7 @@ async function handleSave(data) {
     </div>
 
     <!-- Stats (full width, TSG table format) -->
-    <div class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden mb-4">
+    <div v-if="appConfig.loaded && appConfig.showStats" class="bg-neutral-900 rounded-xl border border-neutral-800 overflow-hidden mb-4">
       <div class="flex items-center justify-between px-6 py-3 border-b border-neutral-800">
         <h3 class="text-xs font-medium text-neutral-500 uppercase tracking-wider">Статистика</h3>
         <span v-if="playerKpd" :class="['text-lg font-bold font-mono', kpdColor(playerKpd.kpd || 0)]">

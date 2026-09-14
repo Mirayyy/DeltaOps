@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { useRosterStore } from '../stores/roster'
 import { useArchiveStore } from '../stores/archive'
 import { useStatsStore } from '../stores/stats'
+import { useAppConfig } from '../stores/appConfig'
 import { getTsgUrl, POSITIONS } from '../utils/constants'
 import { kpdColor } from '../utils/formatters'
 import { normalizeHttpUrl } from '../utils/urls'
@@ -19,6 +20,7 @@ const router = useRouter()
 const roster = useRosterStore()
 const archiveStore = useArchiveStore()
 const statsStore = useStatsStore()
+const appConfig = useAppConfig()
 const auth = useAuthStore()
 const isAdmin = computed(() => auth.isUserAdmin)
 
@@ -66,7 +68,10 @@ function loadVisibleColumns() {
 
 watch(visibleKeys, v => localStorage.setItem(STORAGE_KEY, JSON.stringify(v)), { deep: true })
 
-const visibleColumns = computed(() => ALL_COLUMNS.filter(c => visibleKeys.value.includes(c.key)))
+const availableColumns = computed(() =>
+  ALL_COLUMNS.filter(c => c.key !== 'kpd' || (appConfig.loaded && appConfig.showStats))
+)
+const visibleColumns = computed(() => availableColumns.value.filter(c => visibleKeys.value.includes(c.key)))
 const centeredColumns = new Set([
   'status',
   'attRotation',
@@ -98,11 +103,11 @@ function toggleColumn(key) {
 
 // --- Data loading ---
 onMounted(async () => {
+  await appConfig.fetch()
   await roster.fetchPlayers()
-  await Promise.all([
-    archiveStore.fetchArchives(),
-    statsStore.fetchStats(),
-  ])
+  const requests = [archiveStore.fetchArchives()]
+  if (appConfig.showStats) requests.push(statsStore.fetchStats())
+  await Promise.all(requests)
 })
 
 // --- Player enrichment (attach stats) ---
@@ -117,7 +122,7 @@ function getPlayerData(player) {
   const optRot = activeRotation.value
     ? archiveStore.getPlayerOpticsStats(player.uid, activeRotation.value.id)
     : null
-  const stats = statsStore.getPlayerStats(player.nickname)
+  const stats = appConfig.showStats ? statsStore.getPlayerStats(player.nickname) : null
 
   return {
     ...player,
@@ -365,7 +370,7 @@ function goToProfile(uid) {
       class="fixed right-4 top-20 sm:right-auto sm:top-auto sm:absolute bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl z-30 w-56 py-2 max-h-[70vh] overflow-y-auto"
       style="right: 1rem;">
       <div class="px-3 py-1.5 text-[10px] text-neutral-500 uppercase tracking-wider">Колонки</div>
-      <div v-for="col in ALL_COLUMNS" :key="col.key"
+      <div v-for="col in availableColumns" :key="col.key"
         :class="['px-3 py-1.5 hover:bg-neutral-700 transition-colors',
           col.key === 'nickname' ? 'opacity-50' : '']">
         <BaseCheckbox

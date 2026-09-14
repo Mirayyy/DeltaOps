@@ -5,16 +5,20 @@ import { useStatsStore } from '../stores/stats'
 import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import { kpdColor } from '../utils/formatters'
 import { useSquadConfig } from '../stores/squadConfig'
+import { useAppConfig } from '../stores/appConfig'
 
 const roster = useRosterStore()
 const statsStore = useStatsStore()
 const squad = useSquadConfig()
+const appConfig = useAppConfig()
 
 const activeTab = ref('general')
 const sortKey = ref('rank')
 const sortAsc = ref(true)
 
 onMounted(async () => {
+  await appConfig.fetch()
+  if (!appConfig.showStats) return
   if (!roster.players.length) await roster.fetchPlayers()
   await statsStore.fetchStats()
 })
@@ -111,6 +115,7 @@ function playerProfileUrl(callsign) {
 }
 
 async function refresh() {
+  if (!appConfig.showStats) return
   await statsStore.fetchFromApi()
 }
 

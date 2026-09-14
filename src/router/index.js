@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useAppConfig } from '../stores/appConfig'
 
 function detectRouterBase() {
   const path = window.location.pathname || '/'
@@ -86,6 +87,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const appConfig = useAppConfig()
 
   // Wait for Firebase auth to finish initializing before checking permissions
   await auth.waitForInit()
@@ -100,6 +102,11 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAdmin && !auth.isUserAdmin) {
     return { name: 'profile' }
+  }
+
+  if (to.name === 'stats') {
+    await appConfig.fetch()
+    if (!appConfig.showStats) return { name: 'profile' }
   }
 })
 

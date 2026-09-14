@@ -128,7 +128,7 @@ async function fetchStats() {
 
 onMounted(async () => {
   await Promise.all([squad.fetch(), app.fetch()])
-  fetchStats()
+  if (app.showStats) fetchStats()
   webContent.fetchContent()
   if (!roster.players.length) roster.fetchPlayers()
   if (!archive.rotations.length) archive.fetchArchives()
@@ -316,7 +316,7 @@ const aboutHtml = computed(() => {
     </section>
 
     <!-- ═══ STATS ═══ -->
-    <section class="relative py-20 px-6">
+    <section v-if="app.loaded && app.showStats" class="relative py-20 px-6">
       <div class="absolute inset-0 bg-gradient-to-b from-neutral-900/30 via-neutral-950 to-neutral-900/30"></div>
 
       <div class="relative z-10 max-w-3xl mx-auto">
