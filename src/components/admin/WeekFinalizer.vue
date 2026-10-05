@@ -42,6 +42,7 @@ function isInSlots(gameId, playerId) {
 const confirmedNotInSlots = computed(() => {
   const problems = []
   for (const game of games.value) {
+    if (attendance.isGameSkipped(game.id)) continue
     for (const p of roster.activePlayers) {
       const status = attendance.getPlayerAttendance(game.id, p.uid)
       if (status === 'confirmed' && !isInSlots(game.id, p.uid)) {
@@ -59,6 +60,7 @@ const canFinalize = computed(() =>
 // Preview what will happen
 const preview = computed(() => {
   return games.value.map(game => {
+    const skipped = attendance.isGameSkipped(game.id)
     const slots = gamesStore.getSlots(game.id)
     const assigned = slots.filter(s => s.playerId).length
 
@@ -83,6 +85,7 @@ const preview = computed(() => {
       id: game.id,
       label: gameLabel[game.id] || game.id,
       date: game.date,
+      skipped,
       slotCount: slots.length,
       assigned,
       confirmed,
@@ -111,6 +114,8 @@ async function finalize() {
     const archivedGameIds = []
 
     for (const game of games.value) {
+      if (attendance.isGameSkipped(game.id)) continue
+
       const gameData = gamesStore.getGame(game.id)
       const missionData = missionsStore.getMission(game.id)
 
@@ -178,9 +183,14 @@ async function finalize() {
           class="bg-neutral-800 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2">
             <span class="text-sm font-medium">{{ g.label }}</span>
-            <span class="text-[10px] text-neutral-500">{{ g.date }}</span>
+            <span :class="['text-[10px]', g.skipped ? 'text-orange-300' : 'text-neutral-500']">
+              {{ g.skipped ? 'пропуск' : g.date }}
+            </span>
           </div>
-          <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          <div v-if="g.skipped" class="text-xs text-orange-300/90">
+            Игра не будет архивирована и не повлияет на статистику.
+          </div>
+          <div v-else class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span>Слотов: <span class="text-neutral-300 font-mono">{{ g.assigned }}/{{ g.slotCount }}</span></span>
             <span>Буду: <span class="text-green-400 font-mono">{{ g.confirmed }}</span></span>
             <span v-if="g.tentativeToConfirmed">

@@ -77,6 +77,8 @@ const pageLoading = computed(() =>
 
 const currentMission = computed(() => missionsStore.getMission(activeTab.value))
 const currentGame = computed(() => gamesStore.getGame(activeTab.value))
+const activeGameMeta = computed(() => games.value.find(game => game.id === activeTab.value) || null)
+const isActiveGameSkipped = computed(() => attendance.isGameSkipped(activeTab.value))
 const confirmAction = ref(null)
 const confirmBusy = ref(false)
 
@@ -689,6 +691,80 @@ async function confirmClearLineup() {
   })
 }
 
+async function confirmClearAttendance() {
+  requestConfirmation({
+    title: 'Очистить посещаемость',
+    message: 'Очистить отметки посещаемости только для текущей игры?',
+    details: ['Расстановка, миссия и запросы на слоты останутся без изменений. Игра не будет помечена как пропущенная.'],
+    confirmLabel: 'Очистить',
+    tone: 'warning',
+    onConfirm: async () => {
+      await attendance.clearGameAttendance(activeTab.value)
+      await writeAuditLog({
+        action: 'clear',
+        entityType: 'attendance',
+        entityId: activeTab.value,
+        summary: `attendance - clear - ${activeTab.value}`,
+        after: {
+          gameId: activeTab.value,
+        },
+      })
+      toast.success('Посещаемость игры очищена')
+    },
+  })
+}
+
+async function confirmSkipGame() {
+  const game = activeGameMeta.value
+  requestConfirmation({
+    title: isActiveGameSkipped.value ? 'Вернуть игру' : 'Пропустить игру',
+    message: isActiveGameSkipped.value
+      ? 'Убрать отметку пропуска с текущей игры?'
+      : 'Пометить текущую игру как не состоявшуюся?',
+    details: isActiveGameSkipped.value
+      ? ['После возврата игра снова попадёт в завершение недели, если не будет пропущена повторно.']
+      : [
+          'Посещаемость по этой игре будет очищена.',
+          'При завершении недели игра не попадёт в архив и не изменит статистику.',
+          'Расстановка и миссия останутся на экране до общей очистки недели.',
+        ],
+    confirmLabel: isActiveGameSkipped.value ? 'Вернуть' : 'Пропустить',
+    tone: 'warning',
+    onConfirm: async () => {
+      if (isActiveGameSkipped.value) {
+        await attendance.clearGameAttendance(activeTab.value)
+        await writeAuditLog({
+          action: 'restore',
+          entityType: 'attendance',
+          entityId: activeTab.value,
+          summary: `attendance - restore-game - ${activeTab.value}`,
+          after: {
+            gameId: activeTab.value,
+          },
+        })
+        toast.success('Игра возвращена в недельный цикл')
+        return
+      }
+
+      await attendance.skipGame(activeTab.value, {
+        date: currentGame.value?.date || game?.date || '',
+      })
+      await writeAuditLog({
+        action: 'skip',
+        entityType: 'attendance',
+        entityId: activeTab.value,
+        summary: `attendance - skip-game - ${activeTab.value}`,
+        after: {
+          gameId: activeTab.value,
+          date: currentGame.value?.date || game?.date || '',
+          reason: 'game-cancelled',
+        },
+      })
+      toast.success('Игра помечена как пропущенная')
+    },
+  })
+}
+
 async function confirmClearGame() {
   requestConfirmation({
     title: 'Удалить миссию',
@@ -853,6 +929,21 @@ async function sendSlotNotification(slot, slotIdx) {
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-purple-500/30 hover:border-purple-500/60 text-purple-400 hover:text-purple-300 rounded-lg transition-colors">
           Очистить расстановку
         </button>
+        <button v-if="isAdmin"
+          @click="confirmClearAttendance"
+          class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-amber-500/30 hover:border-amber-500/60 text-amber-400 hover:text-amber-300 rounded-lg transition-colors">
+          Очистить посещаемость
+        </button>
+        <button v-if="isAdmin"
+          @click="confirmSkipGame"
+          :class="[
+            'px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 rounded-lg transition-colors',
+            isActiveGameSkipped
+              ? 'border border-emerald-500/30 hover:border-emerald-500/60 text-emerald-400 hover:text-emerald-300'
+              : 'border border-orange-500/30 hover:border-orange-500/60 text-orange-400 hover:text-orange-300'
+          ]">
+          {{ isActiveGameSkipped ? 'Вернуть игру' : 'Пропустить игру' }}
+        </button>
         <button v-if="isAdmin && (currentMission || gamesStore.getGame(activeTab))"
           @click="confirmClearGame"
           class="px-3 py-1.5 text-xs bg-neutral-800 hover:bg-neutral-700 border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 rounded-lg transition-colors">
@@ -867,12 +958,19 @@ async function sendSlotNotification(slot, slotIdx) {
         @click="selectTab(game.id)"
         :class="[
           'flex-1 py-2 text-sm font-medium rounded-lg transition-all',
+          attendance.isGameSkipped(game.id)
+            ? 'border border-orange-500/30 text-orange-300'
+            : '',
           activeTab === game.id
             ? 'bg-delta-green text-white shadow'
             : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
         ]">
-        {{ game.label }}
+        {{ game.label }}<span v-if="attendance.isGameSkipped(game.id)" class="ml-1 text-[10px]">(пропуск)</span>
       </button>
+    </div>
+
+    <div v-if="isActiveGameSkipped" class="mb-4 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3">
+      <p class="text-sm text-orange-300">Эта игра помечена как пропущенная и не попадёт в архив при завершении недели.</p>
     </div>
 
     <!-- Mission info card -->

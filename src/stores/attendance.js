@@ -14,6 +14,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
     return attendance.value[gameId] || { schedule: gameId, date: '', records: [] }
   }
 
+  function isGameSkipped(gameId) {
+    return attendance.value[gameId]?.skipped === true
+  }
+
   function getPlayerAttendance(gameId, playerId) {
     const game = getGameAttendance(gameId)
     const record = game.records.find(r => r.playerId === playerId)
@@ -65,6 +69,11 @@ export const useAttendanceStore = defineStore('attendance', () => {
   async function saveAttendanceFirestore(gameId, data) {
     const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
     await setDoc(doc(db, 'attendance', gameId), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+  }
+
+  async function deleteAttendanceFirestore(gameId) {
+    const { doc, deleteDoc, db } = await import('../firebase/firestore')
+    await deleteDoc(doc(db, 'attendance', gameId)).catch(() => {})
   }
 
   // --- Public API ---
@@ -157,10 +166,26 @@ export const useAttendanceStore = defineStore('attendance', () => {
     saveAttendanceFirestore(gameId, attendance.value[gameId])
   }
 
+  async function clearGameAttendance(gameId) {
+    await deleteAttendanceFirestore(gameId)
+    delete attendance.value[gameId]
+  }
+
+  async function skipGame(gameId, { date = '' } = {}) {
+    const game = {
+      schedule: gameId,
+      date,
+      records: [],
+      skipped: true,
+      skippedReason: 'game-cancelled',
+    }
+    attendance.value[gameId] = game
+    await saveAttendanceFirestore(gameId, game)
+  }
+
   /** Clear all attendance (new week reset) */
   async function clearAttendance() {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'attendance', id)).catch(() => {})))
+    await Promise.all(GAME_IDS.map(id => deleteAttendanceFirestore(id)))
     attendance.value = {}
   }
 
@@ -172,7 +197,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
   return {
     attendance, loading,
     getGameAttendance, getPlayerAttendance, getPlayerReadiness,
-    summary, unrespondedPlayers,
-    fetchAttendance, setPlayerAttendance, applyAttendancePresets, setDate, clearAttendance, cleanup,
+    isGameSkipped, summary, unrespondedPlayers,
+    fetchAttendance, setPlayerAttendance, applyAttendancePresets, setDate,
+    clearGameAttendance, skipGame, clearAttendance, cleanup,
   }
 })

@@ -57,6 +57,7 @@ const summaryRows = computed(() => {
   const activeIds = new Set(roster.activePlayers.map(p => p.uid))
   const totalActive = activeIds.size
   return games.value.map(game => {
+    const skipped = attendance.isGameSkipped(game.id)
     const records = attendance.getGameAttendance(game.id).records || []
     const counts = { confirmed: 0, tentative: 0, absent: 0 }
     for (const r of records) {
@@ -67,7 +68,7 @@ const summaryRows = computed(() => {
     }
     const no_response = totalActive - counts.confirmed - counts.tentative - counts.absent
     const ready_total = counts.confirmed + counts.tentative
-    return { ...game, ...counts, ready_total, no_response, total: totalActive }
+    return { ...game, ...counts, skipped, ready_total, no_response, total: totalActive }
   })
 })
 
@@ -324,7 +325,10 @@ async function onWeekFinalized() {
         <div class="text-xs text-neutral-500 mb-1">{{ row.label }}</div>
         <div class="text-sm text-neutral-400 mb-3">{{ row.date }}</div>
 
-        <div class="space-y-1.5">
+        <div v-if="row.skipped" class="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-sm text-orange-300">
+          Пропуск
+        </div>
+        <div v-else class="space-y-1.5">
           <div class="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1.5">
             <span class="flex items-center gap-1.5">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
