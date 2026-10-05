@@ -1,6 +1,6 @@
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, onSnapshot, writeBatch, serverTimestamp
+  query, where, orderBy, limit, startAfter, onSnapshot, writeBatch, serverTimestamp
 } from 'firebase/firestore'
 import { db } from './config'
 
@@ -23,5 +23,5 @@ export const weekConfigRef = doc(db, 'config', 'week')
 // Re-export commonly used Firestore functions
 export {
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, onSnapshot, writeBatch, serverTimestamp, collection, db
+  query, where, orderBy, limit, startAfter, onSnapshot, writeBatch, serverTimestamp, collection, db
 }

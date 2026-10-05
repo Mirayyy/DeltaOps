@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../firebase/config'
 import { isAdmin, isMember } from '../utils/permissions'
-import { writeAuditLog } from '../utils/auditLog'
+import { auditedWrite } from '../utils/auditLog'
 
 export const useAuthStore = defineStore('auth', () => {
   const firebaseUser = ref(null)
@@ -50,8 +50,7 @@ export const useAuthStore = defineStore('auth', () => {
         createdAt: serverTimestamp(),
         lastLoginAt: serverTimestamp(),
       }
-      await setDoc(userDocRef, newUser)
-      await writeAuditLog({
+      await auditedWrite({
         action: 'create',
         entityType: 'users',
         entityId: fbUser.uid,
@@ -63,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
           photoURL: fbUser.photoURL || '',
           role: 'guest',
         },
-      })
+      }, () => setDoc(userDocRef, newUser))
       return { uid: fbUser.uid, ...newUser }
     } catch (e) {
       console.warn('fetchOrCreateUser failed:', e.message)
@@ -101,11 +100,7 @@ export const useAuthStore = defineStore('auth', () => {
         role: userData.role,
       }
       const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
-      await setDoc(doc(db, 'users', userData.uid), {
-        role: 'member',
-        lastLoginAt: serverTimestamp(),
-      }, { merge: true })
-      await writeAuditLog({
+      await auditedWrite({
         action: 'update',
         entityType: 'users',
         entityId: userData.uid,
@@ -120,7 +115,9 @@ export const useAuthStore = defineStore('auth', () => {
           playerUid: foundPlayer.uid,
           playerNickname: foundPlayer.nickname || '',
         },
-      })
+      }, () => setDoc(doc(db, 'users', userData.uid), {
+        role: 'member', lastLoginAt: serverTimestamp(),
+      }, { merge: true }))
       return { ...userData, role: 'member' }
     } catch (e) {
       console.warn('tryAutoLink failed:', e.message)
@@ -132,6 +129,9 @@ export const useAuthStore = defineStore('auth', () => {
   async function resolveAuth(fbUser) {
     let userData = await fetchOrCreateUser(fbUser)
     const foundPlayer = await fetchPlayerByEmail(fbUser.email)
+
+    user.value = userData
+    player.value = foundPlayer
 
     if (foundPlayer) {
       userData = await tryAutoLink(userData, foundPlayer)
@@ -208,8 +208,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Admin: update user role ---
   async function updateUserRole(userId, role) {
-    const { doc, setDoc, db } = await import('../firebase/firestore')
-    await setDoc(doc(db, 'users', userId), { role }, { merge: true })
+    const { useUsersStore } = await import('./users')
+    await useUsersStore().setRole(userId, role)
   }
 
   return {

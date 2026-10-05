@@ -20,7 +20,7 @@ import { useSquadConfig } from '../stores/squadConfig'
 import { useWeekStateStore } from '../stores/weekState'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
-import { writeAuditLog } from '../utils/auditLog'
+import { runAuditOperation, cloneForAudit } from '../utils/auditLog'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -183,9 +183,7 @@ function cycleReadiness(gameId, playerId, currentStatus) {
 
 async function sendReminder() {
   const msg = telegram.buildReminderMessage(allUnresponded.value, gameDates.value)
-  const result = await telegram.sendMessage(msg)
-  if (result.ok) {
-    await writeAuditLog({
+  const telegramAudit = {
       action: 'send',
       entityType: 'telegram',
       entityId: 'readiness-reminder',
@@ -195,7 +193,10 @@ async function sendReminder() {
         playerNicknames: allUnresponded.value.map(player => player.nickname),
         gameDates: gameDates.value,
       },
-    })
+    }
+  const result = await telegram.sendMessage(msg, { audit: telegramAudit })
+  if (result.ok) {
+
     toast.success('Напоминание отправлено')
   } else {
     toast.error('Ошибка: ' + result.error)
@@ -213,9 +214,7 @@ async function sendMissionsToTelegram() {
     return
   }
   const msg = telegram.buildMissionsMessage(missionsData, gameDates.value, squadConfig.side)
-  const result = await telegram.sendMessage(msg)
-  if (result.ok) {
-    await writeAuditLog({
+  const telegramAudit = {
       action: 'send',
       entityType: 'telegram',
       entityId: 'missions-summary',
@@ -225,7 +224,10 @@ async function sendMissionsToTelegram() {
         side: squadConfig.side,
         gameDates: gameDates.value,
       },
-    })
+    }
+  const result = await telegram.sendMessage(msg, { audit: telegramAudit })
+  if (result.ok) {
+
     toast.success('Миссии отправлены в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
@@ -233,23 +235,20 @@ async function sendMissionsToTelegram() {
 }
 
 async function skipCurrentWeek() {
-  await gamesStore.clearGames()
-  await missionsStore.clearMissions()
-  await attendance.clearAttendance()
-  await weekState.clearLockedWeek()
-
-  await writeAuditLog({
-    action: 'skip',
-    entityType: 'week',
-    entityId: `${gameDates.value.friday || ''}-${gameDates.value.saturday || ''}`,
-    summary: 'Неделя пропущена без архивации',
-    after: {
-      reason: 'games-cancelled',
-      friday: gameDates.value.friday || '',
-      saturday: gameDates.value.saturday || '',
-    },
+  const dates = cloneForAudit(gameDates.value)
+  await runAuditOperation({ action: 'skip', entityType: 'week', eventType: 'week.skipped',
+    entityId: `${dates.friday || ''}-${dates.saturday || ''}`, before: dates,
+  }, async (audit, completed) => {
+    await gamesStore.clearGames(audit)
+    completed.push('Очищены расстановки')
+    await missionsStore.clearMissions(audit)
+    completed.push('Очищены миссии')
+    await attendance.clearAttendance(audit)
+    completed.push('Очищена посещаемость')
+    await weekState.clearLockedWeek(audit)
+    completed.push('Сброшено закрепление недели')
+    return { ...dates, reason: 'games-cancelled' }
   })
-
   toast.success('Неделя пропущена, текущие данные очищены')
 }
 

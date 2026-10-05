@@ -8,7 +8,7 @@ import { useMissionsStore } from '../../stores/missions'
 import { useSquadConfig } from '../../stores/squadConfig'
 import { useWeekStateStore } from '../../stores/weekState'
 import { useGameWeek } from '../../composables/useGameWeek'
-import { writeAuditLog } from '../../utils/auditLog'
+import { runAuditOperation, cloneForAudit } from '../../utils/auditLog'
 import BaseModal from '../common/BaseModal.vue'
 
 const emit = defineEmits(['close', 'done'])
@@ -111,10 +111,19 @@ async function finalize() {
   if (!canFinalize.value) return
   processing.value = true
   try {
+    const weekGames = cloneForAudit(games.value)
+    const rotationId = activeRotation.value?.id || ''
+    await runAuditOperation({ action: 'finalize', entityType: 'week', eventType: 'week.finalized',
+      entityId: `${weekGames[0]?.date || ''}-${weekGames.at(-1)?.date || ''}`,
+      before: { games: weekGames, rotationId },
+    }, async (audit, completed) => {
     const archivedGameIds = []
+    const archivedIds = []
+    const existingArchiveIds = []
+    const skippedGameIds = []
 
-    for (const game of games.value) {
-      if (attendance.isGameSkipped(game.id)) continue
+    for (const game of weekGames) {
+      if (attendance.isGameSkipped(game.id)) { skippedGameIds.push(game.id); continue }
 
       const gameData = gamesStore.getGame(game.id)
       const missionData = missionsStore.getMission(game.id)
@@ -131,7 +140,7 @@ async function finalize() {
         return { playerId: p.uid, attendance: finalStatus }
       })
 
-      await archive.archiveGame({
+      const entry = await archive.archiveGame({
         schedule: game.id,
         date: gameData?.date || game.date || '',
         sourceUrl: gameData?.sourceUrl || '',
@@ -142,30 +151,30 @@ async function finalize() {
         slots: gameData?.slots || [],
         records,
         task: gameData?.task || '',
-        adminUid: 'admin',
-      })
-      archivedGameIds.push(game.id)
+      }, audit)
+      if (entry) {
+        archivedGameIds.push(game.id)
+        archivedIds.push(entry.id)
+        completed.push(`Архивирована игра ${game.id}`)
+      } else {
+        existingArchiveIds.push(`${gameData?.date || game.date}-${game.id}`)
+      }
     }
 
-    await gamesStore.clearGames()
-    await missionsStore.clearMissions()
-    await attendance.clearAttendance()
-    await weekState.clearLockedWeek()
-
-    await writeAuditLog({
-      action: 'finalize',
-      entityType: 'week',
-      entityId: `${games.value[0]?.date || ''}-${games.value[games.value.length - 1]?.date || ''}`,
-      summary: 'Неделя завершена',
-      after: {
-        archivedGameIds,
-        rotationId: activeRotation.value?.id || '',
-      },
+    await gamesStore.clearGames(audit)
+    completed.push('Очищены расстановки')
+    await missionsStore.clearMissions(audit)
+    completed.push('Очищены миссии')
+    await attendance.clearAttendance(audit)
+    completed.push('Очищена посещаемость')
+    await weekState.clearLockedWeek(audit)
+    completed.push('Сброшено закрепление недели')
+    return { archivedGameIds, archivedIds, existingArchiveIds, skippedGameIds, rotationId }
     })
 
     emit('done')
 
-    void attendance.applyAttendancePresets(roster.activePlayers)
+    await attendance.applyAttendancePresets(roster.activePlayers)
   } finally {
     processing.value = false
   }

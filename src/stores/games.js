@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { GAME_IDS } from '../utils/constants'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, logEntitySnapshot, auditedWrite, captureAuditContext, newAuditOperationId, writeAuditLog } from '../utils/auditLog'
+import { auditEqual } from '../utils/auditFormat.js'
+import { useToast } from '../composables/useToast'
 import { useAppConfig } from './appConfig'
 import { useAuthStore } from './auth'
 import { useMissionsStore } from './missions'
@@ -50,8 +52,13 @@ export const useGamesStore = defineStore('games', () => {
     return JSON.stringify(normalizeSlotRequest(previous)) !== JSON.stringify(normalizeSlotRequest(next))
   }
 
-  async function notifyLineupResponsibles(gameId, request, previousRequest) {
-    if (!telegram.isConfigured) return
+  async function notifyLineupResponsibles(gameId, request, previousRequest, audit = {}) {
+    if (!telegram.isConfigured) {
+      await writeAuditLog({ ...audit, action: 'send', entityType: 'telegram', entityId: 'request-notification',
+        outcome: 'skipped', metadata: { gameId, playerId: request.playerId, automatic: true, reason: 'Telegram не настроен' },
+      })
+      return
+    }
 
     if (!appConfig.loaded) {
       await appConfig.fetch()
@@ -89,9 +96,18 @@ export const useGamesStore = defineStore('games', () => {
     for (const responsibleId of recipientIds) {
       const responsiblePlayer = roster.getPlayer(responsibleId)
       const responsibleTelegramId = responsiblePlayer?.telegramId
-      if (!responsibleTelegramId) continue
+      if (!responsibleTelegramId) {
+        await writeAuditLog({ ...audit, action: 'send', entityType: 'telegram', entityId: 'request-notification',
+          outcome: 'skipped', metadata: { gameId, playerId: request.playerId, recipientId: responsibleId,
+            automatic: true, reason: 'У ответственного не указан Telegram ID' },
+        })
+        continue
+      }
 
-      const result = await telegram.sendMessage(message, { chatId: responsibleTelegramId })
+      const result = await telegram.sendMessage(message, { chatId: responsibleTelegramId, audit: {
+        ...audit, entityId: 'request-notification',
+        metadata: { gameId, playerId: request.playerId, recipientId: responsibleId, automatic: true },
+      } })
       if (!result.ok) {
         console.warn(`Failed to notify lineup responsible ${responsibleId}:`, result.error)
       }
@@ -301,7 +317,7 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   /** Remove a player from all slots in a game (e.g. when marked absent) */
-  function unassignPlayerFromGame(gameId, playerId) {
+  function unassignPlayerFromGame(gameId, playerId, audit = {}) {
     const game = games.value[gameId]
     if (!game) return
     const before = cloneForAudit(game)
@@ -313,7 +329,8 @@ export const useGamesStore = defineStore('games', () => {
       }
     }
     if (changed) {
-      void persist(gameId, {
+      return persist(gameId, {
+        ...audit,
         before,
         summary: `games - update - ${gameId}`,
         metadata: {
@@ -376,11 +393,10 @@ export const useGamesStore = defineStore('games', () => {
 
     const changed = isSlotRequestChanged(before, request)
 
-    await saveSlotRequestFirestore(gameId, playerId, request)
-    if (changed) {
-      await notifyLineupResponsibles(gameId, request, before)
-    }
-    await logEntitySnapshot({
+    if (!changed) return
+    const audit = { operationId: newAuditOperationId(), ...captureAuditContext() }
+    await auditedWrite({
+      ...audit,
       entityType: 'slotRequests',
       entityId: buildSlotRequestId(gameId, playerId),
       before,
@@ -391,7 +407,14 @@ export const useGamesStore = defineStore('games', () => {
         playerId,
         gameId,
       },
-    })
+    }, () => saveSlotRequestFirestore(gameId, playerId, cloneForAudit(request)))
+    try {
+      await notifyLineupResponsibles(gameId, request, before, audit)
+    } catch (error) {
+      await writeAuditLog({ ...audit, action: 'send', entityType: 'telegram', entityId: 'request-notification',
+        outcome: 'failure', severity: 'error', metadata: { gameId, playerId, error: { message: error.message } },
+      })
+    }
   }
 
   async function removeSlotRequest(gameId, requestIdOrIndex) {
@@ -411,14 +434,14 @@ export const useGamesStore = defineStore('games', () => {
         metadata: {
           operation: 'remove-slot-request-legacy',
           index: requestIdOrIndex,
+          playerId: request.playerId,
         },
       })
       return
     }
 
     const before = cloneForAudit(request)
-    await deleteSlotRequestFirestore(request.id)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'slotRequests',
       entityId: request.id,
       before,
@@ -429,7 +452,7 @@ export const useGamesStore = defineStore('games', () => {
         gameId,
         playerId: request.playerId,
       },
-    })
+    }, () => deleteSlotRequestFirestore(request.id))
   }
 
   function setGameMeta(gameId, { date, sourceUrl, version }) {
@@ -448,17 +471,29 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   // --- Persist helper ---
-  async function persist(gameId, { before = null, summary = '', metadata = null } = {}) {
-    const after = games.value[gameId]
-    await saveGameFirestore(gameId, after)
-    await logEntitySnapshot({
-      entityType: 'games',
-      entityId: gameId,
-      before,
-      after,
-      summary: summary || `games - ${before ? 'update' : 'create'} - ${gameId}`,
-      metadata,
+  const pendingWrites = new Map()
+  function persist(gameId, { before = null, summary = '', metadata = null, ...audit } = {}) {
+    const after = cloneForAudit(games.value[gameId])
+    if (auditEqual(before, after)) return Promise.resolve(true)
+    const entry = { ...audit, entityType: 'games', entityId: gameId, before, after, summary, metadata }
+    Object.assign(entry, captureAuditContext(entry))
+    const previous = pendingWrites.get(gameId) || Promise.resolve()
+    const pending = previous.then(async () => {
+      try {
+        await auditedWrite(entry, () => saveGameFirestore(gameId, after))
+        return true
+      } catch (error) {
+        if (auditEqual(games.value[gameId], after)) {
+          if (before) games.value[gameId] = cloneForAudit(before)
+          else delete games.value[gameId]
+        }
+        useToast().error('Не удалось сохранить расстановку: ' + error.message)
+        return false
+      }
     })
+    pendingWrites.set(gameId, pending)
+    pending.finally(() => { if (pendingWrites.get(gameId) === pending) pendingWrites.delete(gameId) })
+    return pending
   }
 
   // --- Public API ---
@@ -472,44 +507,37 @@ export const useGamesStore = defineStore('games', () => {
   }
 
   /** Clear a single game */
-  async function clearGame(gameId) {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    const before = cloneForAudit(getGame(gameId))
-    await deleteDoc(doc(db, 'games', gameId)).catch(() => {})
-    await deleteSlotRequestsForGames([gameId])
+  async function clearGame(gameId, audit = {}) {
+    await pendingWrites.get(gameId)
+    const { doc, getDoc, getDocs, query, where, writeBatch, slotRequestsRef, db } = await import('../firebase/firestore')
+    const [gameDoc, requests] = await Promise.all([
+      getDoc(doc(db, 'games', gameId)), getDocs(query(slotRequestsRef, where('gameId', '==', gameId))),
+    ])
+    const before = gameDoc.exists() ? cloneForAudit(gameDoc.data()) : null
+    const operationId = audit.operationId || newAuditOperationId()
+    const context = captureAuditContext({ ...audit, entityId: gameId, before })
+    if (!before && requests.empty) return
+    const batch = writeBatch(db)
+    batch.delete(doc(db, 'games', gameId))
+    requests.docs.forEach(d => batch.delete(d.ref))
+    await auditedWrite({ ...audit, ...context, operationId, action: 'clear', eventType: 'lineup.cleared',
+      entityType: 'games', entityId: gameId, before, after: null,
+      metadata: { affectedCount: requests.docs.length, operation: 'clear-game' },
+    }, () => batch.commit())
     delete games.value[gameId]
     delete slotRequests.value[gameId]
     delete slotMemory.value[gameId]
-    await logEntitySnapshot({
-      entityType: 'games',
-      entityId: gameId,
-      before,
-      after: null,
-      summary: `games - delete - ${gameId}`,
-    })
+    for (const request of requests.docs) {
+      await logEntitySnapshot({ ...audit, ...context, operationId, action: 'delete', entityType: 'slotRequests',
+        entityId: request.id, before: request.data(), after: null, metadata: { gameId, operation: 'clear-game' },
+      })
+    }
   }
 
   /** Clear all games (new week reset) */
-  async function clearGames() {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    const existingGames = GAME_IDS
-      .map(id => ({ id, before: cloneForAudit(getGame(id)) }))
-      .filter(entry => entry.before)
-    await Promise.all(GAME_IDS.map(id => deleteDoc(doc(db, 'games', id)).catch(() => {})))
-    await deleteSlotRequestsForGames(GAME_IDS)
-    games.value = {}
-    slotRequests.value = {}
-    slotMemory.value = {}
-    await Promise.all(existingGames.map(entry =>
-      logEntitySnapshot({
-        entityType: 'games',
-        entityId: entry.id,
-        before: entry.before,
-        after: null,
-        summary: `games - delete - ${entry.id}`,
-        metadata: { operation: 'clear-games' },
-      })
-    ))
+  async function clearGames(audit = {}) {
+    const operationId = audit.operationId || newAuditOperationId()
+    for (const gameId of GAME_IDS) await clearGame(gameId, { ...audit, operationId })
   }
 
   function cleanup() {

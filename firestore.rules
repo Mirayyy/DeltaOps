@@ -121,7 +121,10 @@ service cloud.firestore {
     // ─── Audit logs ───
     match /logs/{logId} {
       allow read: if isAdmin();
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.actor.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
     }
 
     // ─── Stats ───

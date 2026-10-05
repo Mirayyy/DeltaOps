@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { useAppConfig } from '../stores/appConfig'
+import { captureAuditContext, cloneForAudit, writeAuditLog } from '../utils/auditLog'
 
 /**
  * Telegram Bot API integration for squad notifications.
@@ -36,6 +37,16 @@ export function useTelegram() {
   // ─── Core ────────────────────────────────────────────
 
   async function sendMessage(text, options = {}) {
+    const entry = cloneForAudit({ action: 'send', entityType: 'telegram', entityId: 'message', ...options.audit })
+    Object.assign(entry, captureAuditContext(entry))
+    const result = await dispatchMessage(text, options)
+    await writeAuditLog({ ...entry, outcome: result.ok ? 'success' : 'failure', severity: result.ok ? 'info' : 'error',
+      metadata: { ...entry.metadata, ...(result.ok ? {} : { error: { message: String(result.error || 'Ошибка отправки').replaceAll(botToken || '\u0000', '[скрыто]') } }) },
+    })
+    return result
+  }
+
+  async function dispatchMessage(text, options = {}) {
     sending.value = true
     lastError.value = null
 

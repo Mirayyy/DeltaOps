@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite } from '../utils/auditLog'
 
 /**
  * Auto-generates slotId from section headers and row positions.
@@ -64,39 +64,34 @@ export const useStructuresStore = defineStore('structures', () => {
   }
 
   async function saveStructure(structure) {
+    structure = cloneForAudit(structure)
     const idx = structures.value.findIndex(s => s.id === structure.id)
     const before = cloneForAudit(idx === -1 ? null : structures.value[idx])
     // Regenerate slot IDs
     structure.slots = generateSlotIds(structure.slots)
 
-    if (idx === -1) {
-      structures.value.push(structure)
-    } else {
-      structures.value[idx] = structure
-    }
-
-    await saveStructureFirestore(structure)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'structures',
       entityId: structure.id,
       before,
       after: structure,
       summary: `structures - ${before ? 'update' : 'create'} - ${structure.id}`,
-    })
+    }, () => saveStructureFirestore(structure))
+    if (idx === -1) structures.value.push(structure)
+    else structures.value[idx] = structure
   }
 
   async function deleteStructure(id) {
     const structure = structures.value.find(s => s.id === id)
     const before = cloneForAudit(structure)
-    structures.value = structures.value.filter(s => s.id !== id)
-    await deleteStructureFirestore(id)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'structures',
       entityId: id,
       before,
       after: null,
       summary: `structures - delete - ${id}`,
-    })
+    }, () => deleteStructureFirestore(id))
+    structures.value = structures.value.filter(s => s.id !== id)
   }
 
   return {

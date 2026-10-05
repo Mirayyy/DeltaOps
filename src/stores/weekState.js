@@ -10,6 +10,7 @@ import {
   weekConfigRef,
 } from '../firebase/firestore'
 import { getDefaultWeekDates, getFrozenWeekDates } from '../utils/gameWeek'
+import { auditedWrite, cloneForAudit } from '../utils/auditLog'
 
 function normalizeWeek(data) {
   if (!data?.weekId || !data?.friday || !data?.saturday) return null
@@ -48,11 +49,13 @@ export const useWeekStateStore = defineStore('weekState', () => {
 
   const hasLockedWeek = computed(() => !!lockedWeek.value)
 
-  async function saveLockedWeek(week) {
-    await setDoc(weekConfigRef, {
+  async function saveLockedWeek(week, audit = {}) {
+    await auditedWrite({ ...audit, action: 'create', eventType: 'week.locked', entityType: 'week',
+      entityId: week.weekId, before: null, after: week, metadata: { automatic: true },
+    }, () => setDoc(weekConfigRef, {
       ...week,
       lockedAt: serverTimestamp(),
-    }, { merge: true })
+    }, { merge: true }))
   }
 
   async function fetchOrBootstrap() {
@@ -87,7 +90,7 @@ export const useWeekStateStore = defineStore('weekState', () => {
     return inFlight
   }
 
-  async function ensureLockedForAttendance() {
+  async function ensureLockedForAttendance(audit = {}) {
     if (lockedWeek.value) return lockedWeek.value
     if (inFlight) await inFlight
     if (lockedWeek.value) return lockedWeek.value
@@ -101,7 +104,7 @@ export const useWeekStateStore = defineStore('weekState', () => {
       }
 
       const week = buildLockedWeek('attendance')
-      await saveLockedWeek(week)
+      await saveLockedWeek(week, audit)
       lockedWeek.value = week
       return week
     } finally {
@@ -110,10 +113,13 @@ export const useWeekStateStore = defineStore('weekState', () => {
     }
   }
 
-  async function clearLockedWeek() {
+  async function clearLockedWeek(audit = {}) {
     loading.value = true
     try {
-      await deleteDoc(weekConfigRef).catch(() => {})
+      const before = cloneForAudit(lockedWeek.value)
+      await auditedWrite({ ...audit, action: 'delete', eventType: 'week.unlocked', entityType: 'week',
+        entityId: before?.weekId || 'current', before, after: null,
+      }, () => deleteDoc(weekConfigRef))
       lockedWeek.value = null
     } finally {
       loaded.value = true

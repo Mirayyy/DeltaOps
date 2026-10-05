@@ -68,7 +68,7 @@ if (isEdit) {
       ...(props.player.attendancePreset || {}),
     },
   }
-  skills.value = [...(props.player.skills || [])]
+  skills.value = (props.player.skills || []).map(skill => ({ ...skill }))
 }
 
 function getSkillLevel(skillName) {

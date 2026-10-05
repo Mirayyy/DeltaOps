@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite } from '../utils/auditLog'
 
 export const useUsersStore = defineStore('users', () => {
   const users = ref([])
@@ -28,20 +28,24 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  async function setRole(userId, role) {
-    const current = users.value.find(u => u.uid === userId)
-    const before = cloneForAudit(current)
-    const { doc, setDoc, db } = await import('../firebase/firestore')
-    await setDoc(doc(db, 'users', userId), { role }, { merge: true })
-    const idx = users.value.findIndex(u => u.uid === userId)
-    if (idx !== -1) users.value[idx] = { ...users.value[idx], role }
-    await logEntitySnapshot({
+  async function setRole(userId, role, audit = {}) {
+    const { doc, getDoc, setDoc, db } = await import('../firebase/firestore')
+    const snap = await getDoc(doc(db, 'users', userId))
+    if (!snap.exists()) throw new Error('Учётная запись не найдена')
+    const before = cloneForAudit({ uid: userId, ...snap.data() })
+    if (before.role === role) return
+    const after = { ...before, role }
+    await auditedWrite({
+      ...audit,
+      eventType: audit.eventType || 'user.role',
       entityType: 'users',
       entityId: userId,
       before,
-      after: users.value.find(u => u.uid === userId) || { ...(current || {}), role },
+      after,
       summary: `users - update - ${userId}`,
-    })
+    }, () => setDoc(doc(db, 'users', userId), { role }, { merge: true }))
+    const idx = users.value.findIndex(u => u.uid === userId)
+    if (idx !== -1) users.value[idx] = after
   }
 
   return { users, loading, fetchUsers, setRole }

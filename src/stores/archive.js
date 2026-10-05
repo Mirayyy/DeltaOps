@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { compareArchivedGames, sortArchivedGames } from '../utils/archiveSort'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite, captureAuditContext } from '../utils/auditLog'
 
 export const useArchiveStore = defineStore('archive', () => {
   const archives = ref([])  // [{ id, rotation, server, side, date, schedule, slots, records, ... }]
@@ -59,17 +59,16 @@ export const useArchiveStore = defineStore('archive', () => {
   async function createRotation(name, startDate, endDate = null) {
     const id = `rotation-${Date.now()}`
     const rotation = { id, name, startDate, endDate }
-    rotations.value.push(rotation)
 
     const { doc, setDoc, db } = await import('../firebase/firestore')
-    await setDoc(doc(db, 'rotations', id), rotation)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'rotations',
       entityId: id,
       before: null,
       after: rotation,
       summary: `rotations - create - ${id}`,
-    })
+    }, () => setDoc(doc(db, 'rotations', id), rotation))
+    rotations.value.push(rotation)
     return rotation
   }
 
@@ -77,32 +76,31 @@ export const useArchiveStore = defineStore('archive', () => {
     const rotation = rotations.value.find(r => r.id === rotationId)
     if (!rotation) return
     const before = cloneForAudit(rotation)
-    Object.assign(rotation, updates)
+    const after = cloneForAudit({ ...rotation, ...updates })
 
     const { doc, updateDoc, db } = await import('../firebase/firestore')
-    await updateDoc(doc(db, 'rotations', rotationId), updates)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'rotations',
       entityId: rotationId,
       before,
-      after: rotation,
+      after,
       summary: `rotations - update - ${rotationId}`,
-    })
+    }, () => updateDoc(doc(db, 'rotations', rotationId), updates))
+    Object.assign(rotation, after)
   }
 
   async function deleteRotation(rotationId) {
     const rotation = rotations.value.find(r => r.id === rotationId)
     const before = cloneForAudit(rotation)
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    await deleteDoc(doc(db, 'rotations', rotationId))
-    rotations.value = rotations.value.filter(r => r.id !== rotationId)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'rotations',
       entityId: rotationId,
       before,
       after: null,
       summary: `rotations - delete - ${rotationId}`,
-    })
+    }, () => deleteDoc(doc(db, 'rotations', rotationId)))
+    rotations.value = rotations.value.filter(r => r.id !== rotationId)
   }
 
   // --- Archiving ---
@@ -111,7 +109,8 @@ export const useArchiveStore = defineStore('archive', () => {
    * Archive a single game: copy slots from games store + records from attendance store → archive.
    * @param {object} params — { schedule, date, sourceUrl, version, missionTitle, server, side, slots, records, task, adminUid }
    */
-  async function archiveGame({ schedule, date, sourceUrl, version, missionTitle, server, side, slots, records, task, adminUid }) {
+  async function archiveGame({ schedule, date, sourceUrl, version, missionTitle, server, side, slots, records, task }, options = {}) {
+    const audit = captureAuditContext(options)
     const rotation = date ? getRotationForDate(date) : getActiveRotation()
     const id = `${date}-${schedule}`
 
@@ -131,26 +130,26 @@ export const useArchiveStore = defineStore('archive', () => {
       sourceUrl: sourceUrl || '',
       version: version || '',
       missionTitle: missionTitle || '',
-      slots: slots || [],
-      records: records || [],
+      slots: cloneForAudit(slots || []),
+      records: cloneForAudit(records || []),
       task: task || '',
       archivedAt: new Date().toISOString(),
-      archivedBy: adminUid,
+      archivedBy: audit.actor.uid,
     }
 
     const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
-    await setDoc(doc(db, 'archive', id), { ...entry, archivedAt: serverTimestamp() })
-
-    archives.value.push(entry)
-    archives.value = sortArchivedGames(archives.value)
-    await logEntitySnapshot({
+    await auditedWrite({
+      ...options,
+      ...audit,
       entityType: 'archive',
       entityId: id,
       action: 'archive',
       before: null,
       after: entry,
       summary: `archive - archive - ${id}`,
-    })
+    }, () => setDoc(doc(db, 'archive', id), { ...entry, archivedAt: serverTimestamp() }))
+    archives.value.push(entry)
+    archives.value = sortArchivedGames(archives.value)
     return entry
   }
 

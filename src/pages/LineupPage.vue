@@ -20,7 +20,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner.vue'
 import ConfirmModal from '../components/common/ConfirmModal.vue'
 import { useTelegram } from '../composables/useTelegram'
 import { useToast } from '../composables/useToast'
-import { writeAuditLog } from '../utils/auditLog'
+import { runAuditOperation } from '../utils/auditLog'
 import { MARKDOWN_TOOLBAR_BUTTONS, applyMarkdownToolbarAction, renderRichMarkdown } from '../utils/markdown'
 
 const auth = useAuthStore()
@@ -153,9 +153,7 @@ async function sendLineupToTelegram() {
     if (m) missionsData[g.id] = m
   }
   const msg = telegram.buildLineupSummaryMessage(gamesStore.games, roster.players, missionsData, gameDates)
-  const result = await telegram.sendMessage(msg)
-  if (result.ok) {
-    await writeAuditLog({
+  const telegramAudit = {
       action: 'send',
       entityType: 'telegram',
       entityId: 'lineup-summary',
@@ -165,7 +163,10 @@ async function sendLineupToTelegram() {
         missionIds: Object.keys(missionsData),
         gameDates: gameDates.value,
       },
-    })
+    }
+  const result = await telegram.sendMessage(msg, { audit: telegramAudit })
+  if (result.ok) {
+
     toast.success('Расстановка отправлена в Telegram')
   } else {
     toast.error('Ошибка: ' + result.error)
@@ -700,15 +701,6 @@ async function confirmClearAttendance() {
     tone: 'warning',
     onConfirm: async () => {
       await attendance.clearGameAttendance(activeTab.value)
-      await writeAuditLog({
-        action: 'clear',
-        entityType: 'attendance',
-        entityId: activeTab.value,
-        summary: `attendance - clear - ${activeTab.value}`,
-        after: {
-          gameId: activeTab.value,
-        },
-      })
       toast.success('Посещаемость игры очищена')
     },
   })
@@ -732,33 +724,13 @@ async function confirmSkipGame() {
     tone: 'warning',
     onConfirm: async () => {
       if (isActiveGameSkipped.value) {
-        await attendance.clearGameAttendance(activeTab.value)
-        await writeAuditLog({
-          action: 'restore',
-          entityType: 'attendance',
-          entityId: activeTab.value,
-          summary: `attendance - restore-game - ${activeTab.value}`,
-          after: {
-            gameId: activeTab.value,
-          },
-        })
+        await attendance.clearGameAttendance(activeTab.value, { action: 'restore', eventType: 'game.restored' })
         toast.success('Игра возвращена в недельный цикл')
         return
       }
 
       await attendance.skipGame(activeTab.value, {
         date: currentGame.value?.date || game?.date || '',
-      })
-      await writeAuditLog({
-        action: 'skip',
-        entityType: 'attendance',
-        entityId: activeTab.value,
-        summary: `attendance - skip-game - ${activeTab.value}`,
-        after: {
-          gameId: activeTab.value,
-          date: currentGame.value?.date || game?.date || '',
-          reason: 'game-cancelled',
-        },
       })
       toast.success('Игра помечена как пропущенная')
     },
@@ -772,10 +744,17 @@ async function confirmClearGame() {
     details: ['Будут удалены миссия, слоты, назначения и связанные данные текущей игры.'],
     confirmLabel: 'Удалить',
     tone: 'danger',
-    onConfirm: () => Promise.all([
-      gamesStore.clearGame(activeTab.value),
-      missionsStore.clearMission(activeTab.value),
-    ]),
+    onConfirm: () => {
+      const gameId = activeTab.value
+      return runAuditOperation({ action: 'clear', eventType: 'game.cleared', entityType: 'games', entityId: gameId },
+        async (audit, completed) => {
+          await gamesStore.clearGame(gameId, audit)
+          completed.push('Очищена расстановка')
+          await missionsStore.clearMission(gameId, audit)
+          completed.push('Удалена миссия')
+          return { gameId }
+        })
+    },
   })
 }
 
@@ -849,11 +828,7 @@ async function sendSlotNotification(slot, slotIdx) {
     missionTitle: mission?.title || '',
     missionNumber,
   })
-  const result = await telegram.sendMessage(msg, { chatId: telegramId })
-
-  slotNotifSending.value[slotIdx] = false
-  if (result.ok) {
-    await writeAuditLog({
+  const telegramAudit = {
       action: 'send',
       entityType: 'telegram',
       entityId: `slot-notification:${activeTab.value}:${slotIdx}`,
@@ -866,7 +841,12 @@ async function sendSlotNotification(slot, slotIdx) {
         telegramId,
         missionTitle: mission?.title || '',
       },
-    })
+    }
+  const result = await telegram.sendMessage(msg, { chatId: telegramId, audit: telegramAudit })
+
+  slotNotifSending.value[slotIdx] = false
+  if (result.ok) {
+
     slotNotifSent.value[slotIdx] = true
     setTimeout(() => { slotNotifSent.value[slotIdx] = false }, 2000)
     toast.success(`Уведомление отправлено — ${nickname}`)

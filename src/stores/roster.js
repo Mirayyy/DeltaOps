@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { POSITIONS } from '../utils/constants'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite, captureAuditContext, newAuditOperationId } from '../utils/auditLog'
 
 const DEFAULT_ATTENDANCE_PRESET = Object.freeze({
   enabled: false,
@@ -152,7 +152,7 @@ export const useRosterStore = defineStore('roster', () => {
   // --- User role management on status transitions ---
 
   /** Downgrade linked user to 'guest' when player leaves (skip admins) */
-  async function downgradeLinkedUser(email) {
+  async function downgradeLinkedUser(email, audit = {}) {
     if (!email) return
     try {
       const { query, where, getDocs, doc, setDoc, db } = await import('../firebase/firestore')
@@ -164,16 +164,20 @@ export const useRosterStore = defineStore('roster', () => {
         const data = userDoc.data()
         if (data.role === 'admin') continue // never downgrade admins
         if (data.role !== 'guest') {
-          await setDoc(doc(db, 'users', userDoc.id), { role: 'guest' }, { merge: true })
+          await auditedWrite({ ...audit, action: 'update', eventType: 'user.auto-role',
+            entityType: 'users', entityId: userDoc.id, before: data, after: { ...data, role: 'guest' },
+            metadata: { operation: 'auto-role', automatic: true },
+          }, () => setDoc(doc(db, 'users', userDoc.id), { role: 'guest' }, { merge: true }))
         }
       }
     } catch (e) {
       console.warn('downgradeLinkedUser failed:', e.message)
+      throw e
     }
   }
 
   /** Upgrade linked user from 'guest' to 'member' when player returns */
-  async function upgradeLinkedUser(email) {
+  async function upgradeLinkedUser(email, audit = {}) {
     if (!email) return
     try {
       const { query, where, getDocs, doc, setDoc, db } = await import('../firebase/firestore')
@@ -184,11 +188,15 @@ export const useRosterStore = defineStore('roster', () => {
       for (const userDoc of snap.docs) {
         const data = userDoc.data()
         if (data.role === 'guest') {
-          await setDoc(doc(db, 'users', userDoc.id), { role: 'member' }, { merge: true })
+          await auditedWrite({ ...audit, action: 'update', eventType: 'user.auto-role',
+            entityType: 'users', entityId: userDoc.id, before: data, after: { ...data, role: 'member' },
+            metadata: { operation: 'auto-role', automatic: true },
+          }, () => setDoc(doc(db, 'users', userDoc.id), { role: 'member' }, { merge: true }))
         }
       }
     } catch (e) {
       console.warn('upgradeLinkedUser failed:', e.message)
+      throw e
     }
   }
 
@@ -204,60 +212,38 @@ export const useRosterStore = defineStore('roster', () => {
 
   async function addPlayer(playerData) {
     const uid = `p-${Date.now()}`
-    const newPlayer = buildPlayer(uid, {
-      ...playerData,
-      status: playerData.status || 'active',
-    })
-
-    await savePlayerFirestore(uid, newPlayer)
-    await setNicknameIndex(newPlayer.nickname, uid)
+    const newPlayer = buildPlayer(uid, { ...cloneForAudit(playerData), status: playerData.status || 'active' })
+    const { doc, writeBatch, serverTimestamp, db } = await import('../firebase/firestore')
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'players', uid), { ...sanitizePlayerData(newPlayer), updatedAt: serverTimestamp() })
+    if (newPlayer.nickname) batch.set(doc(db, 'nicknameIndex', newPlayer.nickname), { playerId: uid })
+    await auditedWrite({ entityType: 'players', entityId: uid, before: null, after: newPlayer }, () => batch.commit())
     players.value.push(newPlayer)
-    await logEntitySnapshot({
-      entityType: 'players',
-      entityId: uid,
-      before: null,
-      after: newPlayer,
-      summary: `players - create - ${uid}`,
-    })
     return newPlayer
   }
 
-  async function updatePlayer(uid, updates) {
+  async function updatePlayer(uid, updates, options = {}) {
     const idx = players.value.findIndex(p => p.uid === uid)
     if (idx === -1) return
-
-    const currentPlayer = players.value[idx]
-    const before = cloneForAudit(currentPlayer)
-    const oldNickname = currentPlayer.nickname
-
-    // --- Role management on status transition ---
-    if (updates.status && currentPlayer.status !== updates.status) {
-      if (currentPlayer.status !== 'left' && updates.status === 'left') {
-        await downgradeLinkedUser(currentPlayer.email)
-      } else if (currentPlayer.status === 'left' && updates.status !== 'left') {
-        await upgradeLinkedUser(currentPlayer.email)
-      }
+    const audit = { ...options, operationId: options.operationId || newAuditOperationId(), ...captureAuditContext(options) }
+    const changes = cloneForAudit(updates)
+    const { doc, getDoc, writeBatch, serverTimestamp, db } = await import('../firebase/firestore')
+    const snap = await getDoc(doc(db, 'players', uid))
+    if (!snap.exists()) throw new Error('Игрок не найден')
+    const before = buildPlayer(uid, cloneForAudit(snap.data()))
+    const updated = buildPlayer(uid, { ...before, ...changes })
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'players', uid), { ...sanitizePlayerData(changes), updatedAt: serverTimestamp() }, { merge: true })
+    if (changes.nickname && changes.nickname !== before.nickname) {
+      if (before.nickname) batch.delete(doc(db, 'nicknameIndex', before.nickname))
+      batch.set(doc(db, 'nicknameIndex', changes.nickname), { playerId: uid })
     }
-
-    const updated = buildPlayer(uid, { ...currentPlayer, ...updates })
-
-    await savePlayerFirestore(uid, updates)
-    // If nickname changed, atomic swap in nicknameIndex
-    if (updates.nickname && updates.nickname !== oldNickname) {
-      const { doc, writeBatch, db } = await import('../firebase/firestore')
-      const batch = writeBatch(db)
-      if (oldNickname) batch.delete(doc(db, 'nicknameIndex', oldNickname))
-      batch.set(doc(db, 'nicknameIndex', updates.nickname), { playerId: uid })
-      await batch.commit()
-    }
+    await auditedWrite({ ...audit, entityType: 'players', entityId: uid, before, after: updated }, () => batch.commit())
     players.value[idx] = updated
-    await logEntitySnapshot({
-      entityType: 'players',
-      entityId: uid,
-      before,
-      after: updated,
-      summary: `players - update - ${uid}`,
-    })
+    if (changes.status && changes.status !== before.status) {
+      if (changes.status === 'left') await downgradeLinkedUser(before.email, audit)
+      else if (before.status === 'left') await upgradeLinkedUser(before.email, audit)
+    }
   }
 
   async function removePlayer(uid) {
@@ -268,15 +254,14 @@ export const useRosterStore = defineStore('roster', () => {
     const batch = writeBatch(db)
     batch.delete(doc(db, 'players', uid))
     if (player?.nickname) batch.delete(doc(db, 'nicknameIndex', player.nickname))
-    await batch.commit()
-    players.value = players.value.filter(p => p.uid !== uid)
-    await logEntitySnapshot({
+    await auditedWrite({
       entityType: 'players',
       entityId: uid,
       before,
       after: null,
       summary: `players - delete - ${uid}`,
-    })
+    }, () => batch.commit())
+    players.value = players.value.filter(p => p.uid !== uid)
   }
 
   /** Mark player as left + downgrade linked user to guest */
@@ -292,7 +277,7 @@ export const useRosterStore = defineStore('roster', () => {
     const before = cloneForAudit(currentPlayer)
     const deletedAt = new Date().toISOString()
 
-    await downgradeLinkedUser(currentPlayer.email)
+    const audit = { operationId: newAuditOperationId(), ...captureAuditContext() }
 
     const deletedPlayer = buildPlayer(uid, {
       ...currentPlayer,
@@ -336,10 +321,9 @@ export const useRosterStore = defineStore('roster', () => {
     if (currentPlayer.nickname) {
       batch.delete(doc(db, 'nicknameIndex', currentPlayer.nickname))
     }
-    await batch.commit()
-
-    players.value[idx] = deletedPlayer
-    await logEntitySnapshot({
+    await auditedWrite({
+      ...audit,
+      action: 'delete-soft',
       entityType: 'players',
       entityId: uid,
       before,
@@ -348,7 +332,9 @@ export const useRosterStore = defineStore('roster', () => {
       metadata: {
         operation: 'mark-as-deleted',
       },
-    })
+    }, () => batch.commit())
+    players.value[idx] = deletedPlayer
+    await downgradeLinkedUser(currentPlayer.email, audit)
   }
 
   return {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite } from '../utils/auditLog'
 
 let _awardIdCounter = 0
 function ensureAwardId(award) {
@@ -74,13 +74,11 @@ export const useWebContentStore = defineStore('webContent', () => {
 
   async function saveContent() {
     const before = cloneForAudit(persistedSnapshot.value)
-    const after = {
+    const after = cloneForAudit({
       awards: cleanAwards(),
       aboutMarkdown: aboutMarkdown.value,
-    }
-    await saveFirestore()
-    persistedSnapshot.value = cloneForAudit(after)
-    await logEntitySnapshot({
+    })
+    await auditedWrite({
       entityType: 'config',
       entityId: 'web-content',
       before,
@@ -89,7 +87,11 @@ export const useWebContentStore = defineStore('webContent', () => {
       metadata: {
         operation: 'save-web-content',
       },
+    }, async () => {
+      const { setDoc, squadConfigRef } = await import('../firebase/firestore')
+      await setDoc(squadConfigRef, after, { merge: true })
     })
+    persistedSnapshot.value = cloneForAudit(after)
   }
 
   // --- Award CRUD ---

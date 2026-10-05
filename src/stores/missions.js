@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_IDS } from '../utils/constants'
-import { cloneForAudit, logEntitySnapshot } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite, newAuditOperationId } from '../utils/auditLog'
 
 export const useMissionsStore = defineStore('missions', () => {
   const missions = ref({})
@@ -93,39 +93,21 @@ export const useMissionsStore = defineStore('missions', () => {
     await fetchMissions()
   }
 
-  async function clearMission(gameId) {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    const before = cloneForAudit(getMission(gameId))
-    await deleteDoc(doc(db, 'missions', gameId)).catch(() => {})
+  async function clearMission(gameId, audit = {}) {
+    const { doc, getDoc, deleteDoc, db } = await import('../firebase/firestore')
+    const ref = doc(db, 'missions', gameId)
+    const snap = await getDoc(ref)
+    if (!snap.exists()) return
+    const before = cloneForAudit(snap.data())
+    await auditedWrite({ ...audit, action: 'delete', entityType: 'missions', entityId: gameId,
+      before, after: null,
+    }, () => deleteDoc(ref))
     delete missions.value[gameId]
-    await logEntitySnapshot({
-      entityType: 'missions',
-      entityId: gameId,
-      before,
-      after: null,
-      summary: `missions - delete - ${gameId}`,
-    })
   }
 
-  async function clearMissions() {
-    const { doc, deleteDoc, db } = await import('../firebase/firestore')
-    const existingMissions = GAME_IDS
-      .map(gameId => ({ id: gameId, before: cloneForAudit(getMission(gameId)) }))
-      .filter(entry => entry.before)
-    await Promise.all(GAME_IDS.map(async (gameId) => {
-      try { await deleteDoc(doc(db, 'missions', gameId)) } catch (e) { /* ignore */ }
-    }))
-    missions.value = {}
-    await Promise.all(existingMissions.map(entry =>
-      logEntitySnapshot({
-        entityType: 'missions',
-        entityId: entry.id,
-        before: entry.before,
-        after: null,
-        summary: `missions - delete - ${entry.id}`,
-        metadata: { operation: 'clear-missions' },
-      })
-    ))
+  async function clearMissions(audit = {}) {
+    const operationId = audit.operationId || newAuditOperationId()
+    for (const gameId of GAME_IDS) await clearMission(gameId, { ...audit, operationId })
   }
 
   return {
