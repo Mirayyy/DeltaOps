@@ -231,6 +231,27 @@ async function sendMissionsToTelegram() {
   }
 }
 
+async function skipCurrentWeek() {
+  await gamesStore.clearGames()
+  await missionsStore.clearMissions()
+  await attendance.clearAttendance()
+  await weekState.clearLockedWeek()
+
+  await writeAuditLog({
+    action: 'skip',
+    entityType: 'week',
+    entityId: `${gameDates.value.friday || ''}-${gameDates.value.saturday || ''}`,
+    summary: 'Неделя пропущена без архивации',
+    after: {
+      reason: 'games-cancelled',
+      friday: gameDates.value.friday || '',
+      saturday: gameDates.value.saturday || '',
+    },
+  })
+
+  toast.success('Неделя пропущена, текущие данные очищены')
+}
+
 function requestConfirmation(config) {
   confirmAction.value = config
 }
@@ -268,6 +289,20 @@ async function onWeekFinalized() {
         <p class="text-sm text-neutral-500">Пт {{ gameDates.friday }} — Сб {{ gameDates.saturday }}</p>
       </div>
       <div class="flex items-center gap-3">
+        <button v-if="auth.isUserAdmin" @click="requestConfirmation({
+          title: 'Пропустить неделю',
+          message: 'Очистить текущие данные без создания архивов?',
+          details: [
+            'Будут удалены текущие отметки, расстановки, запросы на слоты, миссии и фиксация недели.',
+            'Архив и статистика посещаемости не изменятся — в истории останется пропуск.',
+          ],
+          confirmLabel: 'Пропустить',
+          tone: 'warning',
+          onConfirm: skipCurrentWeek,
+        })"
+          class="text-xs px-3 py-1.5 border border-amber-900/50 rounded-lg text-amber-400 hover:text-amber-300 hover:border-amber-700 transition-colors">
+          Пропустить неделю
+        </button>
         <button v-if="auth.isUserAdmin" @click="requestConfirmation({
           title: 'Завершить неделю',
           message: 'Открыть мастер завершения недели?',
