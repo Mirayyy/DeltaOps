@@ -5,14 +5,14 @@ import { fileURLToPath } from 'node:url'
 import * as vue from 'vue'
 import * as pinia from 'pinia'
 
-const root = fileURLToPath(new URL('../../..', import.meta.url))
+const root = fileURLToPath(new URL('../../', import.meta.url))
 const copy = value => value == null ? value : JSON.parse(JSON.stringify(value))
 
 // Runs the real stores/helpers with an in-memory Firestore boundary. No credentials,
 // application bootstrap, SDK connection or network access is available in this VM.
-export async function createHarness({ env = {} } = {}) {
+export async function createHarness({ env = {}, documents = new Map() } = {}) {
   pinia.setActivePinia(pinia.createPinia())
-  const docs = new Map(), writes = [], warnings = [], failures = new Set()
+  const docs = documents, writes = [], warnings = [], failures = new Set()
   let serial = 0
   const auth = vue.reactive({ isLoggedIn: true, isUserAdmin: true, userRole: 'admin',
     firebaseUser: { uid: 'u-admin', displayName: 'Account', email: 'admin@test' },
@@ -39,6 +39,25 @@ export async function createHarness({ env = {} } = {}) {
     updateDoc: async (ref, data) => { await prepare(ref, data, 'update'); apply(ref, data, 'update', true) },
     deleteDoc: async ref => { await prepare(ref, null, 'delete'); apply(ref, null, 'delete') },
     getDoc: async ref => { if (hooks.beforeRead) await hooks.beforeRead(ref); return snapshot(ref.path, docs.get(ref.path)) },
+    runTransaction: async (_db, work) => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const reads = new Map(), operations = []
+        const result = await work({
+          get: async ref => {
+            if (hooks.beforeRead) await hooks.beforeRead(ref)
+            const value = copy(docs.get(ref.path))
+            reads.set(ref.path, JSON.stringify(value))
+            return snapshot(ref.path, value)
+          },
+          set: (ref, data, options) => operations.push([ref, copy(data), 'set', options?.merge]),
+        })
+        for (const args of operations) await prepare(...args)
+        if ([...reads].some(([key, value]) => JSON.stringify(docs.get(key)) !== value)) continue
+        for (const args of operations) apply(...args)
+        return result
+      }
+      throw Object.assign(new Error('Transaction conflict'), { code: 'aborted' })
+    },
     query: (ref, ...constraints) => ({ ...ref, constraints }),
     where: (field, op, value) => ({ type: 'where', field, op, value }),
     orderBy: (field, direction) => ({ type: 'orderBy', field, direction }),

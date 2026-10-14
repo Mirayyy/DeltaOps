@@ -174,11 +174,15 @@ function canEdit(playerId) {
   return canEditReadiness(auth.user?.role, auth.user?.uid, playerId)
 }
 
-function cycleReadiness(gameId, playerId, currentStatus) {
+async function cycleReadiness(gameId, playerId, currentStatus) {
   if (!canEdit(playerId)) return
   const idx = CYCLE.indexOf(currentStatus)
   const next = CYCLE[(idx + 1) % CYCLE.length]
-  attendance.setPlayerAttendance(gameId, playerId, next)
+  try {
+    await attendance.setPlayerAttendance(gameId, playerId, next)
+  } catch {
+    toast.error('Не удалось сохранить посещаемость. Проверьте подключение и повторите попытку.')
+  }
 }
 
 async function sendReminder() {

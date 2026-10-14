@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { GAME_IDS } from '../utils/constants'
 import { useWeekStateStore } from './weekState'
-import { cloneForAudit, auditedWrite, captureAuditContext, newAuditOperationId } from '../utils/auditLog'
+import { cloneForAudit, auditedWrite, captureAuditContext, newAuditOperationId, writeAuditLog } from '../utils/auditLog'
 
 const PRESET_STATUSES = new Set(['confirmed', 'tentative', 'absent'])
 
@@ -104,19 +104,57 @@ export const useAttendanceStore = defineStore('attendance', () => {
     else delete attendance.value[gameId]
   }
 
+  // The local snapshot can be empty or stale. Read and change the server document
+  // atomically so another browser's records survive, including transaction retries.
+  async function updateAttendance(gameId, mutate, eventType, metadata = {}, options = {}) {
+    const { doc, runTransaction, serverTimestamp, db } = await import('../firebase/firestore')
+    const audit = { ...options, ...captureAuditContext(options) }
+    let attempt = null
+    let committed
+    try {
+      committed = await runTransaction(db, async transaction => {
+        attempt = null
+        const target = doc(db, 'attendance', gameId)
+        const snap = await transaction.get(target)
+        const before = snap.exists() ? cloneForAudit(snap.data()) : null
+        const after = cloneForAudit(before) || { schedule: gameId, date: '', records: [] }
+        const details = mutate(after)
+        if (!details) return null
+        attempt = { ...audit, action: 'update', eventType, entityType: 'attendance', entityId: gameId,
+          before, after, metadata: { ...metadata, ...details },
+        }
+        transaction.set(target, { ...after, updatedAt: serverTimestamp() }, { merge: true })
+        return attempt
+      })
+    } catch (error) {
+      await writeAuditLog({ ...(attempt || { ...audit, action: 'update', eventType,
+        entityType: 'attendance', entityId: gameId, metadata }), outcome: 'failure', severity: 'error',
+        metadata: { ...(attempt?.metadata || metadata), error: { code: error.code || '', message: error.message || String(error) } },
+      })
+      throw error
+    }
+    if (!committed) return false
+    attendance.value[gameId] = committed.after
+    // Log only the committed attempt. A failed audit must never repeat the write.
+    await writeAuditLog({ ...committed, outcome: 'success' })
+    return true
+  }
+
   function setPlayerAttendance(gameId, playerId, status) {
     const audit = { operationId: newAuditOperationId(), ...captureAuditContext() }
     return enqueue(gameId, async () => {
-      if (getPlayerAttendance(gameId, playerId) === status) return
       const weekState = useWeekStateStore()
       const week = await weekState.ensureLockedForAttendance(audit)
-      const before = cloneForAudit(getGameAttendance(gameId))
-      const after = cloneForAudit(before)
-      after.date ||= gameId.startsWith('friday') ? week?.friday || '' : week?.saturday || ''
-      const record = after.records.find(r => r.playerId === playerId)
-      if (record) record.attendance = status
-      else after.records.push({ playerId, attendance: status })
-      await persist(gameId, before, after, 'attendance.changed', { playerId }, audit)
+      const changed = await updateAttendance(gameId, after => {
+        if (after.skipped) return
+        const record = after.records.find(r => r.playerId === playerId)
+        if ((record?.attendance || 'no_response') === status) return
+        after.date ||= gameId.startsWith('friday') ? week?.friday || '' : week?.saturday || ''
+        if (record) record.attendance = status
+        else after.records.push({ playerId, attendance: status })
+        return {}
+      }, 'attendance.changed', { playerId }, audit)
+      if (!changed) return
       const { useAuthStore } = await import('./auth')
       if (status === 'absent' && useAuthStore().isUserAdmin) {
         const { useGamesStore } = await import('./games')
@@ -130,32 +168,35 @@ export const useAttendanceStore = defineStore('attendance', () => {
     if (!applicable.length) return
     const audit = { ...options, operationId: options.operationId || newAuditOperationId(), ...captureAuditContext(options) }
     for (const gameId of GAME_IDS) {
+      if (!applicable.some(player => PRESET_STATUSES.has(player.attendancePreset?.[gameId]))) continue
       await enqueue(gameId, async () => {
-        const before = cloneForAudit(getGameAttendance(gameId))
-        const after = cloneForAudit(before)
-        const playerIds = []
-        for (const player of applicable) {
-          const status = player.attendancePreset?.[gameId]
-          if (!PRESET_STATUSES.has(status)) continue
-          const record = after.records.find(r => r.playerId === player.uid)
-          if (record && record.attendance && record.attendance !== 'no_response') continue
-          if (record) record.attendance = status
-          else after.records.push({ playerId: player.uid, attendance: status })
-          playerIds.push(player.uid)
-        }
-        if (!playerIds.length) return
         const week = await useWeekStateStore().ensureLockedForAttendance(audit)
-        after.date ||= gameId.startsWith('friday') ? week?.friday || '' : week?.saturday || ''
-        await persist(gameId, before, after, 'attendance.presets', { operation: 'apply-presets', automatic: true, playerIds }, audit)
+        await updateAttendance(gameId, after => {
+          if (after.skipped) return
+          const playerIds = []
+          for (const player of applicable) {
+            const status = player.attendancePreset?.[gameId]
+            if (!PRESET_STATUSES.has(status)) continue
+            const record = after.records.find(r => r.playerId === player.uid)
+            if (record && record.attendance && record.attendance !== 'no_response') continue
+            if (record) record.attendance = status
+            else after.records.push({ playerId: player.uid, attendance: status })
+            playerIds.push(player.uid)
+          }
+          if (!playerIds.length) return
+          after.date ||= gameId.startsWith('friday') ? week?.friday || '' : week?.saturday || ''
+          return { playerIds }
+        }, 'attendance.presets', { operation: 'apply-presets', automatic: true }, audit)
       })
     }
   }
 
   function setDate(gameId, date) {
-    return enqueue(gameId, () => {
-      const before = cloneForAudit(getGameAttendance(gameId))
-      return persist(gameId, before, { ...before, date }, 'attendance.date')
-    })
+    return enqueue(gameId, () => updateAttendance(gameId, after => {
+      if (after.date === date) return
+      after.date = date
+      return {}
+    }, 'attendance.date'))
   }
 
   function clearGameAttendance(gameId, options = {}) {

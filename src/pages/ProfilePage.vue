@@ -212,11 +212,15 @@ function formatKpd(val) {
 }
 
 
-function handleReadinessChange(gameId, status) {
+async function handleReadinessChange(gameId, status) {
   if (!player.value) return
-  attendance.setPlayerAttendance(gameId, player.value.uid, status)
-  const labels = { confirmed: 'Буду', tentative: 'Возможно', absent: 'Не буду' }
-  toast.success(`${labels[status] || status}`)
+  try {
+    await attendance.setPlayerAttendance(gameId, player.value.uid, status)
+    const labels = { confirmed: 'Буду', tentative: 'Возможно', absent: 'Не буду' }
+    toast.success(`${labels[status] || status}`)
+  } catch {
+    toast.error('Не удалось сохранить посещаемость. Проверьте подключение и повторите попытку.')
+  }
 }
 
 function formatPercent(rate) {
