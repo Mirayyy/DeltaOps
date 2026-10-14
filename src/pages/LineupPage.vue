@@ -174,6 +174,7 @@ async function sendLineupToTelegram() {
 }
 
 function requestConfirmation(config) {
+  if (confirmBusy.value) return
   confirmAction.value = config
 }
 
@@ -183,7 +184,7 @@ function closeConfirmation() {
 }
 
 async function handleConfirm() {
-  if (!confirmAction.value?.onConfirm) return
+  if (confirmBusy.value || !confirmAction.value?.onConfirm) return
   confirmBusy.value = true
   try {
     await confirmAction.value.onConfirm()
@@ -682,17 +683,19 @@ async function openUnassignedPlayersSection() {
 }
 
 async function confirmClearLineup() {
+  const gameId = activeTab.value
   requestConfirmation({
     title: 'Очистить расстановку',
     message: 'Убрать все назначения и настройки текущей расстановки?',
     details: ['Миссия останется, но слоты, назначения и запросы по текущей игре будут очищены.'],
     confirmLabel: 'Очистить',
     tone: 'danger',
-    onConfirm: () => gamesStore.clearGame(activeTab.value),
+    onConfirm: () => gamesStore.clearGame(gameId),
   })
 }
 
 async function confirmClearAttendance() {
+  const gameId = activeTab.value
   requestConfirmation({
     title: 'Очистить посещаемость',
     message: 'Очистить отметки посещаемости только для текущей игры?',
@@ -700,44 +703,46 @@ async function confirmClearAttendance() {
     confirmLabel: 'Очистить',
     tone: 'warning',
     onConfirm: async () => {
-      await attendance.clearGameAttendance(activeTab.value)
+      await attendance.clearGameAttendance(gameId)
       toast.success('Посещаемость игры очищена')
     },
   })
 }
 
 async function confirmSkipGame() {
+  const gameId = activeTab.value
+  const restore = isActiveGameSkipped.value
   const game = activeGameMeta.value
+  const date = currentGame.value?.date || game?.date || ''
   requestConfirmation({
-    title: isActiveGameSkipped.value ? 'Вернуть игру' : 'Пропустить игру',
-    message: isActiveGameSkipped.value
+    title: restore ? 'Вернуть игру' : 'Пропустить игру',
+    message: restore
       ? 'Убрать отметку пропуска с текущей игры?'
       : 'Пометить текущую игру как не состоявшуюся?',
-    details: isActiveGameSkipped.value
+    details: restore
       ? ['После возврата игра снова попадёт в завершение недели, если не будет пропущена повторно.']
       : [
           'Посещаемость по этой игре будет очищена.',
           'При завершении недели игра не попадёт в архив и не изменит статистику.',
           'Расстановка и миссия останутся на экране до общей очистки недели.',
         ],
-    confirmLabel: isActiveGameSkipped.value ? 'Вернуть' : 'Пропустить',
+    confirmLabel: restore ? 'Вернуть' : 'Пропустить',
     tone: 'warning',
     onConfirm: async () => {
-      if (isActiveGameSkipped.value) {
-        await attendance.clearGameAttendance(activeTab.value, { action: 'restore', eventType: 'game.restored' })
+      if (restore) {
+        await attendance.restoreGame(gameId)
         toast.success('Игра возвращена в недельный цикл')
         return
       }
 
-      await attendance.skipGame(activeTab.value, {
-        date: currentGame.value?.date || game?.date || '',
-      })
+      await attendance.skipGame(gameId, { date })
       toast.success('Игра помечена как пропущенная')
     },
   })
 }
 
 async function confirmClearGame() {
+  const gameId = activeTab.value
   requestConfirmation({
     title: 'Удалить миссию',
     message: 'Удалить текущую миссию вместе с расстановкой?',
@@ -745,7 +750,6 @@ async function confirmClearGame() {
     confirmLabel: 'Удалить',
     tone: 'danger',
     onConfirm: () => {
-      const gameId = activeTab.value
       return runAuditOperation({ action: 'clear', eventType: 'game.cleared', entityType: 'games', entityId: gameId },
         async (audit, completed) => {
           await gamesStore.clearGame(gameId, audit)

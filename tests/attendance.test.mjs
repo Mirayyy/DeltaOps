@@ -115,3 +115,117 @@ test('an old browser cannot add attendance to a game cancelled by another admin'
   assert.deepEqual(h.docs.get('attendance/friday_1').records, [])
   assert.equal(h.writes.length, 0)
 })
+
+test('restoring a skipped game only removes its skipped flag and preserves any records', async () => {
+  const h = await setup()
+  const original = { ...game([record('p1')]), skipped: true, skippedReason: 'game-cancelled' }
+  h.docs.set('attendance/friday_1', copy(original))
+  await h.store.restoreGame('friday_1')
+  const restored = h.docs.get('attendance/friday_1')
+  assert.equal(restored.skipped, false)
+  assert.equal(restored.date, original.date)
+  assert.deepEqual(restored.records, original.records)
+  assert.equal(h.logs()[0].eventType, 'game.restored')
+  assert.equal(h.logs()[0].action, 'restore')
+})
+
+test('a delayed restore does not delete records entered after another admin restored the game', async () => {
+  const h = await setup()
+  h.docs.set('attendance/friday_1', { ...game([]), skipped: true })
+  const restored = game([record('p1'), record('p2')])
+  let attempts = 0
+  h.hooks.beforeWrite = async ref => {
+    if (ref.path === 'attendance/friday_1' && ++attempts === 1) h.docs.set(ref.path, copy(restored))
+  }
+  await h.store.restoreGame('friday_1')
+  assert.deepEqual(h.docs.get('attendance/friday_1'), restored)
+  assert.equal(h.writes.length, 0)
+})
+
+test('restoring a missing game does not create a document', async () => {
+  const h = await setup()
+  await h.store.restoreGame('friday_1')
+  assert.equal(h.docs.has('attendance/friday_1'), false)
+  assert.equal(h.writes.length, 0)
+})
+
+test('a skip clears only the target game and repeated skips do not repeat writes', async () => {
+  const h = await setup()
+  const original = game([record('p1'), record('p2')])
+  h.docs.set('attendance/friday_1', copy(original))
+  const other = { ...game([record('p3')]), schedule: 'friday_2' }
+  h.docs.set('attendance/friday_2', copy(other))
+  await h.store.skipGame('friday_1', { date: original.date })
+  await h.store.skipGame('friday_1', { date: original.date })
+  assert.equal(h.docs.get('attendance/friday_1').skipped, true)
+  assert.deepEqual(h.docs.get('attendance/friday_1').records, [])
+  assert.deepEqual(h.docs.get('attendance/friday_2'), other)
+  assert.equal(h.writes.filter(w => w.path === 'attendance/friday_1').length, 1)
+  const logs = h.logs().filter(l => l.eventType === 'game.skipped')
+  assert.equal(logs.length, 1)
+  assert.deepEqual(logs[0].before.records, original.records)
+})
+
+test('clearing a lineup or mission does not touch attendance', async () => {
+  const h = await setup()
+  const original = game([record('p1')])
+  h.docs.set('attendance/friday_1', copy(original))
+  h.docs.set('games/friday_1', { slots: [] })
+  h.docs.set('missions/friday_1', { title: 'Test' })
+  const { useGamesStore } = await h.load('src/stores/games.js')
+  const { useMissionsStore } = await h.load('src/stores/missions.js')
+  await useGamesStore().clearGame('friday_1')
+  await useMissionsStore().clearMission('friday_1')
+  assert.deepEqual(h.docs.get('attendance/friday_1'), original)
+  assert.equal(h.docs.has('games/friday_1'), false)
+  assert.equal(h.docs.has('missions/friday_1'), false)
+})
+
+test('single-game attendance clear does not affect other games, missions, lineups or archives', async () => {
+  const h = await setup()
+  for (const key of ['attendance/friday_1', 'attendance/friday_2', 'games/friday_1', 'missions/friday_1', 'archive/history']) {
+    h.docs.set(key, game([record('p1')]))
+  }
+  const original = new Map([...h.docs].map(([key, value]) => [key, copy(value)]))
+  await h.store.clearGameAttendance('friday_1')
+  assert.equal(h.docs.has('attendance/friday_1'), false)
+  for (const [key, value] of original) {
+    if (key !== 'attendance/friday_1') assert.deepEqual(h.docs.get(key), value)
+  }
+})
+
+test('whole-week attendance clear affects four games and records one operation id', async () => {
+  const h = await setup()
+  const gameIds = ['friday_1', 'friday_2', 'saturday_1', 'saturday_2']
+  for (const id of gameIds) h.docs.set(`attendance/${id}`, { ...game([record('p1')]), schedule: id })
+  h.docs.set('archive/history', { records: [record('p1')] })
+  await h.store.clearAttendance({ operationId: 'week-reset' })
+  for (const id of gameIds) assert.equal(h.docs.has(`attendance/${id}`), false)
+  assert.deepEqual(h.docs.get('archive/history').records, [record('p1')])
+  assert.equal(h.logs().length, 4)
+  for (const log of h.logs()) {
+    assert.equal(log.eventType, 'attendance.cleared')
+    assert.equal(log.operationId, 'week-reset')
+  }
+})
+
+test('a failed weekly attendance clear cannot leave only Friday 1 deleted', async () => {
+  const h = await setup()
+  const gameIds = ['friday_1', 'friday_2', 'saturday_1', 'saturday_2']
+  for (const id of gameIds) h.docs.set(`attendance/${id}`, { ...game([record('p1')]), schedule: id })
+  const original = new Map([...h.docs].map(([key, value]) => [key, copy(value)]))
+  h.failures.add('attendance/friday_2')
+  await assert.rejects(h.store.clearAttendance(), { code: 'permission-denied' })
+  for (const [key, value] of original) assert.deepEqual(h.docs.get(key), value)
+  assert.equal(h.logs().filter(l => l.outcome === 'success').length, 0)
+})
+
+test('weekly clear waits for queued edits and later edits wait for the clear', async () => {
+  const h = await setup()
+  h.docs.set('attendance/friday_1', game([record('p1')]))
+  const before = h.store.setPlayerAttendance('friday_1', 'p2', 'confirmed')
+  const clear = h.store.clearAttendance()
+  const after = h.store.setPlayerAttendance('friday_1', 'p3', 'tentative')
+  await Promise.all([before, clear, after])
+  assert.deepEqual(h.docs.get('attendance/friday_1').records, [record('p3', 'tentative')])
+})

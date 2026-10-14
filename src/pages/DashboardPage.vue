@@ -257,6 +257,7 @@ async function skipCurrentWeek() {
 }
 
 function requestConfirmation(config) {
+  if (confirmBusy.value) return
   confirmAction.value = config
 }
 
@@ -266,7 +267,7 @@ function closeConfirmation() {
 }
 
 async function handleConfirm() {
-  if (!confirmAction.value?.onConfirm) return
+  if (confirmBusy.value || !confirmAction.value?.onConfirm) return
   confirmBusy.value = true
   try {
     await confirmAction.value.onConfirm()

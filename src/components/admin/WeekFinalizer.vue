@@ -108,7 +108,7 @@ const preview = computed(() => {
  * - optics: auto-derived from equipment (already on slot)
  */
 async function finalize() {
-  if (!canFinalize.value) return
+  if (processing.value || !canFinalize.value) return
   processing.value = true
   try {
     const weekGames = cloneForAudit(games.value)
@@ -182,7 +182,7 @@ async function finalize() {
 </script>
 
 <template>
-  <BaseModal title="Завершить неделю" @close="emit('close')">
+  <BaseModal title="Завершить неделю" @close="!processing && emit('close')">
     <div class="space-y-4">
       <p class="text-sm text-neutral-400">Итоги недели будут архивированы. Статусы обработаются автоматически.</p>
 
@@ -262,7 +262,7 @@ async function finalize() {
 
       <!-- Actions -->
       <div class="flex justify-end gap-3">
-        <button @click="emit('close')" class="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors">
+        <button @click="!processing && emit('close')" :disabled="processing" class="px-4 py-2 text-sm text-neutral-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           Отмена
         </button>
         <button @click="finalize" :disabled="processing || !canFinalize"

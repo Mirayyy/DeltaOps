@@ -67,11 +67,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     unsubscribes.push(unsub)
   }
 
-  async function saveAttendanceFirestore(gameId, data) {
-    const { doc, setDoc, serverTimestamp, db } = await import('../firebase/firestore')
-    await setDoc(doc(db, 'attendance', gameId), { ...data, updatedAt: serverTimestamp() }, { merge: true })
-  }
-
   async function deleteAttendanceFirestore(gameId) {
     const { doc, deleteDoc, db } = await import('../firebase/firestore')
     await deleteDoc(doc(db, 'attendance', gameId))
@@ -89,19 +84,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const pending = new Map()
   function enqueue(gameId, work) {
-    const task = (pending.get(gameId) || Promise.resolve()).catch(() => {}).then(work)
-    pending.set(gameId, task)
-    task.finally(() => { if (pending.get(gameId) === task) pending.delete(gameId) }).catch(() => {})
+    const gameIds = Array.isArray(gameId) ? gameId : [gameId]
+    const task = Promise.all(gameIds.map(id => (pending.get(id) || Promise.resolve()).catch(() => {}))).then(work)
+    for (const id of gameIds) pending.set(id, task)
+    task.finally(() => {
+      for (const id of gameIds) if (pending.get(id) === task) pending.delete(id)
+    }).catch(() => {})
     return task
-  }
-
-  async function persist(gameId, before, after, eventType, metadata = {}, options = {}) {
-    const next = cloneForAudit(after)
-    await auditedWrite({ ...options, action: options.action || 'update', eventType,
-      entityType: 'attendance', entityId: gameId, before, after: next, metadata,
-    }, () => next ? saveAttendanceFirestore(gameId, next) : deleteAttendanceFirestore(gameId))
-    if (next) attendance.value[gameId] = next
-    else delete attendance.value[gameId]
   }
 
   // The local snapshot can be empty or stale. Read and change the server document
@@ -120,14 +109,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
         const after = cloneForAudit(before) || { schedule: gameId, date: '', records: [] }
         const details = mutate(after)
         if (!details) return null
-        attempt = { ...audit, action: 'update', eventType, entityType: 'attendance', entityId: gameId,
+        attempt = { ...audit, action: options.action || 'update', eventType, entityType: 'attendance', entityId: gameId,
           before, after, metadata: { ...metadata, ...details },
         }
         transaction.set(target, { ...after, updatedAt: serverTimestamp() }, { merge: true })
         return attempt
       })
     } catch (error) {
-      await writeAuditLog({ ...(attempt || { ...audit, action: 'update', eventType,
+      await writeAuditLog({ ...(attempt || { ...audit, action: options.action || 'update', eventType,
         entityType: 'attendance', entityId: gameId, metadata }), outcome: 'failure', severity: 'error',
         metadata: { ...(attempt?.metadata || metadata), error: { code: error.code || '', message: error.message || String(error) } },
       })
@@ -205,21 +194,56 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const snap = await getDoc(doc(db, 'attendance', gameId))
       if (!snap.exists()) return
       const before = cloneForAudit(snap.data())
-      await persist(gameId, before, null, options.eventType || 'attendance.cleared', {}, { ...options, action: options.action || 'clear' })
+      await auditedWrite({ ...options, action: options.action || 'clear',
+        eventType: options.eventType || 'attendance.cleared', entityType: 'attendance', entityId: gameId,
+        before, after: null,
+      }, () => deleteAttendanceFirestore(gameId))
+      delete attendance.value[gameId]
     })
   }
 
   function skipGame(gameId, { date = '', ...options } = {}) {
-    return enqueue(gameId, async () => {
-      const before = cloneForAudit(getGameAttendance(gameId))
-      const after = { schedule: gameId, date, records: [], skipped: true, skippedReason: 'game-cancelled' }
-      await persist(gameId, before, after, 'game.skipped', {}, { ...options, action: 'skip' })
-    })
+    return enqueue(gameId, () => updateAttendance(gameId, after => {
+      if (after.skipped) return
+      Object.assign(after, { schedule: gameId, date, records: [], skipped: true, skippedReason: 'game-cancelled' })
+      return {}
+    }, 'game.skipped', {}, { ...options, action: 'skip' }))
+  }
+
+  function restoreGame(gameId, options = {}) {
+    return enqueue(gameId, () => updateAttendance(gameId, after => {
+      if (!after.skipped) return
+      after.skipped = false
+      after.skippedReason = ''
+      return {}
+    }, 'game.restored', {}, { ...options, action: 'restore' }))
   }
 
   async function clearAttendance(options = {}) {
-    const audit = { ...options, operationId: options.operationId || newAuditOperationId() }
-    for (const gameId of GAME_IDS) await clearGameAttendance(gameId, audit)
+    const audit = { ...options, operationId: options.operationId || newAuditOperationId(), ...captureAuditContext(options) }
+    return enqueue(GAME_IDS, async () => {
+      const { doc, getDoc, writeBatch, db } = await import('../firebase/firestore')
+      const snapshots = await Promise.all(GAME_IDS.map(id => getDoc(doc(db, 'attendance', id))))
+      const existing = snapshots.filter(snap => snap.exists())
+      if (!existing.length) return
+      const batch = writeBatch(db)
+      for (const snap of existing) batch.delete(snap.ref)
+      const entries = existing.map(snap => ({ ...audit, action: options.action || 'clear',
+        eventType: options.eventType || 'attendance.cleared', entityType: 'attendance', entityId: snap.id,
+        before: cloneForAudit(snap.data()), after: null, metadata: { gameIds: existing.map(s => s.id) },
+      }))
+      // All four attendance documents are deleted together, or none are deleted.
+      try {
+        await batch.commit()
+      } catch (error) {
+        for (const entry of entries) await writeAuditLog({ ...entry, outcome: 'failure', severity: 'error',
+          metadata: { ...entry.metadata, error: { code: error.code || '', message: error.message || String(error) } },
+        })
+        throw error
+      }
+      for (const snap of existing) delete attendance.value[snap.id]
+      for (const entry of entries) await writeAuditLog({ ...entry, outcome: 'success' })
+    })
   }
 
   function cleanup() {
@@ -232,6 +256,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     getGameAttendance, getPlayerAttendance, getPlayerReadiness,
     isGameSkipped, summary, unrespondedPlayers,
     fetchAttendance, setPlayerAttendance, applyAttendancePresets, setDate,
-    clearGameAttendance, skipGame, clearAttendance, cleanup,
+    clearGameAttendance, skipGame, restoreGame, clearAttendance, cleanup,
   }
 })
